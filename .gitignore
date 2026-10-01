@@ -1,0 +1,21 @@
+# Dependencies & build output
+node_modules/
+dist/
+*.zip
+
+# Generated at install/build time (scripts/copy-vendor.js)
+renderer/vendor/
+
+# Generated test data (test/make-samples.js) and test results
+test/samples/
+test/pool/
+test/data/
+test/out/
+test/*.txt
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+*.log

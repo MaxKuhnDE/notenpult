@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Tests & Windows-Build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Abhängigkeiten (inkl. Electron-Laufzeit und pdf.js)
+        run: npm ci
+
+      - name: UI-Tests
+        run: npm test
+
+      - name: Test-Screenshots hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-screenshots
+          path: test/out
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: App bauen
+        run: npm run package
+
+      - name: App hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notenpult-win32-x64
+          path: dist/Notenpult-win32-x64
+          retention-days: 14

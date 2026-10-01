@@ -1,0 +1,26 @@
+{
+  "name": "notenpult",
+  "productName": "Notenpult",
+  "version": "1.1.0",
+  "description": "Notenpult – Noten, Setlists, Stimmen und Stift-Anmerkungen für Blasmusik (Windows)",
+  "main": "main.js",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MaxKuhnDE/notenpult.git"
+  },
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js && node scripts/copy-vendor.js",
+    "vendor": "node scripts/copy-vendor.js",
+    "start": "node scripts/copy-vendor.js && electron .",
+    "test": "node scripts/run-tests.js",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-icon.ps1",
+    "samples": "node test/make-samples.js",
+    "package": "node scripts/copy-vendor.js && electron-packager . Notenpult --platform=win32 --arch=x64 --out=dist --overwrite --asar --icon=build/icon.ico --ignore=^/dist --ignore=^/scripts --ignore=^/test --ignore=^/docs --ignore=^/\\.github --ignore=\\.md$ --app-copyright=Notenpult --win32metadata.ProductName=Notenpult --win32metadata.FileDescription=Notenpult --win32metadata.CompanyName=Notenpult"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^44.5.1",
+    "pdfjs-dist": "^6.3.289"
+  }
+}

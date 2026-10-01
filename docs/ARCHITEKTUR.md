@@ -1,0 +1,74 @@
+# Architektur
+
+Notenpult ist eine Electron-App. Die Oberfläche ist reines JavaScript (ES-Module) ohne Framework und
+ohne Build-Schritt; pdf.js rendert die Noten.
+
+```
+main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-Scan, app://-Protokoll
+preload.js         sichere Brücke (contextBridge) → window.notenpult
+renderer/
+  index.html, styles.css
+  js/app.js        Start, Kopfzeile, Moduswechsel, Drag & Drop, Tastenkürzel
+  js/store.js      Datenmodell, Speichern, Migration, Backend (Electron bzw. IndexedDB im Browser)
+  js/render.js     pdf.js/Bilder → Canvas, Seitengeometrie, Drehung, Rand-Erkennung, Caches
+  js/viewer.js     Notenmodus: Layout, Blättern, Stift/Radierer, Stimmen, Suche, Nummernblock
+  js/ink.js        Anmerkungen: Speichern je Stück, Zeichnen, Radier-Treffer
+  js/library.js    A–Z-Bibliothek
+  js/setlists.js   Setlists, Nummern, Zehnerblöcke, Umordnen
+  js/editor.js     Stück bearbeiten: Stimmen, Seiten, Drehen, Aufteilen
+  js/importer.js   Import, automatisches Verknüpfen von Stimmen
+  js/sync.js       Noten-Pool (Google-Drive-Ordner): Abgleich, Offline-Kopien
+  js/search.js     Suche über Bibliothek, Nummern, Setlists, Pool
+  js/settings.js   Einstellungen, Pool-Einrichtung
+  js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
+scripts/           copy-vendor (pdf.js), make-icon, run-tests
+test/              UI-Tests (laufen in der echten App) + Generator für Beispielnoten
+```
+
+## Datenmodell (`Dokumente\Notenpult\notenpult.json`, Version 2)
+
+```js
+{
+  version: 2,
+  pieces: [{
+    id, title, addedAt,
+    part: 0,                                  // aktive Stimme
+    parts: [{ id, name: '1. Stimme',
+              pages: [{ id, file: 'a1b2….pdf', page: 1, rot: 90?, crop: { f, v, r: [x, y, w, h] }? }] }],
+  }],
+  setlists: [{ id, name, entries: [{ id, pieceId, number: '47' }] }],
+  settings: { theme, invertSheets, portraitLayout, landscapeLayout, autoCrop, … },
+  sync: { folder, mode, structure, filter, lastSync,
+          files: { 'Polkas\\X\\Flügelhorn 1.pdf': { size, mtime, file, pieceId, partId, ignored? } },
+          folders: { 'Polkas\\X': pieceId } },
+  ui: { mode, setlistId },
+}
+```
+
+- Importierte Dateien werden nach `Noten\` kopiert und über einen zufälligen Namen referenziert.
+- `page.id` ist stabil: Anmerkungen (`Anmerkungen\<pieceId>.json`) hängen an der Seiten-ID und überleben
+  Umordnen, Aufteilen, Verknüpfen und Aktualisierungen aus dem Noten-Pool.
+- Anmerkungen liegen in Koordinaten der **ungedrehten, ungeschnittenen** Seite; `viewTransform()` bildet
+  sie auf die angezeigte (gedrehte/geschnittene) Box ab.
+- Version-1-Daten (Seiten direkt am Stück) werden in `store.init()` migriert.
+
+## Notenmodus
+
+- Layout „auto“ teilt die Seiten eines Stücks in Bildschirme: zwei Seiten nebeneinander oder
+  untereinander, wenn jede Seite dabei mindestens 85 % ihrer Einzelgröße behält (`pairDirection`).
+- Navigation läuft über eine Warteschlange (`enqueue`), damit schnelle Taps nicht verloren gehen;
+  die nächsten zwei und der vorige Bildschirm werden im Hintergrund gerendert.
+- Eingabe über Pointer Events: `pen` schreibt, `touch`/`mouse` blättert, Radierer = `buttons & 32`
+  bzw. Stifttaste; Touches kurz nach Stiftaktivität werden ignoriert.
+
+## Noten-Pool
+
+`main.js` liest den Ordner rekursiv (`pool:scan`, Ergebnis wird als `pool-index.json` zwischengespeichert),
+`sync.js` entscheidet, was neu, geändert oder ignoriert ist, und kopiert Dateien über den normalen Import.
+Ist der Ordner nicht erreichbar, bleibt alles lokal nutzbar; die Suche nutzt den letzten Index.
+
+## Tests
+
+`npm test` → `scripts/run-tests.js` startet die App mit `NOTENPULT_TEST=<skript>` und einem leeren
+Datenordner. `main.js` spritzt das Skript nach dem Laden ein; es steuert die Oberfläche über echte DOM-
+und Pointer-Events und meldet `PASS …`/`FAIL …`. Das Fenster ist dabei unsichtbar.
