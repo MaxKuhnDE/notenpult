@@ -6,6 +6,7 @@ ohne Build-Schritt; pdf.js rendert die Noten.
 ```
 main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-Scan, app://-Protokoll
 preload.js         sichere Brücke (contextBridge) → window.notenpult
+updater/           In-App-Updates aus GitHub-Releases (siehe unten)
 renderer/
   index.html, styles.css
   js/app.js        Start, Kopfzeile, Moduswechsel, Drag & Drop, Tastenkürzel
@@ -69,6 +70,22 @@ test/              UI-Tests (laufen in der echten App) + Generator für Beispiel
 `main.js` liest den Ordner rekursiv (`pool:scan`, Ergebnis wird als `pool-index.json` zwischengespeichert),
 `sync.js` entscheidet, was neu, geändert oder ignoriert ist, und kopiert Dateien über den normalen Import.
 Ist der Ordner nicht erreichbar, bleibt alles lokal nutzbar; die Suche nutzt den letzten Index.
+
+## Updates
+
+```
+updater/index.js         Hauptprozess: GitHub-Release abfragen, Download mit SHA-256-Prüfung, ZIP entpacken (tar.exe)
+updater/apply-update.ps1 läuft nach dem Beenden: tauscht resources\app.asar bzw. spiegelt die ganze App, startet neu
+renderer/js/updates.js   Einstellungen → Updates, automatische Suche beim Start, Punkt am Einstellungen-Knopf
+```
+
+1. `update:check` liest `releases/latest` und `update.json`. Ist die Electron-Version gleich, reicht `app.asar`
+   (enthält main.js, preload.js, renderer, pdf.js), sonst kommt das ZIP.
+2. `update:install` lädt in `%TEMP%\notenpult-update-<version>` (über `original-fs`, weil Electrons `fs` jede
+   `*.asar`-Datei als Archiv behandelt), prüft Größe und Digest, startet `apply-update.ps1` losgelöst und beendet
+   die App.
+3. Das Skript wartet auf das Ende des Prozesses, ersetzt die Dateien (nur in einem Ordner mit `Notenpult.exe`),
+   schreibt `apply-update.log` und startet Notenpult neu. Die Daten in `Dokumente\Notenpult` werden nie angefasst.
 
 ## Tests
 

@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = {
   penWidth: 'medium', // 'fine' | 'medium' | 'bold'
   showNextHint: true,
   tensBlocks: true,
+  autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
 };
 
 export const DEFAULT_SYNC = {
@@ -74,6 +75,9 @@ const electronBackend = {
   pickFolder: (opts) => native.pickFolder(opts),
   poolScan: (folder) => native.poolScan(folder),
   detectGoogleDrive: () => native.detectGoogleDrive(),
+  updateCheck: () => native.updateCheck(),
+  updateInstall: () => native.updateInstall(),
+  onUpdateProgress: (cb) => native.onUpdateProgress(cb),
   openDataDir: () => native.openDataDir(),
   info: () => native.info(),
   setFullscreen: (on) => native.setFullscreen(on),
@@ -152,8 +156,11 @@ const webBackend = {
   pickFolder: async () => null,
   poolScan: async (folder) => ({ ok: false, error: 'Im Browser nicht verfügbar', folder, files: [] }),
   detectGoogleDrive: async () => null,
+  updateCheck: async () => ({ ok: false, error: 'Updates gibt es nur in der Windows-App.' }),
+  updateInstall: async () => { throw new Error('Updates gibt es nur in der Windows-App.'); },
+  onUpdateProgress: () => () => {},
   openDataDir: async () => {},
-  info: async () => ({ dataDir: 'Browser-Speicher (IndexedDB)', version: 'web' }),
+  info: async () => ({ dataDir: 'Browser-Speicher (IndexedDB)', version: 'web', packaged: false }),
   async setFullscreen(on) {
     if (on && !document.fullscreenElement) await document.documentElement.requestFullscreen?.();
     if (!on && document.fullscreenElement) await document.exitFullscreen?.();

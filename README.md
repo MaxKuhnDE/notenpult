@@ -53,10 +53,16 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 - **Umbenennen** auf einen vorhandenen Namen führt beide Genres zusammen; Löschen entfernt nur das Genre,
   nicht die Stücke.
 
-## Installation
+## Installation & Updates
 
 Fertige Builds gibt es unter **Releases** (`Notenpult-win32-x64.zip`): entpacken und `Notenpult.exe`
 starten. Selbst bauen: siehe [Entwicklung](#entwicklung).
+
+**Updates** kommen danach direkt in der App: *Einstellungen → Updates → „Nach Updates suchen“*, dann
+*„Jetzt aktualisieren“*. Notenpult lädt die neue Version, prüft sie (SHA-256), tauscht die Programmdateien und
+startet neu. Meist wird nur der App-Teil geladen (wenige MB), das komplette Paket nur bei einer neuen
+Electron-Laufzeit. Noten, Setlists, Stimmen und Anmerkungen in `Dokumente\Notenpult` bleiben unberührt.
+Auf Wunsch sucht die App beim Start selbst und zeigt einen roten Punkt am Einstellungen-Knopf.
 
 ## Bedienung im Notenmodus
 

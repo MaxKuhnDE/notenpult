@@ -5,7 +5,16 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.2.0] – 2026-10-01
+
 ### Hinzugefügt
+- **Update-Knopf** unter Einstellungen → Updates: sucht die neueste Version auf GitHub, zeigt was neu ist und
+  installiert sie mit einem Tipp – Notenpult startet danach neu. Meist wird nur der App-Teil (wenige MB) geladen,
+  das komplette Paket nur bei einer neuen Laufzeit. Download wird per SHA-256 geprüft; Noten, Setlists und
+  Anmerkungen bleiben unberührt.
+- Optional automatische Suche beim Start mit Hinweis und rotem Punkt am Einstellungen-Knopf.
+- Releases entstehen automatisch: Erhöht ein gemergter Pull Request die Version, baut GitHub Actions das Release
+  (`app.asar`, ZIP, `update.json`) mit den Notizen aus diesem Changelog.
 - Genres als Hashtags (#Marsch, #Polka, …): eigene Genres anlegen, umbenennen (auch zusammenführen) und löschen,
   Vorschläge per Antippen.
 - Zuordnen über das Stück-Menü „Genres …“, im Stück-Editor oder gesammelt pro Genre („Stücke zuordnen“).
@@ -46,5 +55,6 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Stift-Anmerkungen in Rot und Schwarz, Radierer-Ende, Rückgängig, Handballen-Erkennung.
 - Dunkelmodus, invertierte Noten, Hoch- und Querformat.
 
-[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.1.0
+[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.2.0
+[1.1.0]: https://github.com/MaxKuhnDE/notenpult/commits/main

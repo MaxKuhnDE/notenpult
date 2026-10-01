@@ -1,35 +1,84 @@
 name: Release
 
+# Publishes a release automatically whenever main has a version (package.json) that
+# is not released yet. The app's update button reads these releases:
+#   app.asar                 small update (Electron runtime unchanged)
+#   Notenpult-win32-x64.zip  complete app
+#   update.json              { version, electron }
+
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Windows-Release bauen
+    name: Release bei neuer Version
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - name: Neue Version?
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          "version=$v" >> $env:GITHUB_OUTPUT
+          gh release view "v$v" --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            "publish=false" >> $env:GITHUB_OUTPUT
+            Write-Host "v$v ist schon veröffentlicht – nichts zu tun."
+          } else {
+            "publish=true" >> $env:GITHUB_OUTPUT
+            Write-Host "Neue Version v$v wird veröffentlicht."
+          }
+          $global:LASTEXITCODE = 0
+
+      - if: steps.version.outputs.publish == 'true'
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
 
-      - run: npm ci
-      - run: npm test
-      - run: npm run package
+      - if: steps.version.outputs.publish == 'true'
+        run: npm ci
 
-      - name: ZIP erstellen
+      - if: steps.version.outputs.publish == 'true'
+        run: npm test
+
+      - if: steps.version.outputs.publish == 'true'
+        run: npm run package
+
+      - name: Release-Dateien
+        if: steps.version.outputs.publish == 'true'
         shell: pwsh
-        run: Compress-Archive -Path dist/Notenpult-win32-x64/* -DestinationPath Notenpult-win32-x64.zip
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          Compress-Archive -Path dist/Notenpult-win32-x64/* -DestinationPath Notenpult-win32-x64.zip
+          Copy-Item dist/Notenpult-win32-x64/resources/app.asar app.asar
+          $electron = (Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version
+          @{ version = $v; electron = $electron } | ConvertTo-Json | Set-Content -Encoding utf8NoBOM update.json
+          node scripts/release-notes.js $v | Set-Content -Encoding utf8NoBOM notes.md
+          Get-Content update.json
 
-      - name: GitHub-Release anlegen
+      - name: Veröffentlichen
+        if: steps.version.outputs.publish == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" Notenpult-win32-x64.zip --title "Notenpult ${{ github.ref_name }}" --generate-notes
+        run: >
+          gh release create "v${{ steps.version.outputs.version }}"
+          Notenpult-win32-x64.zip app.asar update.json
+          --target "${{ github.sha }}"
+          --title "Notenpult ${{ steps.version.outputs.version }}"
+          --notes-file notes.md
