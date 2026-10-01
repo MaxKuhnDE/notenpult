@@ -11,6 +11,8 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 - **Setlists**: beliebig viele, eigene Reihenfolge per Ziehen, Nummern aus dem Notenordner (z. B. 1–120 bei
   60 Stücken), Anzeige in Zehnerblöcken, „Nach Nummer sortieren“, „Nummern fortlaufend vergeben“.
 - **A–Z-Bibliothek**: alphabetisch gruppiert, Buchstabenleiste zum Springen, Suche.
+- **Genres**: eigene Hashtags wie `#Marsch`, `#Polka`, `#Kirche` – mehrere pro Stück, als Filter-Chips in der
+  Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
   Stück. Zurück per Wischen nach rechts, Rechtsklick, ◀ oder Pfeiltaste. Fußpedale (Bild ↑/↓) funktionieren.
 - **Nummer eingeben**: Im Notenmodus einfach die Nummer tippen, schon springt die App zum Stück.
@@ -34,6 +36,20 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 | Nummernblock | Suche im Noten-Pool | Stück bearbeiten |
 | --- | --- | --- |
 | ![Nummernblock](docs/screenshots/nummernblock.png) | ![Suche](docs/screenshots/suche-noten-pool.png) | ![Bearbeiten](docs/screenshots/stueck-bearbeiten.png) |
+
+![Genres als Filter](docs/screenshots/genres.png)
+
+## Genres
+
+- **Anlegen**: A–Z → „Genres“ (oder „Verwalten“ in der Chip-Leiste). Eigene Namen, `#` davor ist egal;
+  Vorschläge wie Marsch, Polka, Walzer lassen sich antippen.
+- **Zuordnen**: im Menü eines Stücks „Genres …“, im Stück-Editor, oder unter „Genres“ → „Stücke zuordnen“ alle
+  passenden Stücke auf einmal anhaken.
+- **Suchen**: Chips über der A–Z-Liste antippen (mehrere = „oder“), `#polka` ins Suchfeld tippen, oder in der
+  globalen Suche (Strg+F) auf ein Genre tippen. Beim Zusammenstellen einer Setlist filtern die Chips ebenfalls –
+  „Alle angezeigten wählen“ nimmt z. B. alle Märsche auf einmal.
+- **Umbenennen** auf einen vorhandenen Namen führt beide Genres zusammen; Löschen entfernt nur das Genre,
+  nicht die Stücke.
 
 ## Installation
 

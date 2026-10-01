@@ -10,10 +10,10 @@ import {
 } from './ui.js';
 import { importFromPicker } from './importer.js';
 import { openViewer } from './viewer.js';
+import { searchPieces } from './search.js';
+import { genreFilterBar, genreTags, matchesGenres } from './genres.js';
 
 let showDetail = false; // narrow screens: list pane vs. detail pane
-
-const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function currentSetlist() {
   return setlistById(db.ui.setlistId) || db.setlists[0] || null;
@@ -286,13 +286,25 @@ function openAddPieces(setlistId) {
   if (!s) return;
   const picked = [];
   let query = '';
+  let shown = [];
+  const genreFilter = new Set();
   const list = h('div.pick-list');
+  const barHolder = h('div.genre-bar-holder.in-dialog');
   const startNr = h('input.text-input.nr-start', { type: 'text', inputmode: 'numeric', placeholder: 'leer lassen', maxlength: '6', 'data-select-all': 'false' });
   let addBtn;
 
+  const renderBar = () => {
+    const bar = genreFilterBar(genreFilter, () => {
+      renderBar();
+      renderList();
+    }, { manage: false });
+    barHolder.replaceChildren(...(bar ? [bar] : []));
+  };
+
   const renderList = () => {
-    const q = norm(query.trim());
-    const pieces = sortedPieces().filter((p) => !q || norm(p.title).includes(q));
+    const hits = query.trim() ? new Set(searchPieces(query)) : null;
+    const pieces = sortedPieces().filter((p) => (!hits || hits.has(p)) && matchesGenres(p, genreFilter));
+    shown = pieces;
     list.replaceChildren(...pieces.map((p) => {
       const idx = picked.indexOf(p.id);
       const inSet = s.entries.some((e) => e.pieceId === p.id);
@@ -306,6 +318,7 @@ function openAddPieces(setlistId) {
       },
       h('span.pick-check', null, idx >= 0 ? String(idx + 1) : ''),
       h('span.pick-title', null, p.title),
+      genreTags(p),
       inSet ? h('span.pick-badge', null, 'schon drin') : null,
       h('span.pick-meta', null, `${pagesOf(p).length} S.`));
     }));
@@ -319,7 +332,7 @@ function openAddPieces(setlistId) {
 
   const searchInput = h('input.search-input', {
     type: 'search',
-    placeholder: 'Stück suchen …',
+    placeholder: 'Stück oder #Genre suchen …',
     autofocus: true,
     oninput: () => {
       query = searchInput.value;
@@ -335,7 +348,13 @@ function openAddPieces(setlistId) {
         picked.push(...ids.filter((id) => !picked.includes(id)));
         renderList();
       }, { icon: 'import', kind: 'ghost' })),
-    h('p.muted.small', null, 'Antippen in der gewünschten Reihenfolge – die Zahl zeigt die Position.'),
+    barHolder,
+    h('div.pick-hint', null,
+      h('span.muted.small', null, 'Antippen in der gewünschten Reihenfolge – die Zahl zeigt die Position.'),
+      btn('Alle angezeigten wählen', () => {
+        for (const p of shown) if (!picked.includes(p.id)) picked.push(p.id);
+        renderList();
+      }, { kind: 'ghost', icon: 'check' })),
     list,
     h('label.nr-start-row', null, h('span', null, 'Nummern fortlaufend ab'), startNr));
 
@@ -359,6 +378,7 @@ function openAddPieces(setlistId) {
       },
     ],
   });
+  renderBar();
   renderList();
 }
 

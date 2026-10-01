@@ -12,7 +12,7 @@ const path = require('node:path');
 const electron = require('electron');
 
 const root = path.join(__dirname, '..');
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke.js', 'smoke2.js', 'migrate.js'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke.js', 'smoke2.js', 'smoke3.js', 'migrate.js'];
 const TIMEOUT_MS = 240000;
 
 /** Data folder as written by version 1.0 (pages directly on the piece, layout 'two'). */

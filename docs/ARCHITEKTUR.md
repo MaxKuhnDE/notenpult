@@ -18,7 +18,8 @@ renderer/
   js/editor.js     Stück bearbeiten: Stimmen, Seiten, Drehen, Aufteilen
   js/importer.js   Import, automatisches Verknüpfen von Stimmen
   js/sync.js       Noten-Pool (Google-Drive-Ordner): Abgleich, Offline-Kopien
-  js/search.js     Suche über Bibliothek, Nummern, Setlists, Pool
+  js/search.js     Suche über Bibliothek, Nummern, Genres (#tag), Setlists, Pool
+  js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
   js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
 scripts/           copy-vendor (pdf.js), make-icon, run-tests
@@ -32,11 +33,13 @@ test/              UI-Tests (laufen in der echten App) + Generator für Beispiel
   version: 2,
   pieces: [{
     id, title, addedAt,
+    genres: ['Marsch', 'Konzert'],            // Namen aus der Genre-Liste
     part: 0,                                  // aktive Stimme
     parts: [{ id, name: '1. Stimme',
               pages: [{ id, file: 'a1b2….pdf', page: 1, rot: 90?, crop: { f, v, r: [x, y, w, h] }? }] }],
   }],
   setlists: [{ id, name, entries: [{ id, pieceId, number: '47' }] }],
+  genres: [{ name: 'Marsch' }],               // eigene Genres (#Hashtags)
   settings: { theme, invertSheets, portraitLayout, landscapeLayout, autoCrop, … },
   sync: { folder, mode, structure, filter, lastSync,
           files: { 'Polkas\\X\\Flügelhorn 1.pdf': { size, mtime, file, pieceId, partId, ignored? } },
