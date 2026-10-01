@@ -6,8 +6,8 @@ const native = window.notenpult || null;
 export const DEFAULT_SETTINGS = {
   theme: 'system', // 'system' | 'light' | 'dark'
   invertSheets: false, // Noten im Dunkelmodus hell-auf-dunkel darstellen
-  portraitLayout: 'auto', // 'auto' | 'single' | 'width'
-  landscapeLayout: 'auto', // 'auto' | 'single' | 'width'
+  portraitLayout: 'auto', // 'auto' | 'two' | 'pair2' | 'single' | 'width'
+  landscapeLayout: 'auto', // 'auto' | 'two' (immer zwei Seiten) | 'pair2' (nur 2-seitige Stücke) | 'single' | 'width'
   autoCrop: true, // weiße Ränder automatisch abschneiden
   leftZoneBack: false, // Tippen auf linkes Viertel blättert zurück
   penAlwaysDraws: true, // Stift schreibt immer, Finger/Maus blättern
@@ -236,8 +236,12 @@ export async function init() {
     db.pieces = (Array.isArray(saved.pieces) ? saved.pieces : []).map(migratePiece);
     db.setlists = Array.isArray(saved.setlists) ? saved.setlists : [];
     db.settings = { ...DEFAULT_SETTINGS, ...(saved.settings || {}) };
-    for (const k of ['portraitLayout', 'landscapeLayout']) {
-      if (db.settings[k] === 'two') db.settings[k] = 'auto';
+    // In 1.0, 'two' was the default landscape view; from 1.1 on 'auto' does that job better.
+    // ('two' is again a valid choice since 1.2: always two pages.)
+    if ((saved.version || 1) < 2) {
+      for (const k of ['portraitLayout', 'landscapeLayout']) {
+        if (db.settings[k] === 'two') db.settings[k] = 'auto';
+      }
     }
     db.sync = { ...structuredClone(DEFAULT_SYNC), ...(saved.sync || {}) };
     db.ui = { ...db.ui, ...(saved.ui || {}) };

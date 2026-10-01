@@ -193,9 +193,9 @@ function applyViewerTheme() {
 // ---------- layout ----------
 
 const isLandscape = () => window.innerWidth >= window.innerHeight;
+/** 'auto' | 'two' (always two pages) | 'pair2' (two pages only for 2-page pieces) | 'single' | 'width' */
 function layoutMode() {
-  const m = isLandscape() ? db.settings.landscapeLayout : db.settings.portraitLayout;
-  return m === 'two' ? 'auto' : m;
+  return isLandscape() ? db.settings.landscapeLayout : db.settings.portraitLayout;
 }
 const pieceAt = (qi) => pieceById(V.queue[qi].pieceId);
 
@@ -215,8 +215,11 @@ function viewsFor(refs) {
   })));
 }
 
-/** 'row' | 'column' if both pages fit well together, else null. */
-function pairDirection(a, b) {
+/**
+ * 'row' (side by side) | 'column' (stacked) – whichever keeps the pages larger.
+ * Returns null if even that shrinks a page below `minRatio` of its single-page size.
+ */
+function pairDirection(a, b, minRatio = PAIR_THRESHOLD) {
   const { aw, ah } = avail();
   const sa = fitScale(a, aw, ah);
   const sb = fitScale(b, aw, ah);
@@ -224,7 +227,7 @@ function pairDirection(a, b) {
   const halfH = (ah - GAP) / 2;
   const row = Math.min(fitScale(a, halfW, ah) / sa, fitScale(b, halfW, ah) / sb);
   const column = Math.min(fitScale(a, aw, halfH) / sa, fitScale(b, aw, halfH) / sb);
-  if (Math.max(row, column) < PAIR_THRESHOLD) return null;
+  if (Math.max(row, column) < minRatio) return null;
   return row >= column ? 'row' : 'column';
 }
 
@@ -236,11 +239,16 @@ function screensOf(qi) {
   if (!p) {
     p = (async () => {
       const pages = pagesOf(piece);
-      if (layoutMode() !== 'auto' || pages.length < 2) return pages.map((_, i) => ({ idx: [i], dir: 'single' }));
+      const mode = layoutMode();
+      const singles = () => pages.map((_, i) => ({ idx: [i], dir: 'single' }));
+      if (pages.length < 2 || mode === 'single' || mode === 'width') return singles();
+      if (mode === 'pair2' && pages.length !== 2) return singles();
       const views = await viewsFor(pages);
+      // 'two' and 'pair2' always pair; 'auto' only when the pages stay large enough.
+      const minRatio = mode === 'auto' ? PAIR_THRESHOLD : 0;
       const out = [];
       for (let i = 0; i < pages.length;) {
-        const dir = i + 1 < pages.length ? pairDirection(views[i], views[i + 1]) : null;
+        const dir = i + 1 < pages.length ? pairDirection(views[i], views[i + 1], minRatio) : null;
         if (dir) {
           out.push({ idx: [i, i + 1], dir });
           i += 2;
@@ -880,7 +888,9 @@ function openMore(anchor) {
   popMenu(anchor, [
     ...partItems,
     { heading: land ? 'Ansicht im Querformat' : 'Ansicht im Hochformat' },
-    { label: 'Automatisch (Bildschirm füllen)', icon: 'two', checked: cur === 'auto', onClick: () => setLayout('auto') },
+    { label: 'Automatisch (Bildschirm füllen)', icon: 'auto', checked: cur === 'auto', onClick: () => setLayout('auto') },
+    { label: 'Immer zwei Seiten', icon: 'two', checked: cur === 'two', onClick: () => setLayout('two') },
+    { label: 'Zwei Seiten nur bei 2-seitigen Stücken', icon: 'two', checked: cur === 'pair2', onClick: () => setLayout('pair2') },
     { label: 'Immer eine Seite', icon: 'single', checked: cur === 'single', onClick: () => setLayout('single') },
     { label: 'Seitenbreite (scrollen)', icon: 'width', checked: cur === 'width', onClick: () => setLayout('width') },
     {

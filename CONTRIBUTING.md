@@ -7,10 +7,19 @@
   - `feature/<kurzname>` für neue Funktionen (z. B. `feature/genres`)
   - `fix/<kurzname>` für Fehlerbehebungen
   - `docs/<kurzname>` für reine Doku
-- Fertige Änderungen gehen als **Pull Request** nach `main`. Die CI (GitHub Actions) muss grün sein:
-  Sie startet alle UI-Tests und baut die Windows-App. Screenshots der Tests und die gebaute App hängen
-  als Artefakte am Lauf.
-- Gemergt wird per „Squash and merge“, damit `main` pro Änderung einen sauberen Commit hat.
+- Fertige Änderungen gehen als **Pull Request** nach `main`. Die CI (GitHub Actions) startet alle UI-Tests
+  und baut die Windows-App. Screenshots der Tests und die gebaute App hängen als Artefakte am Lauf.
+- **Automatisches Mergen**: `main` ist geschützt – der Check „Tests & Windows-Build“ muss grün sein.
+  Jeder PR bekommt beim Öffnen Auto-Merge (Merge-Commit):
+
+```bash
+gh pr merge --auto --merge
+```
+
+  Sobald die CI grün ist, landet der PR in `main` und der Branch wird gelöscht. Ist die CI rot, bleibt der
+  PR offen, bis er repariert ist.
+- Bauen zwei offene PRs aufeinander auf (z. B. beide ändern `CHANGELOG.md`), wird der zweite auf den Branch des
+  ersten gesetzt (`git rebase`); dank Merge-Commits gehen beide nacheinander sauber durch.
 
 ## Commits
 

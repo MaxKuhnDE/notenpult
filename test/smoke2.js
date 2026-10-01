@@ -127,8 +127,37 @@
     await pagesReady();
     check('rotate back', !alte.parts[0].pages[0].rot);
     window.__np.closeViewer();
+
+    // --- Layout options: "Zwei Seiten" (always) and "Nur 2-seitige"
+    const nextAndWait = async () => {
+      const before = $('.v-sub').textContent;
+      window.__np.next();
+      await waitFor(() => $('.v-sub').textContent !== before, 5000, 'page turn');
+      await pagesReady();
+    };
+    db.settings.portraitLayout = 'two';
+    store.commit('settings');
+    window.__np.openViewer({ queue: [{ pieceId: alte.id, number: '' }], start: 0, context: { kind: 'library' } });
+    await pagesReady();
+    check('"Zwei Seiten" in portrait: A4 pages paired', boxes().length === 2, JSON.stringify(boxes()));
+    await nextAndWait();
+    check('"Zwei Seiten": odd last page alone', boxes().length === 1 && $('.v-sub').textContent.includes('Seite 3 von 3'), $('.v-sub').textContent);
+    window.__np.closeViewer();
     await T.resize(1280, 800);
-    await sleep(400);
+    await sleep(500);
+    db.settings.landscapeLayout = 'pair2';
+    store.commit('settings');
+    window.__np.openViewer({ queue: [flo, alte].map((p) => ({ pieceId: p.id, number: '' })), start: 0, context: { kind: 'library' } });
+    await pagesReady();
+    check('"Nur 2-seitige": 2-page piece on one screen', boxes().length === 2, $('.v-sub').textContent);
+    await shot('34-two-page-piece');
+    await nextAndWait();
+    check('"Nur 2-seitige": 3-page piece one page at a time', boxes().length === 1 && $('.v-title').textContent.includes('Alte Kameraden') && $('.v-sub').textContent.includes('Seite 1 von 3'), $('.v-sub').textContent);
+    window.__np.closeViewer();
+    db.settings.landscapeLayout = 'auto';
+    db.settings.portraitLayout = 'auto';
+    store.commit('settings');
+    await sleep(200);
 
     // --- Pool (simulated Google Drive): folders = pieces, filter "Flügelhorn"
     const poolDir = dir.replace(/samples$/, 'pool');
