@@ -1,7 +1,7 @@
 {
   "name": "notenpult",
   "productName": "Notenpult",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Notenpult – Noten, Setlists, Stimmen und Stift-Anmerkungen für Blasmusik (Windows)",
   "main": "main.js",
   "private": true,

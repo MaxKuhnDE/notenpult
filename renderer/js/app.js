@@ -14,6 +14,7 @@ import { setCropListener } from './render.js';
 import { openSearch } from './search.js';
 import * as sync from './sync.js';
 import * as ink from './ink.js';
+import { autoCheck as autoUpdateCheck, onUpdateState, updateAvailable } from './updates.js';
 import {
   openViewer, closeViewer, isViewerOpen, next, prev,
 } from './viewer.js';
@@ -23,6 +24,7 @@ let viewEl;
 let modeButtons;
 let themeBtn;
 let cloudBtn;
+let settingsBtn;
 let dropOverlay;
 
 function setMode(mode) {
@@ -95,7 +97,7 @@ function buildShell() {
     h('button.btn.ghost.search-btn', { type: 'button', title: 'Suchen (Strg+F)', onclick: openGlobalSearch }, icon('search'), h('span', null, 'Suchen')),
     cloudBtn,
     themeBtn,
-    iconBtn('settings', 'Einstellungen', () => openSettings()));
+    settingsBtn = iconBtn('settings', 'Einstellungen', () => openSettings()));
   viewEl = h('main.view');
   dropOverlay = h('div.drop-overlay', null, h('div.drop-box', null, icon('import'), h('span', null, 'Noten hier ablegen')));
   appEl.replaceChildren(top, viewEl, dropOverlay);
@@ -179,6 +181,12 @@ async function start() {
   // Pending annotation saves are debounced; write them out when the window closes.
   window.addEventListener('beforeunload', () => { ink.flushAll(); });
   sync.startAutoSync();
+  // A dot on the settings button while a new version is waiting.
+  onUpdateState(() => {
+    settingsBtn.classList.toggle('has-badge', updateAvailable());
+    settingsBtn.title = updateAvailable() ? 'Einstellungen – Update verfügbar' : 'Einstellungen';
+  });
+  setTimeout(() => autoUpdateCheck().catch(() => {}), 6000);
   // Handle for automated smoke tests.
   window.__np = {
     store, sync, processRecords, openViewer, closeViewer, next, prev,

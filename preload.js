@@ -25,6 +25,14 @@ contextBridge.exposeInMainWorld('notenpult', {
   poolScan: (folder) => ipcRenderer.invoke('pool:scan', folder),
   detectGoogleDrive: () => ipcRenderer.invoke('pool:detectDrive'),
 
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  onUpdateProgress: (cb) => {
+    const listener = (_e, p) => cb(p);
+    ipcRenderer.on('update:progress', listener);
+    return () => ipcRenderer.removeListener('update:progress', listener);
+  },
+
   openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
   info: () => ipcRenderer.invoke('app:info'),
 

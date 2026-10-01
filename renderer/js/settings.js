@@ -3,6 +3,7 @@ import {
   h, icon, btn, modal, toast, confirmDialog, plural,
 } from './ui.js';
 import * as sync from './sync.js';
+import { updateSection } from './updates.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -114,9 +115,14 @@ export function openSettings() {
   const dataInfo = h('div.setting-hint.mono', null, '…');
   backend.info().then((i) => { dataInfo.textContent = i.dataDir; });
   const pool = sync.available() ? poolSection() : null;
+  const updates = backend.kind === 'electron' ? updateSection() : null;
 
   const body = h('div.settings',
     null,
+    updates ? h('h3.settings-section', null, 'Updates') : null,
+    updates ? updates.el : null,
+    updates ? toggle('autoUpdateCheck', 'Beim Start nach Updates suchen', 'Gibt es eine neue Version, erscheint ein Hinweis – installiert wird erst, wenn du „Jetzt aktualisieren“ tippst.') : null,
+
     h('h3.settings-section', null, 'Darstellung'),
     row('Design', segmented('theme', [['system', 'System'], ['light', 'Hell', 'sun'], ['dark', 'Dunkel', 'moon']])),
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
@@ -152,7 +158,15 @@ export function openSettings() {
       backend.kind === 'electron' ? btn('Ordner öffnen', () => backend.openDataDir(), { icon: 'folder' }) : null),
     h('div.setting-hint.block', null, 'Zum Sichern einfach diesen Ordner kopieren (z. B. auf einen USB-Stick).'));
 
-  modal({ title: 'Einstellungen', body, className: 'settings-modal', onClose: () => pool?.off() });
+  modal({
+    title: 'Einstellungen',
+    body,
+    className: 'settings-modal',
+    onClose: () => {
+      pool?.off();
+      updates?.off();
+    },
+  });
 }
 
 /**

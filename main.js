@@ -7,6 +7,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const fsp = fs.promises;
 const crypto = require('node:crypto');
+const { registerUpdater } = require('./updater');
 
 const HOST = 'notenpult';
 const RENDERER_DIR = path.join(__dirname, 'renderer');
@@ -278,7 +279,7 @@ function registerIpc() {
     await fsp.mkdir(paths.dataDir, { recursive: true });
     return shell.openPath(paths.dataDir);
   });
-  ipcMain.handle('app:info', () => ({ dataDir: paths.dataDir, version: app.getVersion() }));
+  ipcMain.handle('app:info', () => ({ dataDir: paths.dataDir, version: app.getVersion(), packaged: app.isPackaged }));
 
   ipcMain.handle('win:setFullscreen', (_e, on) => {
     if (win) win.setFullScreen(!!on);
@@ -422,6 +423,7 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null);
     registerProtocol();
     registerIpc();
+    registerUpdater();
     createWindow();
   });
 
