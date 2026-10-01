@@ -13,6 +13,9 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Suche: `#polka` findet genau das Genre, normale Begriffe finden auch Genre-Namen; die globale Suche zeigt
   passende Genres und öffnet die gefilterte Liste.
 - Test `smoke3.js` für Genres.
+- Ansicht „Zwei Seiten“: immer zwei Seiten zusammen (nebeneinander oder untereinander, je nachdem was größer ist).
+- Ansicht „Nur 2-seitige“: Stücke mit genau zwei Seiten komplett auf einem Bildschirm, alle anderen einseitig.
+  Beide Optionen getrennt für Quer- und Hochformat, in den Einstellungen und im Menü ⋯ der Notenansicht.
 
 ## [1.1.0] – 2026-10-01
 

@@ -61,6 +61,7 @@ const ICONS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
   single: '<rect x="6.5" y="3" width="11" height="18" rx="1.5"/><path d="M9.5 8h5M9.5 11.5h5M9.5 15h3"/>',
   two: '<rect x="2.5" y="4" width="8.5" height="16" rx="1.3"/><rect x="13" y="4" width="8.5" height="16" rx="1.3"/>',
+  auto: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v4M3 8h4M16 21v-4M21 16h-4M8 21v-4M3 16h4M16 3v4M21 8h-4"/>',
   width: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 12h8M10 10l-2 2 2 2M14 10l2 2-2 2"/>',
   fullscreen: '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>',
   fullscreenExit: '<path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/>',

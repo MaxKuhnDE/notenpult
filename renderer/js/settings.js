@@ -41,6 +41,21 @@ function toggle(key, label, hint) {
     h('span.switch', null, input, h('span.switch-track')));
 }
 
+const LAYOUTS = [
+  ['auto', 'Automatisch', 'auto'],
+  ['two', 'Zwei Seiten', 'two'],
+  ['pair2', 'Nur 2-seitige', 'two'],
+  ['single', 'Eine Seite', 'single'],
+  ['width', 'Breite', 'width'],
+];
+
+/** Page layout per orientation; full width so all five choices fit. */
+function layoutRow(label, key) {
+  const control = segmented(key, LAYOUTS);
+  control.classList.add('wrap');
+  return h('div.setting.stacked', null, h('div.setting-label', null, label), control);
+}
+
 function row(label, control, hint) {
   return h('div.setting', null,
     h('div.setting-text', null, h('div.setting-label', null, label), hint ? h('div.setting-hint', null, hint) : null),
@@ -107,9 +122,13 @@ export function openSettings() {
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
 
     h('h3.settings-section', null, 'Notenansicht'),
-    row('Querformat', segmented('landscapeLayout', [['auto', 'Automatisch', 'two'], ['single', 'Eine Seite', 'single'], ['width', 'Breite', 'width']])),
-    row('Hochformat', segmented('portraitLayout', [['auto', 'Automatisch', 'two'], ['single', 'Eine Seite', 'single'], ['width', 'Breite', 'width']]),
-      '„Automatisch“ füllt den Bildschirm: A4 im Querformat zwei Seiten nebeneinander, A5-Querformat im Hochformat zwei Seiten untereinander. „Breite“: Tippen scrollt erst nach unten.'),
+    layoutRow('Querformat', 'landscapeLayout'),
+    layoutRow('Hochformat', 'portraitLayout'),
+    h('div.setting-hint.block', null,
+      '„Automatisch“ füllt den Bildschirm (A4 im Querformat nebeneinander, A5 im Hochformat untereinander). ',
+      '„Zwei Seiten“ zeigt immer zwei Seiten zusammen. ',
+      '„Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm – ohne Umblättern –, alle anderen einseitig. ',
+      '„Breite“: Tippen scrollt erst nach unten.'),
     toggle('autoCrop', 'Weiße Ränder automatisch abschneiden', 'Die Noten werden so groß wie möglich gezeigt – z. B. ein A5-Blatt, das auf A4 eingescannt wurde.'),
     toggle('showNextHint', 'Nächstes Stück anzeigen', 'Auf der letzten Seite eines Stücks steht oben in der Leiste, was danach kommt.'),
 

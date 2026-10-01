@@ -22,6 +22,8 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
   Stifttaste. Handballen-Erkennung, Rückgängig. Anmerkungen gelten je Stimme und Seite.
 - **A4 / A5**: Die Ansicht „Automatisch“ füllt den Bildschirm: A4 im Querformat zwei Seiten nebeneinander,
   A5-Querformat im Hochformat zwei Seiten untereinander. Weiße Ränder werden automatisch abgeschnitten.
+- **Zwei-Seiten-Ansicht**: „Zwei Seiten“ zeigt immer zwei Seiten zusammen; „Nur 2-seitige“ zeigt Stücke mit genau
+  zwei Seiten komplett auf einem Bildschirm (ohne Umblättern), alle anderen einseitig. Je für Quer- und Hochformat.
 - **Drehen**: ⟲ ⟳ dreht Seiten um 90°, die Drehung wird gespeichert.
 - **Google Drive / Noten-Pool**: Ein Drive-Ordner wird zum Pool, auf Wunsch gefiltert auf die eigene Stimme.
   Noten werden kopiert und sind offline verfügbar; Änderungen kommen bei Verbindung automatisch.
