@@ -13,9 +13,20 @@ import { openViewer } from './viewer.js';
 import { searchPieces, searchPool, poolRow } from './search.js';
 import { openPoolSetup } from './settings.js';
 import * as sync from './sync.js';
+import {
+  genreFilterBar, genreTags, matchesGenres, openGenreManager, openGenrePicker,
+} from './genres.js';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
 let search = '';
+const genreFilter = new Set(); // OR filter by genre names
+
+/** Shows the A–Z list filtered to one genre (used by the global search). */
+export function showGenre(name) {
+  genreFilter.clear();
+  genreFilter.add(name);
+  search = '';
+}
 
 export function renderLibrary(container) {
   const prevList = container.querySelector('.lib-list');
@@ -62,13 +73,14 @@ function build() {
   const toolbar = h('div.toolbar', null,
     h('label.search', null, icon('search'), searchInput),
     h('div.spacer'),
+    btn('Genres', openGenreManager, { icon: 'hash', kind: 'ghost', title: 'Genres anlegen, umbenennen, zuordnen' }),
     btn('Ordner', () => importFromPicker({ folder: true }), { icon: 'folder', title: 'Ganzen Ordner importieren' }),
     btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: 'primary' }));
 
   function fill() {
     const q = search.trim();
     const hits = q ? new Set(searchPieces(q)) : null;
-    const pieces = sortedPieces().filter((p) => !hits || hits.has(p));
+    const pieces = sortedPieces().filter((p) => (!hits || hits.has(p)) && matchesGenres(p, genreFilter));
     const groups = new Map();
     for (const p of pieces) {
       const L = letterOf(p.title);
@@ -91,7 +103,10 @@ function build() {
         items.map((p) => pieceRow(p, play))));
     }
     const poolHits = q && sync.isLinked() ? searchPool(q, 40) : [];
-    if (!sections.length && !poolHits.length) sections.push(h('div.no-results', null, `Keine Treffer für „${q}“.`));
+    if (!sections.length && !poolHits.length) {
+      const what = [q && `„${q}“`, genreFilter.size && [...genreFilter].map((g) => `#${g}`).join(' oder ')].filter(Boolean).join(' mit ');
+      sections.push(h('div.no-results', null, `Keine Treffer für ${what}.`));
+    }
     if (poolHits.length) {
       sections.push(h('section.letter-group.pool-group', null,
         h('h3.letter-head', null, `Im Noten-Pool – noch nicht geladen (${poolHits.length})`),
@@ -99,7 +114,10 @@ function build() {
           toast(`„${pieceById(id)?.title}“ geladen und offline gespeichert`, { kind: 'success' });
         }))));
     }
-    list.replaceChildren(...sections, h('div.list-foot', null, `${plural(db.pieces.length, 'Stück', 'Stücke')} in der Bibliothek`));
+    const foot = pieces.length < db.pieces.length
+      ? `${pieces.length} von ${db.pieces.length} Stücken angezeigt`
+      : `${plural(db.pieces.length, 'Stück', 'Stücke')} in der Bibliothek`;
+    list.replaceChildren(...sections, h('div.list-foot', null, foot));
 
     rail.replaceChildren(...LETTERS.map((L) => h(`button.rail-letter${groups.has(L) ? '' : '.off'}`, {
       type: 'button', tabindex: '-1', dataset: { letter: L },
@@ -132,8 +150,18 @@ function build() {
     rail.addEventListener('pointercancel', up);
   });
 
+  const barHolder = h('div.genre-bar-holder');
+  const renderBar = () => {
+    const bar = genreFilterBar(genreFilter, () => {
+      renderBar();
+      fill();
+      list.scrollTop = 0;
+    });
+    barHolder.replaceChildren(...(bar ? [bar] : []));
+  };
+  renderBar();
   fill();
-  return h('div.lib', null, toolbar, h('div.lib-body', null, list, rail));
+  return h('div.lib', null, toolbar, barHolder, h('div.lib-body', null, list, rail));
 }
 
 function pieceRow(piece, play) {
@@ -147,7 +175,7 @@ function pieceRow(piece, play) {
       h('span.piece-icon', null, icon(piece.parts.length > 1 ? 'layers' : pagesOf(piece).length > 1 ? 'pages' : 'single')),
       h('span.piece-text', null,
         h('span.piece-title', null, piece.title),
-        h('span.piece-meta', null, meta.join(' · ')))),
+        h('span.piece-meta', null, meta.join(' · '), genreTags(piece)))),
     iconBtn('more', 'Optionen', (e) => pieceMenu(e.currentTarget, piece), { class: 'row-more' }));
 }
 
@@ -155,6 +183,7 @@ function pieceMenu(anchor, piece) {
   popMenu(anchor, [
     { label: 'Bearbeiten …', icon: 'edit', onClick: () => openPieceEditor(piece.id) },
     { label: 'Weitere Stimme verknüpfen …', icon: 'layers', onClick: () => openPieceEditor(piece.id) },
+    { label: 'Genres …', icon: 'hash', onClick: () => openGenrePicker(piece) },
     { label: 'Zu Setlist hinzufügen …', icon: 'list', onClick: () => openAddToSetlist([piece.id]) },
     'sep',
     {

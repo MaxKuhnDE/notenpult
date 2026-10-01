@@ -5,6 +5,15 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Hinzugefügt
+- Genres als Hashtags (#Marsch, #Polka, …): eigene Genres anlegen, umbenennen (auch zusammenführen) und löschen,
+  Vorschläge per Antippen.
+- Zuordnen über das Stück-Menü „Genres …“, im Stück-Editor oder gesammelt pro Genre („Stücke zuordnen“).
+- Genre-Filter als Chips in der A–Z-Liste und im Setlist-Dialog „Stücke hinzufügen“ (mit „Alle angezeigten wählen“).
+- Suche: `#polka` findet genau das Genre, normale Begriffe finden auch Genre-Namen; die globale Suche zeigt
+  passende Genres und öffnet die gefilterte Liste.
+- Test `smoke3.js` für Genres.
+
 ## [1.1.0] – 2026-10-01
 
 ### Hinzugefügt

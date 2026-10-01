@@ -1,7 +1,9 @@
 // Search across the library (titles + part names), setlist numbers, setlists
 // and the Noten-Pool (linked Google Drive folder, also files not yet loaded).
 
-import { db, pieceById, norm, compareTitles, pagesOf } from './store.js';
+import {
+  db, pieceById, norm, compareTitles, pagesOf, genresOf, genreNames, genreCount,
+} from './store.js';
 import { h, icon, modal, toast, plural } from './ui.js';
 import * as sync from './sync.js';
 
@@ -18,15 +20,28 @@ function score(hay, toks) {
   return s;
 }
 
+/** "#polka marsch" -> { tags: ['polka'], words: ['marsch'] } */
+function splitQuery(q) {
+  const all = tokens(q);
+  return {
+    tags: all.filter((t) => t.startsWith('#')).map((t) => t.replace(/^#+/, '')).filter(Boolean),
+    words: all.filter((t) => !t.startsWith('#')),
+  };
+}
+
+/** Titles, part names and genres; "#tag" only matches the genre (prefix). */
 export function searchPieces(q) {
-  const toks = tokens(q);
-  if (!toks.length) return [];
+  const { tags, words } = splitQuery(q);
+  if (!tags.length && !words.length) return [];
   return db.pieces
     .map((p) => {
+      const genres = genresOf(p).map(norm);
+      if (!tags.every((t) => genres.some((g) => g.startsWith(t)))) return { p, s: 0 };
+      if (!words.length) return { p, s: 1 };
       const title = norm(p.title);
-      const hay = `${title} ${norm(p.parts.map((x) => x.name).join(' '))}`;
-      const s = score(hay, toks);
-      return { p, s: s ? s + (score(title, toks) ? 3 : 0) : 0 };
+      const hay = `${title} ${norm(p.parts.map((x) => x.name).join(' '))} ${genres.join(' ')}`;
+      const s = score(hay, words);
+      return { p, s: s ? s + (score(title, words) ? 3 : 0) : 0 };
     })
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s || compareTitles(a.p, b.p))
@@ -35,7 +50,7 @@ export function searchPieces(q) {
 
 /** Pool files not yet in the library. */
 export function searchPool(q, limit = 60) {
-  const toks = tokens(q);
+  const toks = splitQuery(q).words; // pool files have no genres yet
   if (!toks.length) return [];
   return sync.poolFiles()
     .filter((f) => !sync.pieceForPoolFile(f.rel))
@@ -86,12 +101,12 @@ export function poolRow(f, onLoaded) {
 }
 
 /**
- * opts: { onPiece(id), onEntry(setlist, entry), onSetlist?(setlist), title }
+ * opts: { onPiece(id), onEntry(setlist, entry), onSetlist?(setlist), onGenre?(name), title }
  */
 export function openSearch(opts) {
   const input = h('input.search-input.big', {
     type: 'search',
-    placeholder: 'Titel, Stimme, Nr. oder Datei im Noten-Pool …',
+    placeholder: 'Titel, Stimme, #Genre, Nr. oder Datei im Noten-Pool …',
     autofocus: true,
     'data-select-all': 'false',
   });
@@ -104,7 +119,7 @@ export function openSearch(opts) {
     const q = input.value;
     first = null;
     if (!q.trim()) {
-      const hint = [h('p.muted.search-hint', null, 'Tippe einen Teil des Titels, einer Stimme oder eine Nummer aus einer Setlist.')];
+      const hint = [h('p.muted.search-hint', null, 'Tippe einen Teil des Titels, einer Stimme oder eine Nummer aus einer Setlist. Mit # suchst du nach Genre, z. B. #Polka.')];
       if (sync.isLinked()) hint.push(h('p.muted.search-hint', null, `Auch ${plural(sync.poolFiles().length, 'Datei', 'Dateien')} im Noten-Pool werden durchsucht.`));
       results.replaceChildren(...hint);
       return;
@@ -128,10 +143,23 @@ export function openSearch(opts) {
       const meta = [plural(pagesOf(p).length, 'Seite', 'Seiten')];
       if (p.parts.length > 1) meta.push(p.parts.map((x) => x.name).join(', '));
       if (entries.length) meta.push(entries.slice(0, 2).join(', '));
+      const tags = genresOf(p).map((g) => `#${g}`).join(' ');
       return h('button.search-item', { type: 'button', onclick: go },
         h('span.search-icon', null, icon(p.parts.length > 1 ? 'layers' : 'music')),
-        h('span.search-text', null, h('span.search-title', null, p.title), h('span.search-meta', null, meta.join(' · '))));
+        h('span.search-text', null,
+          h('span.search-title', null, p.title),
+          h('span.search-meta', null, meta.join(' · '), tags ? h('span.search-tags', null, ` · ${tags}`) : null)));
     });
+    // Genres: tap shows all pieces of that genre (main screen) – in the viewer the pieces above suffice.
+    const { tags: tagToks, words } = splitQuery(q);
+    const genreToks = [...tagToks, ...words];
+    const genres = opts.onGenre
+      ? genreNames().filter((g) => genreToks.some((t) => norm(g).includes(t))).map((g) => h('button.search-item', {
+        type: 'button', onclick: pick(() => opts.onGenre(g)),
+      },
+      h('span.search-icon.genre', null, '#'),
+      h('span.search-text', null, h('span.search-title', null, `#${g}`), h('span.search-meta', null, plural(genreCount(g), 'Stück', 'Stücke')))))
+      : [];
     const lists = opts.onSetlist
       ? db.setlists.filter((s) => score(norm(s.name), tokens(q))).map((s) => h('button.search-item', { type: 'button', onclick: pick(() => opts.onSetlist(s)) },
         h('span.search-icon', null, icon('list')),
@@ -146,6 +174,7 @@ export function openSearch(opts) {
       : [];
     const all = [
       ...section('Nummern in Setlists', nums),
+      ...section('Genres', genres),
       ...section('Bibliothek', pieces),
       ...section('Setlists', lists),
       ...section(`Im Noten-Pool${sync.syncStatus() === 'offline' ? ' (offline – nur bereits geladene Dateien verfügbar)' : ''}`, poolHits),

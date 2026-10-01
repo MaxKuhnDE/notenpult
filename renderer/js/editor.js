@@ -4,8 +4,9 @@
 
 import {
   commit, pieceById, addPiece, uid, cleanTitle, deleteUnusedFiles, partNameFrom, mergePieces,
-  ignoreSynced, sortedPieces, norm, pagesOf, allPages,
+  ignoreSynced, sortedPieces, norm, pagesOf, allPages, genresOf, genreNames, setPieceGenre,
 } from './store.js';
+import { genreSelector } from './genres.js';
 import { thumbnail } from './render.js';
 import * as ink from './ink.js';
 import { pickPages } from './importer.js';
@@ -25,6 +26,7 @@ export function openPieceEditor(pieceId) {
   const thumbCache = new Map(); // "pageId|rot" -> Promise<canvas>
 
   const titleInput = h('input.text-input', { type: 'text', value: piece.title, 'aria-label': 'Titel' });
+  const draftGenres = new Set(genresOf(piece));
   const tabs = h('div.part-tabs', { role: 'tablist' });
   const partName = h('input.text-input.part-name', {
     type: 'text',
@@ -148,6 +150,7 @@ export function openPieceEditor(pieceId) {
     ignoreSynced((t) => t.pieceId === piece.id && !keptPartIds.has(t.partId));
     const before = allPages(piece).map((p) => p.file);
     piece.title = cleanTitle(titleInput.value) || piece.title;
+    for (const g of genreNames()) setPieceGenre(piece, g, [...draftGenres].some((d) => norm(d) === norm(g)));
     piece.parts = parts.map((p, i) => ({ id: p.id, name: p.name.trim() || `${i + 1}. Stimme`, pages: p.pages.map((pg) => ({ ...pg })) }));
     piece.part = Math.min(piece.part || 0, piece.parts.length - 1);
     return before;
@@ -213,6 +216,7 @@ export function openPieceEditor(pieceId) {
           await ink.movePages(p.id, piece.id, movedPageIds);
           await ink.remove(p.id);
           parts = copyParts(piece);
+          for (const g of genresOf(piece)) draftGenres.add(g); // merged piece brings its genres
           cur = parts.length - 1;
           selected.clear();
           renderAll();
@@ -246,6 +250,8 @@ export function openPieceEditor(pieceId) {
   const body = h('div.editor', null,
     h('label.field-label', null, 'Titel'),
     titleInput,
+    h('div.thumb-head', null, h('h3', null, 'Genres'), h('span.thumb-count', null, 'Antippen zum Zuordnen – eigene Genres unten anlegen.')),
+    genreSelector(draftGenres, () => {}),
     h('div.thumb-head', null, h('h3', null, 'Stimmen'), h('span.thumb-count', null, 'Jede Stimme ist ein eigenes PDF – im Notenmodus oben umschaltbar.')),
     tabs,
     h('div.part-row', null, h('label.field-label', null, 'Name der Stimme'), h('div.part-row-inner', null, partName, removePartBtn)),

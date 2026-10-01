@@ -6,7 +6,7 @@ import {
   h, icon, iconBtn, hasOpenModal, popMenu,
 } from './ui.js';
 import { applyTheme, isDark, toggleDark, onThemeChange } from './theme.js';
-import { renderLibrary } from './library.js';
+import { renderLibrary, showGenre } from './library.js';
 import { renderSetlists } from './setlists.js';
 import { openSettings, openPoolSetup } from './settings.js';
 import { importDropped, processRecords } from './importer.js';
@@ -42,6 +42,11 @@ function openGlobalSearch() {
     onSetlist: (s) => {
       db.ui.mode = 'setlists';
       db.ui.setlistId = s.id;
+      commit('ui');
+    },
+    onGenre: (name) => {
+      showGenre(name);
+      db.ui.mode = 'library';
       commit('ui');
     },
   });

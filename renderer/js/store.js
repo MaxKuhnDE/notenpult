@@ -27,12 +27,14 @@ export const DEFAULT_SYNC = {
 };
 
 /*
- * piece: { id, title, part (active part index), addedAt,
+ * piece: { id, title, part (active part index), addedAt, genres: ['Marsch', …],
  *          parts: [{ id, name, pages: [{ id, file, page, rot?, crop? }] }] }
+ * genres: [{ name }] – the user's own genre list (shown as #hashtags)
  */
 export const db = {
   pieces: [],
   setlists: [],
+  genres: [],
   settings: { ...DEFAULT_SETTINGS },
   sync: structuredClone(DEFAULT_SYNC),
   ui: { mode: 'setlists', setlistId: null },
@@ -192,6 +194,7 @@ function queueSave() {
       version: 2,
       pieces: db.pieces,
       setlists: db.setlists,
+      genres: db.genres,
       settings: db.settings,
       sync: db.sync,
       ui: db.ui,
@@ -223,6 +226,7 @@ function migratePiece(p) {
   }
   if (!p.parts.length) p.parts.push({ id: uid(), name: '1. Stimme', pages: [] });
   p.part = Math.min(Math.max(0, p.part || 0), p.parts.length - 1);
+  if (!Array.isArray(p.genres)) p.genres = [];
   return p;
 }
 
@@ -237,7 +241,71 @@ export async function init() {
     }
     db.sync = { ...structuredClone(DEFAULT_SYNC), ...(saved.sync || {}) };
     db.ui = { ...db.ui, ...(saved.ui || {}) };
+    db.genres = Array.isArray(saved.genres) ? saved.genres.filter((g) => g && cleanGenre(g.name)) : [];
+    // Every genre used on a piece must exist in the list.
+    for (const p of db.pieces) for (const g of p.genres) addGenre(g);
   }
+}
+
+// ---------- genres (#hashtags) ----------
+
+export function cleanGenre(name) {
+  return String(name || '').replace(/^#+/, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+
+export function findGenre(name) {
+  const n = norm(cleanGenre(name));
+  return n ? db.genres.find((g) => norm(g.name) === n) || null : null;
+}
+
+/** Sorted list of genre names. */
+export function genreNames() {
+  return db.genres.map((g) => g.name).sort((a, b) => collator.compare(a, b));
+}
+
+/** Creates a genre (or returns the existing one with the same name). */
+export function addGenre(name) {
+  const clean = cleanGenre(name);
+  if (!clean) return null;
+  const existing = findGenre(clean);
+  if (existing) return existing;
+  const g = { name: clean };
+  db.genres.push(g);
+  return g;
+}
+
+export const genresOf = (piece) => piece.genres || [];
+export const hasGenre = (piece, name) => genresOf(piece).some((g) => norm(g) === norm(name));
+export const genreCount = (name) => db.pieces.filter((p) => hasGenre(p, name)).length;
+
+export function setPieceGenre(piece, name, on) {
+  const g = addGenre(name);
+  if (!g) return;
+  const rest = genresOf(piece).filter((x) => norm(x) !== norm(g.name));
+  piece.genres = on ? [...rest, g.name].sort((a, b) => collator.compare(a, b)) : rest;
+}
+
+/** Renames a genre everywhere; renaming onto an existing genre merges both. */
+export function renameGenre(oldName, newName) {
+  const from = findGenre(oldName);
+  const clean = cleanGenre(newName);
+  if (!from || !clean) return;
+  const target = findGenre(clean);
+  if (target && target !== from) db.genres = db.genres.filter((g) => g !== from);
+  else from.name = clean;
+  const finalName = (target || from).name;
+  for (const p of db.pieces) {
+    if (hasGenre(p, oldName)) {
+      p.genres = genresOf(p).filter((x) => norm(x) !== norm(oldName) && norm(x) !== norm(finalName));
+      p.genres.push(finalName);
+      p.genres.sort((a, b) => collator.compare(a, b));
+    }
+  }
+}
+
+export function deleteGenre(name) {
+  db.genres = db.genres.filter((g) => norm(g.name) !== norm(name));
+  for (const p of db.pieces) p.genres = genresOf(p).filter((x) => norm(x) !== norm(name));
 }
 
 // ---------- helpers ----------
@@ -293,6 +361,7 @@ export function addPiece({ title, pages, partName = '1. Stimme' }) {
     title: cleanTitle(title),
     parts: [{ id: uid(), name: partName, pages: newPages(pages) }],
     part: 0,
+    genres: [],
     addedAt: Date.now(),
   };
   db.pieces.push(piece);
@@ -445,6 +514,7 @@ export function mergePieces(toId, fromId) {
     name: single ? partNameFrom(from.title, to.title, to.parts.length + 1 + i) : p.name,
   }));
   to.parts.push(...moved);
+  for (const g of genresOf(from)) setPieceGenre(to, g, true);
   for (const s of db.setlists) {
     const hasTarget = s.entries.some((e) => e.pieceId === toId);
     if (hasTarget) s.entries = s.entries.filter((e) => e.pieceId !== fromId);
