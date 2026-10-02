@@ -1,13 +1,14 @@
 // Runs the tests in test/ against fresh data folders.
 //   *.js       UI tests inside the real Electron app (injected via NOTENPULT_TEST)
 //   *.node.js  plain Node tests
+//   android.js the Android bundle in Chromium 93 (Electron 14, older than the tablet's WebView 95)
 // Each test prints "PASS …" / "FAIL …" lines; any FAIL, crash or timeout fails the run.
 //
 //   npm test                 -> all suites
 //   npm test -- smoke2.js    -> one suite
 'use strict';
 
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn, execFileSync, execSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -18,7 +19,7 @@ const electron = require('electron');
 const root = path.join(__dirname, '..');
 const suites = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js'];
+  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js', 'android.js'];
 const TIMEOUT_MS = 240000;
 
 /** Data folder as written by version 1.0 (pages directly on the piece, layout 'two'). */
@@ -93,7 +94,38 @@ function setupPreset() {
   };
 }
 
-const SETUP = { 'migrate.js': setupV1, 'update.js': setupUpdateServer, 'preset.js': setupPreset };
+/** Electron whose Chromium is older than the WebView on Android 5; installed on first use. */
+const OLD_ELECTRON = '14.2.9'; // Chromium 93
+function oldElectron() {
+  const dir = path.join(root, 'node_modules', '.cache', `electron-${OLD_ELECTRON}`);
+  const pkg = path.join(dir, 'node_modules', 'electron');
+  if (!fs.existsSync(path.join(pkg, 'path.txt'))) {
+    console.log(`  lädt Electron ${OLD_ELECTRON} (Chromium 93) für die Android-Prüfung …`);
+    fs.mkdirSync(dir, { recursive: true });
+    execSync(`npm install electron@${OLD_ELECTRON} --prefix "${dir}" --no-save --no-package-lock --no-audit --no-fund`, { stdio: 'ignore' });
+  }
+  return path.join(pkg, 'dist', fs.readFileSync(path.join(pkg, 'path.txt'), 'utf8').trim());
+}
+
+/** Android bundle in the old Chromium; dialogs and the ZIP file are replaced (test/android/bridge.js). */
+function setupAndroid() {
+  const www = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-android-www-'));
+  const zip = path.join(os.tmpdir(), `notenpult-android-test-${process.pid}.zip`);
+  execFileSync(process.execPath, [path.join(root, 'scripts', 'build-android-web.js'), www], { stdio: 'ignore' });
+  return {
+    command: oldElectron(),
+    args: [path.join(root, 'test', 'android', 'harness.js')],
+    env: { NP_WWW: www, NP_PRESET_ZIP: zip },
+    cleanup() {
+      fs.rmSync(www, { recursive: true, force: true });
+      fs.rmSync(zip, { force: true });
+    },
+  };
+}
+
+const SETUP = {
+  'migrate.js': setupV1, 'update.js': setupUpdateServer, 'preset.js': setupPreset, 'android.js': setupAndroid,
+};
 const AFTER = {
   'migrate.js': (dataDir) => {
     const backup = path.join(dataDir, 'notenpult.vor-update.json');
@@ -116,7 +148,7 @@ async function runSuite(name) {
   return new Promise((resolve) => {
     const child = isNode
       ? spawn(process.execPath, [path.join(root, 'test', name)], { env, stdio: ['ignore', 'pipe', 'pipe'] })
-      : spawn(electron, [root], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+      : spawn(setup.command || electron, setup.args || [root], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     let pass = 0;
     let fail = 0;
     let crashed = false;

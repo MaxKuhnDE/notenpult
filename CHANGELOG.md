@@ -5,7 +5,18 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.3.0] – 2026-10-02
+
 ### Hinzugefügt
+- **Android-App** (`Notenpult-android.apk` am Release) für Tablets ab Android 5.0 – gedacht für das
+  Galaxy Tab S2 (Android 5.0.2). Gleiche Oberfläche wie unter Windows: Setlists, A–Z, Stimmen, Genres,
+  Zwei-Seiten-Ansicht, Anmerkungen (ohne Stift über den Zeichenmodus mit dem Finger), Dunkelmodus,
+  Vollbild, Bildschirm bleibt an, Zurück-Taste schließt Dialoge und die Notenansicht.
+- Auf dem Tablet: „Export vom PC importieren“ übernimmt die ZIP vom PC – danach ist alles spiegelgleich.
+  Export vom Tablet zurück auf den PC geht genauso. Einzelne PDFs/Bilder über „Noten importieren“.
+- Updates der Android-App über *Einstellungen → Updates* (lädt die neue APK im Browser).
+- Test `android.js`: die Android-Oberfläche in Chromium 93 (älter als die WebView von Android 5);
+  JUnit-Tests für den ZIP-Import auf Android, u. a. mit einer echten Export-Datei aus Windows.
 - **Alles exportieren / importieren** (Einstellungen → Daten): eine ZIP-Datei mit allen Stücken, PDFs, Stimmen,
   Setlists, Genres, Anmerkungen und Einstellungen. Der Import ersetzt alles – danach ist das Gerät spiegelgleich
   zum exportierenden; der bisherige Stand bleibt in `_vor-import`. Geht schief, wird der alte Stand zurückgelegt.
@@ -13,6 +24,8 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Geändert
 - Kein `structuredClone` und Ersatzfarben für `color-mix` – Vorbereitung für ältere Android-Browser.
+- Bilder: Ersatzweg für Browser, die `imageOrientation: 'from-image'` noch nicht kennen.
+- Offene Änderungen werden auch gespeichert, wenn die App in den Hintergrund geht.
 
 ## [1.2.0] – 2026-10-01
 
@@ -64,6 +77,7 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Stift-Anmerkungen in Rot und Schwarz, Radierer-Ende, Rückgängig, Handballen-Erkennung.
 - Dunkelmodus, invertierte Noten, Hoch- und Querformat.
 
-[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MaxKuhnDE/notenpult/commits/main

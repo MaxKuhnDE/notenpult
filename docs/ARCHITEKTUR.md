@@ -1,7 +1,7 @@
 # Architektur
 
 Notenpult ist eine Electron-App. Die Oberfläche ist reines JavaScript (ES-Module) ohne Framework und
-ohne Build-Schritt; pdf.js rendert die Noten.
+ohne Build-Schritt; pdf.js rendert die Noten. Dieselbe Oberfläche läuft in der Android-App (siehe unten).
 
 ```
 main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-Scan, app://-Protokoll
@@ -24,8 +24,9 @@ renderer/
   js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
   js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
-scripts/           copy-vendor (pdf.js), make-icon, run-tests
-test/              UI-Tests (laufen in der echten App) + Generator für Beispielnoten
+scripts/           copy-vendor (pdf.js), make-icon, run-tests, build-android-web (+ android/boot.js, pdfjs-shim.js)
+test/              UI-Tests (laufen in der echten App) + Generator für Beispielnoten; android/ = Prüfumgebung
+android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), Preset.java (ZIP)
 ```
 
 ## Datenmodell (`Dokumente\Notenpult\notenpult.json`, Version 2)
@@ -89,6 +90,35 @@ Anmerkungen/…           Stiftstriche je Stück
   neuen schreiben), `preset.js` entpackt in einen Ordner neben den Daten, prüft Kennung und `notenpult.json`,
   verschiebt den bisherigen Stand nach `_vor-import` und den neuen an seine Stelle (bei einem Fehler zurück).
   Danach lädt die Oberfläche neu.
+
+## Android
+
+```
+android/app/src/main/java/…/MainActivity.java   WebView, https://notenpult.local, Brücke window.NotenpultAndroid
+android/app/src/main/java/…/Preset.java         ZIP-Export/-Import (reines Java, JUnit-getestet)
+scripts/build-android-web.js                     renderer/ → assets/www (esbuild, Ziel chrome92) + pdf.js 3.11 legacy
+scripts/android/boot.js                          ES5: WebView-Version prüfen, Startfehler anzeigen, pdf.js + App laden
+```
+
+- **Zielgerät** Galaxy Tab S2 mit Android 5.0.2: die System-WebView lässt sich dort höchstens auf Chrome 95
+  aktualisieren. Deshalb: Bündel für `chrome92`, kein `structuredClone`/`color-mix` ohne Ersatz, pdf.js 3.11
+  (Legacy-Build) statt 6.x. `boot.js` lehnt WebViews unter 92 mit einer Anleitung ab.
+- **Laden**: Die Seite läuft unter `https://notenpult.local/`. `shouldInterceptRequest` liefert die Dateien aus
+  `assets/www` und unter `/library/<datei>` die Noten aus `files/Notenpult/Noten` – kein Server, kein Netz.
+  Der pdf.js-Worker startet aus einem Blob, Schriften/CMaps lädt die Seite selbst (`useWorkerFetch: false`).
+- **Brücke**: `store.js` wählt `androidBackend`, wenn `window.NotenpultAndroid` existiert. Einfache Aufrufe
+  (Bibliothek, Anmerkungen laden/speichern) sind synchron; Dateiauswahl, Export und Import öffnen den
+  Android-Dateidialog und antworten über `window.__npResolve(id, json)`.
+- **Daten** wie unter Windows: `files/Notenpult/notenpult.json`, `Noten/`, `Anmerkungen/`. Der Import entpackt
+  nach `files/.import-neu`, prüft, und tauscht dann zwei Ordner per Umbenennen; `Preset.recover()` beim Start
+  vollendet oder verwirft einen unterbrochenen Tausch.
+- **Gerät**: `window.__npBack()` (Zurück-Taste), `window.__npFlush()` (beim Wechsel in den Hintergrund),
+  Vollbild = Immersive Mode, „Bildschirm bleibt an“ = `FLAG_KEEP_SCREEN_ON`; Drehen lädt die Seite nicht neu.
+- **Speicher**: Auf Android rendert `render.js` höchstens 8 MP pro Seite und hält weniger Seiten im Cache.
+- **Updates**: `updateCheck` liest das GitHub-Release, „Jetzt aktualisieren“ öffnet `Notenpult-android.apk`
+  im Browser; Android installiert sie über die vorhandene App (gleicher Signaturschlüssel, Daten bleiben).
+- **Tests**: `test/android.js` lädt das Bündel in Electron 14 (Chromium 93) mit `test/android/bridge.js` als
+  Ersatz für die Java-Brücke; `PresetTest.java` prüft den ZIP-Import, u. a. mit einer echten Windows-Export-Datei.
 
 ## Updates
 
