@@ -39,7 +39,8 @@ try {
       if ($Mode -eq 'asar') {
         Copy-Item -LiteralPath $Source -Destination (Join-Path $Target 'resources\app.asar') -Force
       } else {
-        & robocopy $Source $Target /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        # /IS /IT: copy every file, even if size and time stamp happen to match the old one.
+        & robocopy $Source $Target /MIR /IS /IT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
         if ($LASTEXITCODE -ge 8) { throw "robocopy exit code $LASTEXITCODE" }
       }
       $done = $true
