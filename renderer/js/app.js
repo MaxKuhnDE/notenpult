@@ -6,7 +6,7 @@ import {
   h, icon, iconBtn, hasOpenModal, popMenu, closeMenu, closeTopModal,
 } from './ui.js';
 import { applyTheme, isDark, toggleDark, onThemeChange } from './theme.js';
-import { renderLibrary, showGenre } from './library.js';
+import { renderLibrary, showGenre, endSelection } from './library.js';
 import { renderSetlists } from './setlists.js';
 import { openSettings, openPoolSetup } from './settings.js';
 import { importDropped, processRecords } from './importer.js';
@@ -116,8 +116,12 @@ function render() {
   themeBtn.replaceChildren(icon(isDark() ? 'sun' : 'moon'));
   themeBtn.title = isDark() ? 'Helles Design' : 'Dunkles Design';
   updateCloud();
-  if (db.ui.mode === 'library') renderLibrary(viewEl);
-  else renderSetlists(viewEl);
+  if (db.ui.mode === 'library') {
+    renderLibrary(viewEl);
+  } else {
+    endSelection();
+    renderSetlists(viewEl);
+  }
 }
 
 function setupDragAndDrop() {
@@ -160,6 +164,9 @@ function setupShortcuts() {
     } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'k')) {
       e.preventDefault();
       openGlobalSearch();
+    } else if (e.key === 'Escape' && endSelection()) {
+      e.preventDefault();
+      render();
     }
   });
 }
@@ -206,6 +213,10 @@ async function start() {
     if (closeTopModal()) return true;
     if (isViewerOpen()) {
       closeViewer();
+      return true;
+    }
+    if (endSelection()) {
+      render();
       return true;
     }
     return false;

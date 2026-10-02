@@ -15,7 +15,7 @@ renderer/
   js/render.js     pdf.js/Bilder → Canvas, Seitengeometrie, Drehung, Rand-Erkennung, Caches
   js/viewer.js     Notenmodus: Layout, Blättern, Stift/Radierer, Stimmen, Suche, Nummernblock
   js/ink.js        Anmerkungen: Speichern je Stück, Zeichnen, Radier-Treffer
-  js/library.js    A–Z-Bibliothek
+  js/library.js    A–Z-Bibliothek, Mehrfachauswahl (Löschen/Setlist für viele Stücke)
   js/setlists.js   Setlists, Nummern, Zehnerblöcke, Umordnen
   js/editor.js     Stück bearbeiten: Stimmen, Seiten, Drehen, Aufteilen
   js/importer.js   Import, automatisches Verknüpfen von Stimmen
