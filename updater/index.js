@@ -4,8 +4,10 @@
 //   app.asar                  the app itself (a few MB) – used when the Electron runtime is unchanged
 //   Notenpult-win32-x64.zip   the complete app incl. Electron runtime (~140 MB)
 //   update.json               { version, electron }
-// The download is checked against GitHub's SHA-256 digest; apply-update.ps1 swaps the files in
-// after Notenpult has quit and starts it again. User data (Dokumente\Notenpult) is never touched.
+// The download is checked against GitHub's SHA-256 digest; after Notenpult has quit, apply-update.js
+// (run by Notenpult.exe itself in Node mode) swaps the files in and starts it again – or, for a
+// protected folder like C:\Program Files, apply-update.ps1 with administrator rights.
+// User data (Dokumente\Notenpult) is never touched.
 
 const { app, net, ipcMain } = require('electron');
 const path = require('node:path');
@@ -37,8 +39,9 @@ const installDir = () => path.dirname(process.execPath);
 
 /**
  * fs.access() ignores Windows permissions (ACLs) and calls C:\Program Files writable – so try
- * a real file. Without write access the update still works: apply-update.ps1 asks for
- * administrator rights (elevate).
+ * a real file. No permission (EPERM/EACCES) → apply-update.ps1 asks for administrator rights.
+ * Any other refusal – typically "file not found" when Windows' ransomware protection blocks
+ * the folder – cannot be fixed by an update; say so instead of quitting for nothing.
  */
 function canInstall() {
   if (!app.isPackaged && !TEST) return { ok: false, elevate: false, reason: 'Entwicklungsversion – Updates gehen nur in der installierten App.' };
@@ -47,8 +50,14 @@ function canInstall() {
     ofs.writeFileSync(probe, '');
     ofs.rmSync(probe, { force: true });
     return { ok: true, elevate: false, reason: '' };
-  } catch {
-    return { ok: true, elevate: true, reason: '' };
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EACCES') return { ok: true, elevate: true, reason: '' };
+    return {
+      ok: false,
+      elevate: false,
+      reason: `Windows lässt Notenpult in seinem Programmordner nichts ändern (${err.code || err.message}) – z. B. der Ransomware-Schutz „Überwachter Ordnerzugriff“. `
+        + 'Abhilfe: den Notenpult-Ordner nach %LOCALAPPDATA%\\Programs\\Notenpult verschieben (außerhalb von Dokumente/OneDrive).',
+    };
   }
 }
 
@@ -161,25 +170,44 @@ async function install(send) {
     if (TEST) return { staged: source, sha256, mode };
 
     send({ phase: 'restart' });
-    const script = path.join(staging, 'apply-update.ps1');
-    // The script itself is read from inside app.asar (normal fs), written out with plain fs.
-    await fsp.writeFile(script, await fs.promises.readFile(path.join(__dirname, 'apply-update.ps1')));
-    // Windows PowerShell does nothing when started detached (no console), so cmd.exe – which runs
-    // fine detached and outlives Notenpult – starts it in its own hidden console via "start".
-    const q = (s) => `"${s}"`;
-    const line = ['start', '""', '/min', q(path.join(SYSTEM32, 'WindowsPowerShell', 'v1.0', 'powershell.exe')),
-      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', q(script),
-      '-AppPid', String(process.pid), '-Mode', mode, '-Source', q(source), '-Target', q(installDir()),
-      '-Exe', q(process.execPath)].join(' ');
-    const child = spawn(path.join(SYSTEM32, 'cmd.exe'), ['/d', '/s', '/c', `"${line}"`], {
-      detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true,
-    });
-    child.unref();
+    if (can.elevate) startElevatedSwap(staging, mode, source);
+    else await startSwap(staging, mode, source);
     setTimeout(() => app.quit(), 400);
     return { restarting: true };
   } finally {
     installing = false;
   }
+}
+
+/**
+ * Normal case: a Notenpult.exe in Node mode does the swap – the installed one for app.asar,
+ * the new build's one for a full update (the installed runtime files must not be in use).
+ */
+async function startSwap(staging, mode, source) {
+  const script = path.join(staging, 'apply-update.js');
+  // Read from inside app.asar (normal fs), written out with plain fs.
+  await fsp.writeFile(script, await fs.promises.readFile(path.join(__dirname, 'apply-update.js')));
+  const helper = mode === 'full' ? path.join(source, 'Notenpult.exe') : process.execPath;
+  spawn(helper, [script, '--pid', String(process.pid), '--mode', mode, '--source', source,
+    '--target', installDir(), '--exe', process.execPath], {
+    detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  }).unref();
+}
+
+/** Protected folder (C:\Program Files): apply-update.ps1 asks Windows for administrator rights. */
+function startElevatedSwap(staging, mode, source) {
+  const script = path.join(staging, 'apply-update.ps1');
+  ofs.writeFileSync(script, fs.readFileSync(path.join(__dirname, 'apply-update.ps1')));
+  // Windows PowerShell does nothing when started detached (no console), so cmd.exe – which runs
+  // fine detached and outlives Notenpult – starts it in its own hidden console via "start".
+  const q = (s) => `"${s}"`;
+  const line = ['start', '""', '/min', q(path.join(SYSTEM32, 'WindowsPowerShell', 'v1.0', 'powershell.exe')),
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', q(script),
+    '-AppPid', String(process.pid), '-Mode', mode, '-Source', q(source), '-Target', q(installDir()),
+    '-Exe', q(process.execPath)].join(' ');
+  spawn(path.join(SYSTEM32, 'cmd.exe'), ['/d', '/s', '/c', `"${line}"`], {
+    detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true,
+  }).unref();
 }
 
 function registerUpdater() {

@@ -31,6 +31,10 @@ function Test-Writable([string]$Dir) {
     return $true
   } catch [UnauthorizedAccessException] {
     return $false
+  } catch {
+    # "File not found" while creating a file: Windows ransomware protection (controlled folder
+    # access) or a virus scanner blocks this program - administrator rights do not help here.
+    throw "Windows blockiert das Schreiben in $Target (Ransomware-Schutz / Ueberwachter Ordnerzugriff?): $($_.Exception.Message)"
   }
 }
 

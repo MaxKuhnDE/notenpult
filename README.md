@@ -81,8 +81,12 @@ Auf Wunsch sucht die App beim Start selbst und zeigt einen roten Punkt am Einste
 Nach dem Neustart bestätigt Notenpult die neue Version – oder sagt, warum das Update nicht eingespielt wurde.
 
 Liegt Notenpult in einem geschützten Ordner (z. B. `C:\Programme`), fragt Windows beim Aktualisieren nach
-Administratorrechten – dort „Ja“ wählen. Ohne diese Abfrage geht es, wenn der Ordner dem eigenen Benutzer gehört,
-z. B. `%LOCALAPPDATA%\Programs\Notenpult`.
+Administratorrechten – dort „Ja“ wählen. Ohne diese Abfrage geht es, wenn der Ordner dem eigenen Benutzer gehört.
+
+**Empfohlener Ort:** `%LOCALAPPDATA%\Programs\Notenpult` (in die Adresszeile des Explorers eingeben). Nicht in
+„Dokumente“, auf dem Desktop oder in OneDrive: Dort synchronisiert OneDrive unnötig ~250 MB Programmdateien, und der
+Ransomware-Schutz von Windows kann Updates blockieren. Umziehen: Notenpult schließen, den ganzen Ordner
+verschieben, Verknüpfung neu anlegen – die Noten in `Dokumente\Notenpult` bleiben, wo sie sind.
 
 ## Android-Tablet
 

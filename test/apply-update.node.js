@@ -1,8 +1,9 @@
-// Tests updater/apply-update.ps1 (the file swap after the app quits) on throw-away folders,
-// and updater/result.js (what the app reports after the restart).
+// Tests the file swap after the app quits on throw-away folders – updater/apply-update.js
+// (normal case, run by Notenpult.exe in Node mode; here by node), updater/apply-update.ps1
+// (protected folders) – and updater/result.js (what the app reports after the restart).
 'use strict';
 
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -13,6 +14,10 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-apply-'));
 // Run a copy: the script writes its log next to itself.
 const script = path.join(tmp, 'apply-update.ps1');
 fs.copyFileSync(path.join(__dirname, '..', 'updater', 'apply-update.ps1'), script);
+const jsDir = path.join(tmp, 'js');
+fs.mkdirSync(jsDir);
+const jsScript = path.join(jsDir, 'apply-update.js');
+fs.copyFileSync(path.join(__dirname, '..', 'updater', 'apply-update.js'), jsScript);
 
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 const exists = (...p) => fs.existsSync(path.join(...p));
@@ -33,8 +38,43 @@ function apply(mode, source, target) {
   } catch { /* the script logs errors itself */ }
 }
 
+function applyJs(mode, source, target, extra = []) {
+  execFileSync(process.execPath, [jsScript, '--mode', mode, '--source', source, '--target', target,
+    '--exe', path.join(target, 'Notenpult.exe'), '--no-restart', ...extra], { stdio: 'ignore', timeout: 120000 });
+}
+const jsLog = () => (fs.existsSync(path.join(jsDir, 'apply-update.log')) ? read(jsDir, 'apply-update.log') : '');
+
 (async () => {
 try {
+  // ---------- apply-update.js (Notenpult.exe in Node mode) ----------
+  const j1 = path.join(tmp, 'js-asar');
+  fakeInstall(j1);
+  const jsAsar = path.join(tmp, 'js-new.asar');
+  write(jsAsar, 'new asar from js');
+  // The old app is still running for a moment: the swap must wait for its process.
+  const app = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)']);
+  const t0 = Date.now();
+  applyJs('asar', jsAsar, j1, ['--pid', String(app.pid)]);
+  check('js: waits for the old app, then replaces app.asar only', Date.now() - t0 >= 1400
+    && read(j1, 'resources', 'app.asar') === 'new asar from js' && read(j1, 'Notenpult.exe') === 'old exe'
+    && /update applied \(asar\)/.test(jsLog()), `${Date.now() - t0} ms`);
+
+  const j2 = path.join(tmp, 'js-full');
+  fakeInstall(j2);
+  const jsBuild = path.join(tmp, 'js-build');
+  write(path.join(jsBuild, 'Notenpult.exe'), 'new exe');
+  write(path.join(jsBuild, 'resources', 'app.asar'), 'full asar');
+  write(path.join(jsBuild, 'locales', 'de.pak'), 'de');
+  applyJs('full', jsBuild, j2);
+  check('js: full update mirrors the new build', read(j2, 'Notenpult.exe') === 'new exe' && read(j2, 'resources', 'app.asar') === 'full asar'
+    && exists(j2, 'locales', 'de.pak') && !exists(j2, 'old-only.dll'));
+
+  const j3 = path.join(tmp, 'js-foreign');
+  write(path.join(j3, 'important.txt'), 'keep me');
+  applyJs('full', jsBuild, j3);
+  check('js: refuses folders that are not Notenpult', read(j3, 'important.txt') === 'keep me' && !exists(j3, 'Notenpult.exe')
+    && /ERROR: Target is not a Notenpult installation/.test(jsLog()));
+
   // Small update: only resources\app.asar changes
   const inst1 = path.join(tmp, 'install-asar');
   fakeInstall(inst1);

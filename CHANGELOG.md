@@ -5,6 +5,18 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.4.1] – 2026-10-02
+
+### Behoben
+- **Windows-Update in „Dokumente“ / OneDrive:** Der Ransomware-Schutz von Windows („Überwachter Ordnerzugriff“)
+  und manche Virenscanner verbieten PowerShell das Schreiben dort – das Update scheiterte mit „Datei … konnte
+  nicht gefunden werden“. Jetzt spielt **Notenpult.exe selbst** das Update ein (Node-Modus von Electron):
+  Was Notenpult schreiben darf (es speichert seine Daten ja auch in „Dokumente“), kann es auch aktualisieren.
+  PowerShell bleibt nur für geschützte Ordner wie `C:\Programme`, die Administratorrechte brauchen.
+- Blockiert Windows den Programmordner trotzdem, sagt Notenpult das schon vor dem Download und nennt die Abhilfe
+  (Ordner nach `%LOCALAPPDATA%\Programs\Notenpult` verschieben) – kein Beenden und Neustarten mehr umsonst.
+- Fehlerdialog nach einem gescheiterten Update erklärt diesen Fall verständlich statt der Windows-Meldung.
+
 ## [1.4.0] – 2026-10-02
 
 ### Hinzugefügt
@@ -111,7 +123,8 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Stift-Anmerkungen in Rot und Schwarz, Radierer-Ende, Rückgängig, Handballen-Erkennung.
 - Dunkelmodus, invertierte Noten, Hoch- und Querformat.
 
-[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.4.1
 [1.4.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.4.0
 [1.3.1]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.1
 [1.3.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.0
