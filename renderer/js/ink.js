@@ -3,7 +3,7 @@
 //
 // Stroke: { c: 'red' | 'black', w: width relative to page width, p: [x, y, pressure, ...] }
 
-import { backend } from './store.js';
+import { backend, isSavingSuspended } from './store.js';
 
 export const COLORS = { red: '#d3221b', black: '#141414' };
 export const WIDTHS = { fine: 0.0021, medium: 0.0033, bold: 0.0056 };
@@ -36,7 +36,7 @@ export async function flush(pieceId) {
   clearTimeout(saveTimers.get(pieceId));
   saveTimers.delete(pieceId);
   const ann = await cache.get(pieceId);
-  if (!ann) return;
+  if (!ann || isSavingSuspended()) return;
   // Serialize a copy without empty pages; the live arrays stay untouched
   // because the viewer holds references to them.
   const out = { pages: {} };

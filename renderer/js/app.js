@@ -3,7 +3,7 @@ import {
   db, init, subscribe, commit, backend, persist, setlistQueue,
 } from './store.js';
 import {
-  h, icon, iconBtn, hasOpenModal, popMenu,
+  h, icon, iconBtn, hasOpenModal, popMenu, closeMenu, closeTopModal,
 } from './ui.js';
 import { applyTheme, isDark, toggleDark, onThemeChange } from './theme.js';
 import { renderLibrary, showGenre } from './library.js';
@@ -15,6 +15,7 @@ import { openSearch } from './search.js';
 import * as sync from './sync.js';
 import * as ink from './ink.js';
 import { autoCheck as autoUpdateCheck, onUpdateState, updateAvailable } from './updates.js';
+import { announceImport } from './presets.js';
 import {
   openViewer, closeViewer, isViewerOpen, next, prev,
 } from './viewer.js';
@@ -187,6 +188,17 @@ async function start() {
     settingsBtn.title = updateAvailable() ? 'Einstellungen – Update verfügbar' : 'Einstellungen';
   });
   setTimeout(() => autoUpdateCheck().catch(() => {}), 6000);
+  announceImport();
+  // Android back button (MainActivity asks this first): dialog → viewer → leave the app.
+  window.__npBack = () => {
+    closeMenu();
+    if (closeTopModal()) return true;
+    if (isViewerOpen()) {
+      closeViewer();
+      return true;
+    }
+    return false;
+  };
   // Handle for automated smoke tests.
   window.__np = {
     store, sync, processRecords, openViewer, closeViewer, next, prev,

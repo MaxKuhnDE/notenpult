@@ -4,6 +4,7 @@ import {
 } from './ui.js';
 import * as sync from './sync.js';
 import { updateSection } from './updates.js';
+import { presetsAvailable, exportAll, importAll } from './presets.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -115,7 +116,7 @@ export function openSettings() {
   const dataInfo = h('div.setting-hint.mono', null, '…');
   backend.info().then((i) => { dataInfo.textContent = i.dataDir; });
   const pool = sync.available() ? poolSection() : null;
-  const updates = backend.kind === 'electron' ? updateSection() : null;
+  const updates = backend.kind === 'electron' || backend.kind === 'android' ? updateSection() : null;
 
   const body = h('div.settings',
     null,
@@ -152,11 +153,20 @@ export function openSettings() {
     pool ? h('h3.settings-section', null, 'Google Drive · Noten-Pool') : null,
     pool ? pool.el : null,
 
-    h('h3.settings-section', null, 'Daten'),
+    h('h3.settings-section', null, 'Daten · Übertragen & Sichern'),
+    presetsAvailable() ? h('div.setting', null,
+      h('div.setting-text', null,
+        h('div.setting-label', null, 'Alles exportieren'),
+        h('div.setting-hint', null, 'Eine ZIP-Datei mit allen Stücken (PDFs), Stimmen, Setlists, Genres, Anmerkungen und Einstellungen – zum Übertragen auf ein anderes Gerät (z. B. das Android-Tablet) oder als Sicherung.')),
+      btn('Exportieren …', exportAll, { icon: 'export' })) : null,
+    presetsAvailable() ? h('div.setting', null,
+      h('div.setting-text', null,
+        h('div.setting-label', null, 'Alles importieren'),
+        h('div.setting-hint', null, 'Übernimmt eine Export-Datei komplett – danach ist dieses Gerät spiegelgleich zum exportierenden. Ersetzt alles, was hier gespeichert ist.')),
+      btn('Importieren …', importAll, { icon: 'import' })) : null,
     h('div.setting', null,
       h('div.setting-text', null, h('div.setting-label', null, 'Speicherort'), dataInfo),
-      backend.kind === 'electron' ? btn('Ordner öffnen', () => backend.openDataDir(), { icon: 'folder' }) : null),
-    h('div.setting-hint.block', null, 'Zum Sichern einfach diesen Ordner kopieren (z. B. auf einen USB-Stick).'));
+      backend.kind === 'electron' ? btn('Ordner öffnen', () => backend.openDataDir(), { icon: 'folder' }) : null));
 
   modal({
     title: 'Einstellungen',

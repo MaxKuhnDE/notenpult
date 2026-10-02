@@ -5,6 +5,15 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Alles exportieren / importieren** (Einstellungen → Daten): eine ZIP-Datei mit allen Stücken, PDFs, Stimmen,
+  Setlists, Genres, Anmerkungen und Einstellungen. Der Import ersetzt alles – danach ist das Gerät spiegelgleich
+  zum exportierenden; der bisherige Stand bleibt in `_vor-import`. Geht schief, wird der alte Stand zurückgelegt.
+- Test `preset.js`: Export, Änderungen, Import und Neustart – danach muss alles identisch sein.
+
+### Geändert
+- Kein `structuredClone` und Ersatzfarben für `color-mix` – Vorbereitung für ältere Android-Browser.
+
 ## [1.2.0] – 2026-10-01
 
 ### Hinzugefügt

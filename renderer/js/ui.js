@@ -55,6 +55,8 @@ const ICONS = {
   hash: '<path d="M5 9h14M5 15h14M10.5 4L8.5 20M15.5 4l-2 16"/>',
   sort: '<path d="M4 6h8M4 12h6M4 18h4"/><path d="M17 4v16M13.5 16.5L17 20l3.5-3.5"/>',
   import: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>',
+  export: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>',
+  tablet: '<rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M11 18.5h2"/>',
   folder: '<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.2h7.5A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>',
   az: '<path d="M3.5 18l3.5-10 3.5 10M4.7 14.6h4.6"/><path d="M14 8h6l-6 10h6"/>',
@@ -151,6 +153,23 @@ export function modal({ title, body, actions = [], className = '', dismissible =
     }
   });
   return api;
+}
+
+/** Closes the topmost dialog (Android back button). True if a dialog was open. */
+export function closeTopModal() {
+  const top = modalStack[modalStack.length - 1];
+  if (!top) return false;
+  if (top.dismissible) top.close(undefined);
+  return true;
+}
+
+/** Non-closable "please wait" dialog; returns { close }. */
+export function busy(text) {
+  return modal({
+    className: 'small busy-modal',
+    dismissible: false,
+    body: h('div.busy', null, h('span.busy-spinner'), h('span', null, text)),
+  });
 }
 
 export function hasOpenModal() {

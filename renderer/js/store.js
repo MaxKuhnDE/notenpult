@@ -1,7 +1,14 @@
-// Data model + persistence. Works inside Electron (window.notenpult) and,
-// as a fallback, in a plain browser using IndexedDB.
+// Data model + persistence. Works inside Electron (window.notenpult), inside the
+// Android app (window.NotenpultAndroid, see android/) and, as a fallback, in a
+// plain browser using IndexedDB.
 
 const native = window.notenpult || null;
+const android = window.NotenpultAndroid || null;
+
+/** Deep copy of plain data (structuredClone needs Chrome 98 – Android 5 stops at 95). */
+export function clone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 export const DEFAULT_SETTINGS = {
   theme: 'system', // 'system' | 'light' | 'dark'
@@ -37,7 +44,7 @@ export const db = {
   setlists: [],
   genres: [],
   settings: { ...DEFAULT_SETTINGS },
-  sync: structuredClone(DEFAULT_SYNC),
+  sync: clone(DEFAULT_SYNC),
   ui: { mode: 'setlists', setlistId: null },
 };
 
@@ -85,6 +92,122 @@ const electronBackend = {
   onFullscreenChange: (cb) => native.onFullscreenChange(cb),
   keepAwake: (on) => native.keepAwake(on),
   setTheme: (mode) => native.setTheme(mode),
+  exportPreset: () => native.exportPreset(),
+  importPreset: () => native.importPreset(),
+};
+
+// ---------- Android: WebView + Java bridge (android/app/src/main/java/…/MainActivity.java) ----------
+
+const ANDROID_ORIGIN = 'https://notenpult.local';
+const RELEASE_API = 'https://api.github.com/repos/MaxKuhnDE/notenpult/releases/latest';
+const androidPending = new Map();
+let androidSeq = 0;
+let androidApkUrl = null;
+let androidFullscreen = false;
+
+if (android) {
+  // Java answers asynchronous calls (file dialogs, ZIP import/export) through this function.
+  window.__npResolve = (id, json) => {
+    const done = androidPending.get(id);
+    if (!done) return;
+    androidPending.delete(id);
+    done(JSON.parse(json));
+  };
+}
+
+function androidCall(method, ...args) {
+  return new Promise((resolve) => {
+    const id = `cb${++androidSeq}`;
+    androidPending.set(id, resolve);
+    android[method](id, ...args);
+  });
+}
+
+function isNewer(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  }
+  return false;
+}
+
+const androidBackend = {
+  kind: 'android',
+  async loadDb() {
+    const text = android.loadDb();
+    return text ? JSON.parse(text) : null;
+  },
+  async saveDb(obj) {
+    if (!android.saveDb(JSON.stringify(obj))) throw new Error('Speichern fehlgeschlagen');
+  },
+  async loadAnn(id) {
+    const text = android.loadAnnotations(id);
+    return text ? JSON.parse(text) : null;
+  },
+  saveAnn: async (id, obj) => { android.saveAnnotations(id, JSON.stringify(obj)); },
+  deleteAnn: async (id) => { android.deleteAnnotations(id); },
+  pick: () => androidCall('pickFiles').then((r) => r.records || []),
+  importDropped: async () => [],
+  fileUrl: (name) => `${ANDROID_ORIGIN}/library/${encodeURIComponent(name)}`,
+  async readFile(name) {
+    const res = await fetch(androidBackend.fileUrl(name));
+    if (!res.ok) throw new Error(`Datei fehlt: ${name}`);
+    return res.arrayBuffer();
+  },
+  deleteFiles: async (names) => { android.deleteFiles(JSON.stringify(names)); },
+  importPaths: async () => [],
+  pickFolder: async () => null,
+  poolScan: async (folder) => ({ ok: false, error: 'Auf Android nicht verfügbar', folder, files: [] }),
+  detectGoogleDrive: async () => null,
+  /** New versions come as Notenpult-android.apk on the GitHub release. */
+  async updateCheck() {
+    const current = JSON.parse(android.info()).version;
+    let res;
+    try {
+      res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    } catch {
+      return { ok: false, current, error: 'Keine Verbindung zu GitHub – später noch einmal versuchen.' };
+    }
+    if (res.status === 404) return { ok: true, current, latest: null, newer: false };
+    if (!res.ok) return { ok: false, current, error: `GitHub antwortet mit Fehler ${res.status}.` };
+    const rel = await res.json();
+    const latest = String(rel.tag_name || '').replace(/^v/, '');
+    const apk = (rel.assets || []).find((a) => a.name === 'Notenpult-android.apk');
+    androidApkUrl = apk ? apk.browser_download_url : null;
+    return {
+      ok: true,
+      current,
+      latest,
+      newer: !!latest && isNewer(latest, current),
+      notes: rel.body || '',
+      url: rel.html_url,
+      published: rel.published_at,
+      mode: 'apk',
+      size: apk ? apk.size : null,
+      installable: !!apk,
+      reason: apk ? '' : 'Die Android-Datei wird gerade noch gebaut – in ein paar Minuten noch einmal suchen.',
+    };
+  },
+  async updateInstall() {
+    if (!androidApkUrl) throw new Error('Bitte zuerst nach Updates suchen.');
+    android.openUrl(androidApkUrl); // downloads in the browser, Android then offers "Installieren"
+    return { opened: true };
+  },
+  onUpdateProgress: () => () => {},
+  openDataDir: async () => {},
+  info: async () => JSON.parse(android.info()),
+  async setFullscreen(on) {
+    androidFullscreen = !!on;
+    android.setFullscreen(androidFullscreen);
+    return androidFullscreen;
+  },
+  isFullscreen: async () => androidFullscreen,
+  onFullscreenChange: () => {},
+  keepAwake: async (on) => { android.keepAwake(!!on); },
+  setTheme: async () => {},
+  exportPreset: () => androidCall('exportPreset'),
+  importPreset: () => androidCall('importPreset'),
 };
 
 let idbPromise = null;
@@ -128,9 +251,9 @@ let wakeLock = null;
 const webBackend = {
   kind: 'web',
   loadDb: () => idbOp('kv', 'readonly', (s) => s.get('db')).then((v) => v || null),
-  saveDb: (obj) => idbOp('kv', 'readwrite', (s) => s.put(structuredClone(obj), 'db')),
+  saveDb: (obj) => idbOp('kv', 'readwrite', (s) => s.put(clone(obj), 'db')),
   loadAnn: (id) => idbOp('kv', 'readonly', (s) => s.get(`ann:${id}`)).then((v) => v || null),
-  saveAnn: (id, obj) => idbOp('kv', 'readwrite', (s) => s.put(structuredClone(obj), `ann:${id}`)),
+  saveAnn: (id, obj) => idbOp('kv', 'readwrite', (s) => s.put(clone(obj), `ann:${id}`)),
   deleteAnn: (id) => idbOp('kv', 'readwrite', (s) => s.delete(`ann:${id}`)),
   pick({ folder = false } = {}) {
     return new Promise((resolve) => {
@@ -178,9 +301,11 @@ const webBackend = {
     } catch { /* not supported */ }
   },
   setTheme: async () => {},
+  exportPreset: async () => ({ ok: false, error: 'Export gibt es nur in der Windows- und Android-App.' }),
+  importPreset: async () => ({ ok: false, error: 'Import gibt es nur in der Windows- und Android-App.' }),
 };
 
-export const backend = native ? electronBackend : webBackend;
+export const backend = android ? androidBackend : native ? electronBackend : webBackend;
 
 // ---------- change notification + saving ----------
 
@@ -192,11 +317,23 @@ export function subscribe(fn) {
 
 let saveQueued = false;
 let saveChain = Promise.resolve();
+let savingSuspended = false;
+
+/** While a preset import replaces the data folder, nothing old may be written back. */
+export const isSavingSuspended = () => savingSuspended;
+export function suspendSaving() {
+  savingSuspended = true;
+}
+export function resumeSaving() {
+  savingSuspended = false;
+}
+
 function queueSave() {
   if (saveQueued) return;
   saveQueued = true;
   queueMicrotask(() => {
     saveQueued = false;
+    if (savingSuspended) return;
     const snapshot = {
       version: 2,
       pieces: db.pieces,
@@ -222,7 +359,21 @@ export function commit(what = 'data') {
 let persistTimer = null;
 export function persist() {
   clearTimeout(persistTimer);
-  persistTimer = setTimeout(queueSave, 1500);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    queueSave();
+  }, 1500);
+}
+
+/** Writes everything that is still pending (before export/import). */
+export async function flushSaves() {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+    queueSave();
+  }
+  await new Promise((r) => setTimeout(r, 0)); // let a queued save start
+  await saveChain;
 }
 
 /** Version 1 stored pages directly on the piece; now every piece has parts (Stimmen). */
@@ -250,7 +401,7 @@ export async function init() {
         if (db.settings[k] === 'two') db.settings[k] = 'auto';
       }
     }
-    db.sync = { ...structuredClone(DEFAULT_SYNC), ...(saved.sync || {}) };
+    db.sync = { ...clone(DEFAULT_SYNC), ...(saved.sync || {}) };
     db.ui = { ...db.ui, ...(saved.ui || {}) };
     db.genres = Array.isArray(saved.genres) ? saved.genres.filter((g) => g && cleanGenre(g.name)) : [];
     // Every genre used on a piece must exist in the list.

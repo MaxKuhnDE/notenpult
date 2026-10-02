@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('notenpult', {
     return () => ipcRenderer.removeListener('update:progress', listener);
   },
 
+  exportPreset: () => ipcRenderer.invoke('preset:export'),
+  importPreset: () => ipcRenderer.invoke('preset:import'),
+
   openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
   info: () => ipcRenderer.invoke('app:info'),
 

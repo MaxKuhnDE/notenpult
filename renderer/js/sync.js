@@ -4,7 +4,7 @@
 
 import {
   db, commit, backend, addPiece, addPart, pieceById, partNameFrom, deleteUnusedFiles, norm, uid, DEFAULT_SYNC,
-  placeImported, importOrder,
+  placeImported, importOrder, clone,
 } from './store.js';
 import { countPages, isPdf } from './render.js';
 import { toast, plural } from './ui.js';
@@ -232,7 +232,7 @@ export function link(folder, { mode, structure, filter }) {
 
 export function unlink() {
   const { mode, structure, filter } = db.sync;
-  db.sync = { ...structuredClone(DEFAULT_SYNC), mode, structure, filter };
+  db.sync = { ...clone(DEFAULT_SYNC), mode, structure, filter };
   pool = { ok: false, files: [], scannedAt: null, error: null };
   commit('settings');
   setStatus('off');

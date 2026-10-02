@@ -8,9 +8,13 @@ const fs = require('node:fs');
 const fsp = fs.promises;
 const crypto = require('node:crypto');
 const { registerUpdater } = require('./updater');
+const { exportPreset, importPreset } = require('./preset');
 
 const HOST = 'notenpult';
-const RENDERER_DIR = path.join(__dirname, 'renderer');
+// Tests can serve another web root (e.g. the Android bundle in android/app/src/main/assets/www).
+const RENDERER_DIR = process.env.NOTENPULT_TEST && process.env.NOTENPULT_WEB_ROOT
+  ? path.resolve(process.env.NOTENPULT_WEB_ROOT)
+  : path.join(__dirname, 'renderer');
 const SUPPORTED_EXT = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp']);
 const TEST_SCRIPT = process.env.NOTENPULT_TEST ? path.resolve(process.env.NOTENPULT_TEST) : null;
 
@@ -31,6 +35,13 @@ const MIME = {
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
 };
+
+if (TEST_SCRIPT) {
+  // The test window is fully transparent; without this Chromium treats it as covered after a
+  // reload and stops painting (no animation frames → pdf.js never finishes a page).
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+}
 
 // Must happen before the app is ready.
 protocol.registerSchemesAsPrivileged([{
@@ -275,6 +286,11 @@ function registerIpc() {
     }
   });
 
+  // Tests pass a fixed ZIP path instead of the save/open dialogs.
+  const presetFile = TEST_SCRIPT ? process.env.NOTENPULT_TEST_PRESET || null : null;
+  ipcMain.handle('preset:export', () => exportPreset(win, paths, presetFile));
+  ipcMain.handle('preset:import', () => importPreset(win, paths, presetFile));
+
   ipcMain.handle('app:openDataDir', async () => {
     await fsp.mkdir(paths.dataDir, { recursive: true });
     return shell.openPath(paths.dataDir);
@@ -332,12 +348,19 @@ function registerTestHooks() {
     setTimeout(() => app.quit(), 50);
     return true;
   });
-  win.webContents.once('did-finish-load', async () => {
+  // Injected on every load: tests that reload the page (preset import) continue there.
+  let navigations = 0;
+  win.webContents.on('did-start-navigation', (details) => {
+    if (details.isMainFrame ?? true) navigations += 1;
+  });
+  win.webContents.on('did-finish-load', async () => {
+    const atStart = navigations;
     const samplesDir = path.join(path.dirname(TEST_SCRIPT), 'samples');
     const code = (await fsp.readFile(TEST_SCRIPT, 'utf8')).replace(/__SAMPLES_DIR__/g, JSON.stringify(samplesDir));
     try {
       await win.webContents.executeJavaScript(code);
     } catch (err) {
+      if (navigations !== atStart) return; // the page reloaded on purpose – the script runs again there
       console.error('Test script failed:', err);
       app.quit();
     }
