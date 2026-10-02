@@ -105,7 +105,7 @@ body.viewer-open #app { visibility: hidden; }
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, transform 0.08s;
 }
-.btn:hover { background: color-mix(in srgb, var(--surface) 88%, var(--text)); }
+.btn:hover { background: var(--surface-2); background: color-mix(in srgb, var(--surface) 88%, var(--text)); }
 .btn:active { transform: scale(0.98); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
@@ -861,7 +861,7 @@ body.viewer-open #app { visibility: hidden; }
   font-weight: 700;
   cursor: pointer;
 }
-.v-part:hover { background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent)); }
+.v-part:hover { background: var(--accent-soft); background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent)); }
 .v-part:active { transform: scale(0.98); }
 .v-part-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .v-part-count { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.85; }
@@ -889,6 +889,7 @@ body.viewer-open #app { visibility: hidden; }
   right: 8px;
   z-index: 5;
   display: none;
+  background: var(--surface);
   background: color-mix(in srgb, var(--surface) 75%, transparent);
   opacity: 0.6;
   backdrop-filter: blur(6px);
@@ -1270,4 +1271,17 @@ button.genre-chip:hover { background: var(--hover); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ===== Busy dialog (export/import) ===== */
+.busy-modal .modal-body { padding: 22px; }
+.busy { display: flex; align-items: center; gap: 14px; font-size: 15px; font-weight: 600; }
+.busy-spinner {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }

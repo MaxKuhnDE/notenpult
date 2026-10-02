@@ -7,6 +7,7 @@ ohne Build-Schritt; pdf.js rendert die Noten.
 main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-Scan, app://-Protokoll
 preload.js         sichere Brücke (contextBridge) → window.notenpult
 updater/           In-App-Updates aus GitHub-Releases (siehe unten)
+preset.js          „Alles exportieren/importieren“: komplette Bibliothek als ZIP (tar.exe)
 renderer/
   index.html, styles.css
   js/app.js        Start, Kopfzeile, Moduswechsel, Drag & Drop, Tastenkürzel
@@ -70,6 +71,24 @@ test/              UI-Tests (laufen in der echten App) + Generator für Beispiel
 `main.js` liest den Ordner rekursiv (`pool:scan`, Ergebnis wird als `pool-index.json` zwischengespeichert),
 `sync.js` entscheidet, was neu, geändert oder ignoriert ist, und kopiert Dateien über den normalen Import.
 Ist der Ordner nicht erreichbar, bleibt alles lokal nutzbar; die Suche nutzt den letzten Index.
+
+## Export / Import („Preset“)
+
+ZIP-Format (gleich auf Windows und Android):
+
+```
+notenpult-preset.json   { format: 'notenpult-preset', formatVersion: 1, appVersion, platform, exportedAt, counts }
+notenpult.json          Bibliothek (Stücke, Stimmen, Setlists, Genres, Einstellungen)
+Noten/…                 PDFs und Bilder
+Anmerkungen/…           Stiftstriche je Stück
+```
+
+- Export: `renderer/js/presets.js` schreibt erst alles Ausstehende (`flushSaves`, `ink.flushAll`), dann packt
+  `preset.js` mit `tar.exe -a` (ZIP).
+- Import: Speichern wird angehalten (`suspendSaving` – sonst könnte ein verzögertes Speichern alte Daten über die
+  neuen schreiben), `preset.js` entpackt in einen Ordner neben den Daten, prüft Kennung und `notenpult.json`,
+  verschiebt den bisherigen Stand nach `_vor-import` und den neuen an seine Stelle (bei einem Fehler zurück).
+  Danach lädt die Oberfläche neu.
 
 ## Updates
 

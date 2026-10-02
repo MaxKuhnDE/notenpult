@@ -1,7 +1,7 @@
 // "A–Z" mode: all pieces alphabetically, grouped by first letter.
 
 import {
-  db, sortedPieces, letterOf, setlistsContaining, deletePiece, pagesOf, pieceById,
+  db, backend, sortedPieces, letterOf, setlistsContaining, deletePiece, pagesOf, pieceById,
 } from './store.js';
 import {
   h, icon, iconBtn, btn, popMenu, plural, preserveFocus, toast,
@@ -12,6 +12,7 @@ import { openAddToSetlist } from './setlists.js';
 import { openViewer } from './viewer.js';
 import { searchPieces, searchPool, poolRow } from './search.js';
 import { openPoolSetup } from './settings.js';
+import { presetsAvailable, importAll } from './presets.js';
 import * as sync from './sync.js';
 import {
   genreFilterBar, genreTags, matchesGenres, openGenreManager, openGenrePicker,
@@ -37,19 +38,24 @@ export function renderLibrary(container) {
 }
 
 function emptyState() {
+  const onAndroid = backend.kind === 'android';
   return h('div.empty-state', null,
     h('div.empty-icon', null, icon('music')),
     h('h2', null, 'Noch keine Noten'),
-    h('p', null, 'Importiere deine Noten als PDF oder Bild (JPG, PNG). Jede Datei wird ein Stück – mehrseitige PDFs bleiben zusammen.'),
+    h('p', null, onAndroid
+      ? 'Übernimm alles vom PC: dort unter Einstellungen → „Alles exportieren“ eine ZIP-Datei erstellen, per USB auf das Tablet (Ordner „Download“) kopieren und hier importieren.'
+      : 'Importiere deine Noten als PDF oder Bild (JPG, PNG). Jede Datei wird ein Stück – mehrseitige PDFs bleiben zusammen.'),
     h('div.empty-actions', null,
-      btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: 'primary' }),
-      btn('Ganzen Ordner importieren', () => importFromPicker({ folder: true }), { icon: 'folder' }),
+      onAndroid ? btn('Export vom PC importieren', importAll, { icon: 'tablet', kind: 'primary' }) : null,
+      btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: onAndroid ? '' : 'primary' }),
+      onAndroid ? null : btn('Ganzen Ordner importieren', () => importFromPicker({ folder: true }), { icon: 'folder' }),
       sync.available() && !sync.isLinked()
         ? btn('Google Drive verbinden', () => openPoolSetup(), { icon: 'cloud' })
-        : null),
+        : null,
+      !onAndroid && presetsAvailable() ? btn('Export-Datei importieren', importAll, { icon: 'tablet' }) : null),
     h('p.muted.small', null, sync.isLinked()
       ? 'Der Noten-Pool ist verbunden – über die Suche oben findest und lädst du einzelne Stücke.'
-      : 'Tipp: Du kannst Dateien auch einfach in dieses Fenster ziehen.'));
+      : onAndroid ? 'Einzelne PDFs oder Bilder gehen auch über „Noten importieren“.' : 'Tipp: Du kannst Dateien auch einfach in dieses Fenster ziehen.'));
 }
 
 function build() {

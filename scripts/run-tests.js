@@ -18,7 +18,7 @@ const electron = require('electron');
 const root = path.join(__dirname, '..');
 const suites = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'migrate.js', 'update.js', 'apply-update.node.js'];
+  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js'];
 const TIMEOUT_MS = 240000;
 
 /** Data folder as written by version 1.0 (pages directly on the piece, layout 'two'). */
@@ -71,7 +71,29 @@ async function setupUpdateServer() {
   return { env: { NOTENPULT_UPDATE_API: `${base}/releases/latest` }, cleanup: () => server.close() };
 }
 
-const SETUP = { 'migrate.js': setupV1, 'update.js': setupUpdateServer };
+/** Export/import test: fixed ZIP path instead of dialogs; afterwards check the ZIP and the backup. */
+function setupPreset() {
+  const zip = path.join(os.tmpdir(), `notenpult-preset-test-${process.pid}.zip`);
+  fs.rmSync(zip, { force: true });
+  return {
+    env: { NOTENPULT_TEST_PRESET: zip },
+    after(dataDir) {
+      let entries = [];
+      try {
+        const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+        entries = execFileSync(tar, ['-t', '-f', zip], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+      } catch { /* checked below */ }
+      const has = (re) => entries.some((e) => re.test(e));
+      return [
+        `${has(/^notenpult-preset\.json$/) && has(/^notenpult\.json$/) && has(/^Noten\/.+\.pdf$/) && has(/^Noten\/.+\.png$/) && has(/^Anmerkungen\/.+\.json$/) ? 'PASS' : 'FAIL'} ZIP contains manifest, library, PDFs, images and annotations (${entries.length} entries)`,
+        `${fs.existsSync(path.join(dataDir, '_vor-import', 'notenpult.json')) ? 'PASS' : 'FAIL'} previous state kept in _vor-import`,
+      ];
+    },
+    cleanup: () => fs.rmSync(zip, { force: true }),
+  };
+}
+
+const SETUP = { 'migrate.js': setupV1, 'update.js': setupUpdateServer, 'preset.js': setupPreset };
 const AFTER = {
   'migrate.js': (dataDir) => {
     const backup = path.join(dataDir, 'notenpult.vor-update.json');
@@ -121,7 +143,7 @@ async function runSuite(name) {
     child.on('exit', (code) => {
       clearTimeout(timer);
       if (isNode && code !== 0) crashed = true;
-      for (const line of AFTER[name]?.(dataDir) || []) {
+      for (const line of [...(AFTER[name]?.(dataDir) || []), ...(setup.after?.(dataDir) || [])]) {
         console.log(`  ${line}`);
         if (line.startsWith('PASS')) pass++;
         else fail++;

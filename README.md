@@ -104,8 +104,15 @@ Alles liegt in `Dokumente\Notenpult`:
 | `Noten\` | importierte PDFs/Bilder (Kopien – Originale bleiben unberührt) |
 | `Anmerkungen\` | Stiftstriche je Stück |
 | `pool-index.json` | zuletzt gelesener Inhalt des Noten-Pools (Suche offline) |
+| `_vor-import\` | Stand vor dem letzten „Alles importieren“ |
 
-Zum Sichern den Ordner kopieren.
+### Alles übertragen (z. B. PC → Tablet) oder sichern
+
+*Einstellungen → Daten → „Exportieren …“* erstellt **eine ZIP-Datei** mit allen Stücken (PDFs/Bilder), Stimmen,
+Setlists, Genres, Anmerkungen und Einstellungen. Auf dem anderen Gerät *„Importieren …“* wählen und die ZIP
+öffnen: Danach ist dort alles **spiegelgleich** – vorher Vorhandenes wird ersetzt (unter Windows bleibt es in
+`_vor-import` erhalten). Das funktioniert in beide Richtungen, also auch, um Anmerkungen vom Tablet zurück auf
+den PC zu holen.
 
 ## Entwicklung
 
