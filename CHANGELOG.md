@@ -5,6 +5,18 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.4.0] – 2026-10-02
+
+### Hinzugefügt
+- **Mehrfachauswahl in A–Z:** vorne auf das Symbol eines Stücks tippen (oder „Auswählen“) – dann wählt jeder
+  Tipp auf eine Zeile aus. Umschalt+Klick wählt einen Bereich, „Alle mit A“ einen ganzen Buchstaben,
+  „Alle angezeigten“ alles, was Suche und Genre-Filter gerade zeigen (z. B. 100 Stücke mit einem Tipp).
+- Mit der Auswahl **auf einmal löschen** (mit Rückfrage: Anzahl, Titel, betroffene Setlists) oder
+  **zu einer Setlist hinzufügen**. Setlist-Einträge, Anmerkungen und nicht mehr benutzte Notendateien gehen mit,
+  der Noten-Pool holt gelöschte Stücke nicht zurück.
+- Auswahl beenden: ✕ in der Leiste, Esc, Android-Zurück-Taste oder Wechsel zu den Setlists.
+- Test `select.js` (u. a. 120 Stücke auf einmal löschen).
+
 ## [1.3.1] – 2026-10-02
 
 ### Behoben
@@ -99,7 +111,8 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Stift-Anmerkungen in Rot und Schwarz, Radierer-Ende, Rückgängig, Handballen-Erkennung.
 - Dunkelmodus, invertierte Noten, Hoch- und Querformat.
 
-[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.4.0
 [1.3.1]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.1
 [1.3.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.2.0

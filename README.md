@@ -10,7 +10,8 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 
 - **Setlists**: beliebig viele, eigene Reihenfolge per Ziehen, Nummern aus dem Notenordner (z. B. 1–120 bei
   60 Stücken), Anzeige in Zehnerblöcken, „Nach Nummer sortieren“, „Nummern fortlaufend vergeben“.
-- **A–Z-Bibliothek**: alphabetisch gruppiert, Buchstabenleiste zum Springen, Suche.
+- **A–Z-Bibliothek**: alphabetisch gruppiert, Buchstabenleiste zum Springen, Suche. Mehrfachauswahl über das
+  Symbol vorne an jedem Stück – z. B. 100 Stücke auswählen und mit einem Tipp löschen oder in eine Setlist legen.
 - **Genres**: eigene Hashtags wie `#Marsch`, `#Polka`, `#Kirche` – mehrere pro Stück, als Filter-Chips in der
   Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
@@ -40,6 +41,20 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 | ![Nummernblock](docs/screenshots/nummernblock.png) | ![Suche](docs/screenshots/suche-noten-pool.png) | ![Bearbeiten](docs/screenshots/stueck-bearbeiten.png) |
 
 ![Genres als Filter](docs/screenshots/genres.png)
+
+## Mehrere Stücke auf einmal (A–Z)
+
+![Mehrfachauswahl](docs/screenshots/mehrfachauswahl.png)
+
+- **Starten**: vorne auf das Symbol eines Stücks tippen (oder oben „Auswählen“). Jetzt wählt jeder Tipp auf eine
+  Zeile aus bzw. ab – geöffnet wird nichts.
+- **Viele auf einmal**: Umschalt+Klick wählt alles zwischen zwei Stücken, „Alle mit A“ neben dem Buchstaben eine
+  ganze Gruppe, „Alle angezeigten“ in der Leiste alles, was Suche und Genre-Chips gerade zeigen
+  (z. B. `#polka` suchen → alle Polkas).
+- **Aktionen** in der Leiste unten: „Zu Setlist …“ oder „Löschen“. Vor dem Löschen fragt Notenpult nach und nennt
+  Anzahl, Titel und betroffene Setlists. Mit den Stücken gehen ihre Setlist-Einträge und Anmerkungen; der Noten-Pool
+  lädt gelöschte Stücke nicht erneut.
+- **Beenden**: ✕ in der Leiste, Esc, Zurück-Taste (Android) oder Wechsel zu den Setlists.
 
 ## Genres
 

@@ -63,6 +63,11 @@
       check('library saved through the bridge', JSON.parse(window.NotenpultAndroid.loadDb()).pieces.length === 3);
       await shot('android-01-library');
 
+      // ---------- selection in A–Z: tap the icon, back button ends it ----------
+      $('.lib-list .piece-row .piece-select').click();
+      check('tapping the icon selects (A–Z)', !!$('.select-bar') && $('.select-count').textContent === '1 Stück ausgewählt');
+      check('back button ends the selection first', window.__npBack() === true && !$('.select-bar'));
+
       // ---------- viewer: pdf.js 3.11, page turn, keep awake, fullscreen ----------
       window.__np.openViewer({ queue: [{ pieceId: flo.id, number: '47' }, { pieceId: bt.id, number: '12' }], start: 0, context: { kind: 'library' } });
       await pagesReady();

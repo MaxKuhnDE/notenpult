@@ -626,14 +626,24 @@ export function ignoreSynced(predicate) {
 
 /** Removes a piece, its setlist entries, annotations and unreferenced files. */
 export async function deletePiece(pieceId) {
-  const piece = pieceById(pieceId);
-  if (!piece) return;
-  db.pieces = db.pieces.filter((p) => p.id !== pieceId);
-  for (const s of db.setlists) s.entries = s.entries.filter((e) => e.pieceId !== pieceId);
-  ignoreSynced((t) => t.pieceId === pieceId);
+  await deletePieces([pieceId]);
+}
+
+/**
+ * Deletes many pieces at once (selection in A–Z): one save, setlist entries go too, the
+ * Noten-Pool does not bring them back, files no other piece uses are removed. Returns the count.
+ */
+export async function deletePieces(pieceIds) {
+  const gone = new Set(pieceIds);
+  const removed = db.pieces.filter((p) => gone.has(p.id));
+  if (!removed.length) return 0;
+  db.pieces = db.pieces.filter((p) => !gone.has(p.id));
+  for (const s of db.setlists) s.entries = s.entries.filter((e) => !gone.has(e.pieceId));
+  ignoreSynced((t) => gone.has(t.pieceId));
   commit();
-  await backend.deleteAnn(pieceId).catch(() => {});
-  await deleteUnusedFiles(allPages(piece).map((p) => p.file));
+  for (const p of removed) await backend.deleteAnn(p.id).catch(() => {});
+  await deleteUnusedFiles(removed.flatMap((p) => allPages(p).map((pg) => pg.file)));
+  return removed.length;
 }
 
 export async function deleteUnusedFiles(candidates) {

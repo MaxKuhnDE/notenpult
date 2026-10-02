@@ -1,11 +1,14 @@
 // "A–Z" mode: all pieces alphabetically, grouped by first letter.
+// Tapping the icon in front of a piece selects it; with a selection, many pieces can be
+// deleted or added to a setlist at once.
 
 import {
-  db, backend, sortedPieces, letterOf, setlistsContaining, deletePiece, pagesOf, pieceById,
+  db, backend, sortedPieces, letterOf, setlistsContaining, deletePiece, deletePieces, pagesOf, pieceById,
 } from './store.js';
 import {
-  h, icon, iconBtn, btn, popMenu, plural, preserveFocus, toast,
+  h, icon, iconBtn, btn, popMenu, plural, preserveFocus, toast, confirmDialog,
 } from './ui.js';
+import * as ink from './ink.js';
 import { importFromPicker } from './importer.js';
 import { openPieceEditor, confirmDeletePiece } from './editor.js';
 import { openAddToSetlist } from './setlists.js';
@@ -21,6 +24,20 @@ import {
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
 let search = '';
 const genreFilter = new Set(); // OR filter by genre names
+
+// Selection survives re-renders (every change re-renders the list) until it is ended.
+let selecting = false;
+const selected = new Set(); // piece ids
+let anchor = null; // last picked piece – Shift+click selects the range up to here
+
+/** Leaves selection mode (Esc, Android back button, other tab); true if it was active. */
+export function endSelection() {
+  if (!selecting) return false;
+  selecting = false;
+  selected.clear();
+  anchor = null;
+  return true;
+}
 
 /** Shows the A–Z list filtered to one genre (used by the global search). */
 export function showGenre(name) {
@@ -71,7 +88,7 @@ function build() {
     'data-select-all': 'false',
     oninput: () => {
       search = searchInput.value;
-      fill();
+      update();
       list.scrollTop = 0;
     },
   });
@@ -79,14 +96,46 @@ function build() {
   const toolbar = h('div.toolbar', null,
     h('label.search', null, icon('search'), searchInput),
     h('div.spacer'),
+    btn('Auswählen', () => {
+      selecting = true;
+      update();
+    }, { icon: 'check', kind: 'ghost', title: 'Mehrere Stücke auswählen – oder einfach vorne auf das Symbol tippen' }),
     btn('Genres', openGenreManager, { icon: 'hash', kind: 'ghost', title: 'Genres anlegen, umbenennen, zuordnen' }),
     btn('Ordner', () => importFromPicker({ folder: true }), { icon: 'folder', title: 'Ganzen Ordner importieren' }),
     btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: 'primary' }));
+
+  let shown = []; // pieces in the list, in display order
+
+  const pick = (piece, range) => {
+    selecting = true;
+    const a = range && anchor ? shown.findIndex((p) => p.id === anchor) : -1;
+    const b = shown.indexOf(piece);
+    if (a >= 0 && b >= 0) {
+      for (const p of shown.slice(Math.min(a, b), Math.max(a, b) + 1)) selected.add(p.id);
+    } else if (selected.has(piece.id)) {
+      selected.delete(piece.id);
+    } else {
+      selected.add(piece.id);
+    }
+    anchor = piece.id;
+    update();
+  };
+  const pickAll = (pieces) => {
+    selecting = true;
+    const all = pieces.every((p) => selected.has(p.id));
+    for (const p of pieces) {
+      if (all) selected.delete(p.id);
+      else selected.add(p.id);
+    }
+    update();
+  };
 
   function fill() {
     const q = search.trim();
     const hits = q ? new Set(searchPieces(q)) : null;
     const pieces = sortedPieces().filter((p) => (!hits || hits.has(p)) && matchesGenres(p, genreFilter));
+    shown = pieces;
+    for (const id of selected) if (!pieceById(id)) selected.delete(id);
     const groups = new Map();
     for (const p of pieces) {
       const L = letterOf(p.title);
@@ -104,9 +153,13 @@ function build() {
     for (const L of LETTERS) {
       const items = groups.get(L);
       if (!items) continue;
+      const allIn = items.every((p) => selected.has(p.id));
       sections.push(h('section.letter-group', { dataset: { letter: L } },
-        h('h3.letter-head', null, L),
-        items.map((p) => pieceRow(p, play))));
+        h('h3.letter-head', null, L, selecting
+          ? h('button.letter-pick', { type: 'button', onclick: () => pickAll(items) },
+            allIn ? `${L} abwählen` : `Alle mit ${L} (${items.length})`)
+          : null),
+        items.map((p) => pieceRow(p, play, pick))));
     }
     const poolHits = q && sync.isLinked() ? searchPool(q, 40) : [];
     if (!sections.length && !poolHits.length) {
@@ -160,29 +213,87 @@ function build() {
   const renderBar = () => {
     const bar = genreFilterBar(genreFilter, () => {
       renderBar();
-      fill();
+      update();
       list.scrollTop = 0;
     });
     barHolder.replaceChildren(...(bar ? [bar] : []));
   };
+  // Bottom bar while selecting: count, all shown, add to setlist, delete.
+  const selectHolder = h('div.select-holder');
+  function renderSelectBar() {
+    if (!selecting) {
+      selectHolder.replaceChildren();
+      return;
+    }
+    const n = selected.size;
+    const allShown = shown.length > 0 && shown.every((p) => selected.has(p.id));
+    const ids = () => sortedPieces().filter((p) => selected.has(p.id)).map((p) => p.id);
+    selectHolder.replaceChildren(h('div.select-bar', { role: 'toolbar', 'aria-label': 'Auswahl' },
+      iconBtn('x', 'Auswahl beenden (Esc)', () => {
+        endSelection();
+        update();
+      }, { class: 'select-close' }),
+      h('span.select-count', null, n ? `${plural(n, 'Stück', 'Stücke')} ausgewählt` : 'Stücke vorne antippen'),
+      h('div.spacer'),
+      btn(allShown ? 'Keins' : `Alle angezeigten (${shown.length})`, () => pickAll(shown), { icon: 'check', kind: 'ghost', disabled: !shown.length }),
+      btn('Zu Setlist …', () => openAddToSetlist(ids()), { icon: 'list', disabled: !n }),
+      btn('Löschen', () => deleteSelected(ids()), { icon: 'trash', kind: 'danger', disabled: !n })));
+  }
+
+  const root = h('div.lib', null, toolbar, barHolder, h('div.lib-body', null, list, rail), selectHolder);
+  function update() {
+    root.classList.toggle('selecting', selecting);
+    fill();
+    renderSelectBar();
+  }
   renderBar();
-  fill();
-  return h('div.lib', null, toolbar, barHolder, h('div.lib-body', null, list, rail));
+  update();
+  return root;
 }
 
-function pieceRow(piece, play) {
+async function deleteSelected(ids) {
+  const pieces = ids.map(pieceById).filter(Boolean);
+  if (!pieces.length) return;
+  const sets = db.setlists.filter((s) => s.entries.some((e) => ids.includes(e.pieceId))).length;
+  const names = pieces.slice(0, 4).map((p) => `„${p.title}“`).join(', ')
+    + (pieces.length > 4 ? ` und ${pieces.length - 4} weitere` : '');
+  const what = plural(pieces.length, 'Stück', 'Stücke');
+  const ok = await confirmDialog(
+    `${names} ${pieces.length === 1 ? 'wird' : 'werden'} aus der Bibliothek gelöscht`
+    + `${sets ? ` und aus ${plural(sets, 'Setlist', 'Setlists')} entfernt` : ''}. Anmerkungen gehen dabei verloren.`,
+    { title: `${what} löschen?`, okLabel: `${what} löschen`, danger: true },
+  );
+  if (!ok) return;
+  endSelection();
+  for (const p of pieces) await ink.remove(p.id); // no pending pen stroke may bring a file back
+  const count = await deletePieces(pieces.map((p) => p.id));
+  toast(`${plural(count, 'Stück', 'Stücke')} gelöscht`, { kind: 'success' });
+}
+
+function pieceRow(piece, play, pick) {
   const inSets = setlistsContaining(piece.id).length;
   const meta = [plural(pagesOf(piece).length, 'Seite', 'Seiten')];
   if (piece.parts.length > 1) meta.push(plural(piece.parts.length, 'Stimme', 'Stimmen'));
   if (inSets) meta.push(`in ${plural(inSets, 'Setlist', 'Setlists')}`);
   if (Object.values(db.sync.files).some((t) => t.pieceId === piece.id && !t.ignored)) meta.push('Noten-Pool');
-  return h('div.piece-row', null,
-    h('button.piece-main', { type: 'button', onclick: () => play(piece), title: 'Öffnen' },
-      h('span.piece-icon', null, icon(piece.parts.length > 1 ? 'layers' : pagesOf(piece).length > 1 ? 'pages' : 'single')),
-      h('span.piece-text', null,
-        h('span.piece-title', null, piece.title),
-        h('span.piece-meta', null, meta.join(' · '), genreTags(piece)))),
-    iconBtn('more', 'Optionen', (e) => pieceMenu(e.currentTarget, piece), { class: 'row-more' }));
+  const isSel = selected.has(piece.id);
+  const kind = piece.parts.length > 1 ? 'layers' : pagesOf(piece).length > 1 ? 'pages' : 'single';
+  return h(`div.piece-row${isSel ? '.selected' : ''}`, { dataset: { id: piece.id } },
+    h('button.piece-icon.piece-select', {
+      type: 'button',
+      title: isSel ? 'Auswahl aufheben' : 'Auswählen (Umschalt: Bereich)',
+      'aria-pressed': String(isSel),
+      onclick: (e) => pick(piece, e.shiftKey),
+    }, icon(isSel ? 'check' : kind)),
+    h('button.piece-main', {
+      type: 'button',
+      title: selecting ? 'Auswählen' : 'Öffnen',
+      onclick: (e) => (selecting ? pick(piece, e.shiftKey) : play(piece)),
+    },
+    h('span.piece-text', null,
+      h('span.piece-title', null, piece.title),
+      h('span.piece-meta', null, meta.join(' · '), genreTags(piece)))),
+    selecting ? null : iconBtn('more', 'Optionen', (e) => pieceMenu(e.currentTarget, piece), { class: 'row-more' }));
 }
 
 function pieceMenu(anchor, piece) {
