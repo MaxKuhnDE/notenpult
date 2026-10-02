@@ -5,6 +5,11 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Behoben
+- Vollständiges Update kopiert jetzt jede Datei, auch wenn Größe und Zeitstempel zufällig gleich sind
+  (machte den Test `apply-update.node.js` auf schnellen Rechnern unzuverlässig).
+- Release: Der Signaturschlüssel der Android-App wird auch mit Zeilenumbrüchen im Secret gelesen.
+
 ## [1.3.0] – 2026-10-02
 
 ### Hinzugefügt

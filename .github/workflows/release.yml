@@ -131,7 +131,7 @@ jobs:
           NOTENPULT_KEYSTORE_PASSWORD: ${{ secrets.NOTENPULT_KEYSTORE_PASSWORD }}
         run: |
           test -n "$KEYSTORE_BASE64" || { echo "::error::Secret NOTENPULT_KEYSTORE_BASE64 fehlt"; exit 1; }
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/notenpult.p12"
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 -d > "$RUNNER_TEMP/notenpult.p12"
           export NOTENPULT_KEYSTORE_FILE="$RUNNER_TEMP/notenpult.p12"
           gradle -p android --no-daemon testReleaseUnitTest assembleRelease
           cp android/app/build/outputs/apk/release/app-release.apk Notenpult-android.apk
