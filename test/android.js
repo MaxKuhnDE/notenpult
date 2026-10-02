@@ -115,14 +115,16 @@
       await waitFor(() => byText('.settings-modal .btn', 'Nach Updates suchen'), 5000, 'settings');
       byText('.settings-modal .btn', 'Nach Updates suchen').click();
       await waitFor(() => byText('.settings-modal .update-title', '99.0.0'), 8000, 'update found').catch(() => {});
-      check('update check reads the GitHub release (CSP, CORS)', !!byText('.settings-modal .update-title', 'Version 99.0.0 ist verfügbar'),
+      check('update check through the bridge', !!byText('.settings-modal .update-title', 'Version 99.0.0 ist verfügbar'),
         ($('.settings-modal .update-settings') || {}).textContent);
       await shot('android-04-settings');
       const install = byText('.settings-modal .btn', 'Jetzt aktualisieren');
       if (install) install.click();
-      await waitFor(() => byText('.settings-modal .update-msg', 'Download läuft'), 5000, 'apk').catch(() => {});
-      check('"Jetzt aktualisieren" opens the APK download', window.__npOpened === __APK_URL__ && !!byText('.settings-modal .update-msg', 'Download läuft'),
-        String(window.__npOpened));
+      await waitFor(() => byText('.settings-modal .update-msg', 'Installieren'), 5000, 'apk').catch(() => {});
+      const inst = window.__npInstalled || {};
+      check('"Jetzt aktualisieren" downloads the APK with its checksum and opens the installer',
+        inst.url === window.__npTestApkUrl && inst.digest === 'sha256:00ff' && !!byText('.settings-modal .update-msg', 'Android zeigt jetzt die Installation'),
+        JSON.stringify(inst));
 
       // ---------- export, change, import ----------
       db.settings.theme = 'dark';
@@ -137,6 +139,7 @@
       store.commit('settings');
       await sleep(300);
       localStorage.setItem('np-test-phase', '2');
+      localStorage.setItem('np-last-version', '1.0.0'); // as if the app ran in 1.0.0 before
       byText('.settings-modal .btn', 'Importieren').click();
       await waitFor(() => byText('.modal .btn', 'Export-Datei wählen'), 5000, 'confirm');
       check('import dialog explains the Download folder', !!byText('.modal', 'Download'));
@@ -151,6 +154,7 @@
     localStorage.removeItem('np-test-phase');
     await sleep(300);
     check('import message shown', toastText().includes('Import abgeschlossen: 3 Stücke, 1 Setlist'), toastText());
+    check('a newer version than last time is announced', toastText().includes('jetzt auf Version'), toastText());
     check('library identical to the export', fingerprint(db) === localStorage.getItem('np-test-expected'));
     const polka = db.pieces.find((p) => p.title === 'Polka Nr 5');
     window.__np.openViewer({ queue: [{ pieceId: polka.id, number: '' }], start: 0, context: { kind: 'library' } });

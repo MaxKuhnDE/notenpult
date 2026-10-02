@@ -2,7 +2,9 @@
 // automatic check at start. Download + file swap happen in the main process (updater/).
 
 import { db, backend } from './store.js';
-import { h, icon, btn, toast } from './ui.js';
+import {
+  h, icon, btn, toast, modal,
+} from './ui.js';
 
 let result = null; // last check result from the main process
 let phase = 'idle'; // idle | checking | download | extract | restart | staged | opened (Android) | error
@@ -65,6 +67,37 @@ export async function autoCheck() {
   if (r && r.ok && r.newer) toast(`Neue Version ${r.latest} verfügbar – Einstellungen → Updates`, { ms: 7000 });
 }
 
+/**
+ * After a start: say whether the last update got in. Windows reads the log of the update
+ * script (updater/result.js), Android compares with the version that ran last.
+ */
+export async function announceUpdateResult() {
+  let r = null;
+  try {
+    r = await backend.updateLastResult();
+  } catch {
+    return;
+  }
+  if (!r) return;
+  if (r.updated) {
+    toast(`Notenpult ist jetzt auf Version ${r.updated} aktualisiert.`, { kind: 'success', ms: 6000 });
+    return;
+  }
+  if (!r.failed) return;
+  const denied = /Zugriff verweigert|Administratorrechte|denied|UnauthorizedAccess/i.test(r.reason || '');
+  modal({
+    title: 'Update nicht eingespielt',
+    className: 'small',
+    body: h('div', null,
+      h('p.dialog-text', null, `Das Update auf Version ${r.failed} konnte nicht eingespielt werden – Notenpult läuft weiter mit ${r.current}. Deine Daten sind unverändert.`),
+      h('p.dialog-text', null, denied
+        ? 'Grund: Notenpult liegt in einem geschützten Ordner (z. B. „Programme“) und Windows hat keine Administratorrechte bekommen. Beim nächsten Versuch in der Windows-Abfrage „Ja“ wählen.'
+        : `Grund: ${r.reason}`),
+      h('p.muted.small', null, `Protokoll: ${r.log}`)),
+    actions: [{ label: 'OK', kind: 'primary', value: true }],
+  });
+}
+
 const mb = (n) => `${(n / 1048576).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
 const dateFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' });
 
@@ -99,8 +132,8 @@ export function updateSection() {
       action = h('div.update-msg', null, 'Update wird eingespielt – Notenpult startet gleich neu …');
     } else if (phase === 'opened') {
       action = h('div.update-msg.ok', null, icon('check'), h('span', null,
-        'Der Download läuft im Browser. Danach die Datei „Notenpult-android.apk“ antippen und „Installieren“ wählen – '
-        + 'deine Noten bleiben erhalten.'));
+        'Geladen und geprüft. Android zeigt jetzt die Installation – dort „Installieren“ tippen. '
+        + 'Deine Noten, Setlists und Anmerkungen bleiben erhalten.'));
     } else if (phase === 'staged') {
       action = h('div.update-msg.ok', null, icon('check'), h('span', null, 'Update geladen und geprüft (Testmodus – nichts ersetzt).'));
     } else {
@@ -117,6 +150,8 @@ export function updateSection() {
         asar: `Download ${mb(result.size || 0)} – nur der App-Teil, die Laufzeit bleibt.`,
         apk: `Download ${mb(result.size || 0)} – neue Android-App (APK), wird über die vorhandene installiert.`,
       }[result.mode] || `Download ${mb(result.size || 0)} – komplettes Paket (neue Laufzeit).`),
+      result.elevate ? h('div.setting-hint', null,
+        'Notenpult liegt in einem geschützten Ordner – Windows fragt beim Aktualisieren nach Administratorrechten, dort „Ja“ wählen.') : null,
       action);
   }
 

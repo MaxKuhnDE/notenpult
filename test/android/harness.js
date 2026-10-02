@@ -25,19 +25,12 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.webp': 'image/webp',
 };
-const APK_URL = 'https://github.com/MaxKuhnDE/notenpult/releases/download/v99.0.0/Notenpult-android.apk';
-const RELEASE = {
-  tag_name: 'v99.0.0',
-  html_url: 'https://github.com/MaxKuhnDE/notenpult/releases/tag/v99.0.0',
-  published_at: '2026-10-01T12:00:00Z',
-  body: '### Hinzugefügt\n- Testversion',
-  assets: [{ name: 'Notenpult-android.apk', browser_download_url: APK_URL, size: 4 * 1048576 }],
-};
 
 // Tablet: 1024 × 768 CSS pixels at device pixel ratio 2 (Galaxy Tab S2 9.7").
 app.commandLine.appendSwitch('force-device-scale-factor', '2');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+if (process.env.NOTENPULT_TEST_PROFILE) app.setPath('userData', process.env.NOTENPULT_TEST_PROFILE);
 
 app.whenReady().then(() => {
   console.log(`Chromium ${process.versions.chrome}`);
@@ -53,10 +46,7 @@ app.whenReady().then(() => {
       if (p.includes('..') || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(404, 'text/plain', Buffer.alloc(0));
       return send(200, MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', fs.readFileSync(file));
     }
-    if (url.hostname === 'api.github.com' && url.pathname === '/repos/MaxKuhnDE/notenpult/releases/latest') {
-      return send(200, 'application/json', Buffer.from(JSON.stringify(RELEASE)), { 'Access-Control-Allow-Origin': '*' });
-    }
-    return send(404, 'text/plain', Buffer.alloc(0));
+    return send(404, 'text/plain', Buffer.alloc(0)); // the page itself never goes online
   });
 
   const win = new BrowserWindow({
@@ -94,9 +84,7 @@ app.whenReady().then(() => {
   win.webContents.on('did-finish-load', async () => {
     const atStart = navigations;
     const samplesDir = path.join(path.dirname(TEST_SCRIPT), 'samples');
-    const code = fs.readFileSync(TEST_SCRIPT, 'utf8')
-      .replace(/__SAMPLES_DIR__/g, JSON.stringify(samplesDir))
-      .replace(/__APK_URL__/g, JSON.stringify(APK_URL));
+    const code = fs.readFileSync(TEST_SCRIPT, 'utf8').replace(/__SAMPLES_DIR__/g, JSON.stringify(samplesDir));
     try {
       await win.webContents.executeJavaScript(code);
     } catch (err) {

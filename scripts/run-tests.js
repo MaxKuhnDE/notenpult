@@ -138,9 +138,11 @@ async function runSuite(name) {
   // Fresh sample files and pool folder for every suite (smoke2 modifies the pool).
   execFileSync(process.execPath, [path.join(root, 'test', 'make-samples.js')], { stdio: 'ignore' });
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-test-'));
+  // Browser profile of its own: never the installed app's localStorage or single-instance lock.
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-profile-'));
   const setup = (await SETUP[name]?.(dataDir)) || {};
   const env = {
-    ...process.env, ...(setup.env || {}), NOTENPULT_DATA_DIR: dataDir, NOTENPULT_TEST: path.join(root, 'test', name),
+    ...process.env, ...(setup.env || {}), NOTENPULT_DATA_DIR: dataDir, NOTENPULT_TEST: path.join(root, 'test', name), NOTENPULT_TEST_PROFILE: profile,
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const isNode = name.endsWith('.node.js');
@@ -182,6 +184,9 @@ async function runSuite(name) {
       }
       setup.cleanup?.();
       fs.rmSync(dataDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      } catch { /* a helper process may still hold a file – it is in %TEMP% anyway */ }
       const ok = !fail && !crashed && pass > 0;
       console.log(`${ok ? '✔' : '✘'} ${name}: ${pass} bestanden, ${fail} fehlgeschlagen${crashed ? ', abgebrochen' : ''}\n`);
       resolve(ok);

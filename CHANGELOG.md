@@ -5,10 +5,27 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.3.1] – 2026-10-02
+
 ### Behoben
-- Vollständiges Update kopiert jetzt jede Datei, auch wenn Größe und Zeitstempel zufällig gleich sind
-  (machte den Test `apply-update.node.js` auf schnellen Rechnern unzuverlässig).
+- **Android: Verbindung zu GitHub.** Android 5 kennt die Stammzertifikate nicht mehr, mit denen GitHub heute
+  arbeitet (Let's Encrypt/ISRG Root X1 für Downloads, Sectigo E46 für github.com) – Update-Suche und Download
+  scheiterten, auch im Browser („unsichere Seite“). Die App bringt jetzt die aktuelle Zertifikatsliste von
+  Mozilla mit und spricht GitHub selbst an (Java statt WebView); Zertifikate und Hostnamen werden wie üblich
+  geprüft.
+- **Android: Update direkt in der App.** „Jetzt aktualisieren“ lädt die APK selbst (mit Fortschritt und
+  SHA-256-Prüfung) und öffnet die Android-Installation – kein Umweg über den Browser mehr.
+- **Windows: Update in geschützten Ordnern** (z. B. `C:\Programme`). Notenpult hielt den Ordner für
+  beschreibbar (`fs.access` prüft unter Windows keine Rechte), das Update-Skript scheiterte dann still und
+  startete die alte Version. Jetzt prüft die App mit einer echten Testdatei; fehlen Rechte, fragt Windows nach
+  Administratorrechten, danach startet Notenpult wieder als normaler Benutzer.
+- **Update-Ergebnis wird angezeigt:** nach dem Neustart „Notenpult ist jetzt auf Version … aktualisiert“ –
+  oder, falls es nicht geklappt hat, ein Hinweis mit dem Grund aus dem Update-Protokoll.
+- Das Update-Skript wartet auf alle Notenpult-Prozesse, prüft die kopierte Datei per Prüfsumme und versucht es
+  länger, falls ein Virenscanner die Datei kurz sperrt.
+- Vollständiges Update kopiert jede Datei, auch wenn Größe und Zeitstempel zufällig gleich sind.
 - Release: Der Signaturschlüssel der Android-App wird auch mit Zeilenumbrüchen im Secret gelesen.
+- Tests laufen mit eigenem Browser-Profil und stören eine geöffnete Notenpult-App nicht mehr.
 
 ## [1.3.0] – 2026-10-02
 
@@ -82,7 +99,8 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Stift-Anmerkungen in Rot und Schwarz, Radierer-Ende, Rückgängig, Handballen-Erkennung.
 - Dunkelmodus, invertierte Noten, Hoch- und Querformat.
 
-[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/MaxKuhnDE/notenpult/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.1
 [1.3.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MaxKuhnDE/notenpult/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MaxKuhnDE/notenpult/commits/main

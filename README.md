@@ -63,6 +63,11 @@ starten. Selbst bauen: siehe [Entwicklung](#entwicklung).
 startet neu. Meist wird nur der App-Teil geladen (wenige MB), das komplette Paket nur bei einer neuen
 Electron-Laufzeit. Noten, Setlists, Stimmen und Anmerkungen in `Dokumente\Notenpult` bleiben unberührt.
 Auf Wunsch sucht die App beim Start selbst und zeigt einen roten Punkt am Einstellungen-Knopf.
+Nach dem Neustart bestätigt Notenpult die neue Version – oder sagt, warum das Update nicht eingespielt wurde.
+
+Liegt Notenpult in einem geschützten Ordner (z. B. `C:\Programme`), fragt Windows beim Aktualisieren nach
+Administratorrechten – dort „Ja“ wählen. Ohne diese Abfrage geht es, wenn der Ordner dem eigenen Benutzer gehört,
+z. B. `%LOCALAPPDATA%\Programs\Notenpult`.
 
 ## Android-Tablet
 
@@ -78,6 +83,10 @@ Die Android-App hat dieselbe Oberfläche und läuft ab **Android 5.0** – gedac
 4. Zeigt Notenpult „Android System WebView ist zu alt“: im Play Store *Android System WebView* aktualisieren
    (unter Android 5 gibt es dort Version 95, gebraucht wird mindestens 92).
 
+Zeigt der Browser des Tablets GitHub als **„unsichere Seite“**, liegt das an Android 5: Es kennt die heutigen
+Stammzertifikate von GitHub nicht. Dann die APK am PC laden und per USB kopieren. Notenpult selbst bringt ab
+1.3.1 aktuelle Zertifikate mit – die Update-Suche in der App funktioniert also trotzdem.
+
 **Alles vom PC übernehmen**
 
 1. Am PC: *Einstellungen → Daten → „Exportieren …“* – speichert z. B. `Notenpult-Export-2026-10-02.zip`.
@@ -92,7 +101,8 @@ Anmerkungen vom Tablet zurückzuholen. Der Import ersetzt immer alles auf dem Zi
 **Bedienung**: Tippen blättert wie am PC. Das Galaxy Tab S2 hat keinen Stift – zum Schreiben oben den
 **Zeichenmodus** (Stift-Symbol) einschalten, dann schreibt der Finger; Radierer und Rückgängig wie gewohnt.
 Die Zurück-Taste schließt Dialoge und die Notenansicht. Updates: *Einstellungen → Updates → „Jetzt
-aktualisieren“* lädt die neue APK, danach antippen und „Installieren“ – die Daten bleiben erhalten.
+aktualisieren“* lädt die neue APK und öffnet die Installation – dort „Installieren“ tippen, die Daten bleiben
+erhalten.
 Google Drive (Noten-Pool) gibt es nur unter Windows; die Noten kommen über den Export aufs Tablet.
 
 ## Bedienung im Notenmodus

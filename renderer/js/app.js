@@ -14,7 +14,9 @@ import { setCropListener } from './render.js';
 import { openSearch } from './search.js';
 import * as sync from './sync.js';
 import * as ink from './ink.js';
-import { autoCheck as autoUpdateCheck, onUpdateState, updateAvailable } from './updates.js';
+import {
+  autoCheck as autoUpdateCheck, onUpdateState, updateAvailable, announceUpdateResult,
+} from './updates.js';
 import { announceImport } from './presets.js';
 import {
   openViewer, closeViewer, isViewerOpen, next, prev,
@@ -195,6 +197,7 @@ async function start() {
     settingsBtn.classList.toggle('has-badge', updateAvailable());
     settingsBtn.title = updateAvailable() ? 'Einstellungen – Update verfügbar' : 'Einstellungen';
   });
+  announceUpdateResult();
   setTimeout(() => autoUpdateCheck().catch(() => {}), 6000);
   announceImport();
   // Android back button (MainActivity asks this first): dialog → viewer → leave the app.

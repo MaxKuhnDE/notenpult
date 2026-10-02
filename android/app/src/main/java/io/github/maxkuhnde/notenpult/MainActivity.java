@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -38,7 +39,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -50,6 +56,9 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
+
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Notenpult for Android: the user interface of the Windows app (renderer/, bundled into
@@ -72,6 +81,8 @@ public class MainActivity extends Activity {
     private static final int REQ_PICK = 1;
     private static final int REQ_EXPORT = 2;
     private static final int REQ_IMPORT = 3;
+    private static final String RELEASE_API = "https://api.github.com/repos/MaxKuhnDE/notenpult/releases/latest";
+    private static final String DOWNLOAD_PREFIX = "https://github.com/MaxKuhnDE/notenpult/releases/download/";
 
     private static final Pattern SAFE_FILE = Pattern.compile("[A-Za-z0-9_-]{1,64}\\.[a-z0-9]{1,5}");
     private static final Pattern SAFE_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
@@ -106,6 +117,7 @@ public class MainActivity extends Activity {
     private String exportCallback;
     private String importCallback;
     private boolean fullscreen;
+    private SSLSocketFactory tls;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -119,6 +131,7 @@ public class MainActivity extends Activity {
         dbFile = new File(dataDir, "notenpult.json");
         sheetDir.mkdirs();
         annDir.mkdirs();
+        if (state == null) ApkProvider.updateFile(this).delete(); // installed (or given up) by now
         if (state == null && dbFile.isFile()) {
             // One rolling backup of the library index per start (as on Windows).
             try {
@@ -338,6 +351,33 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void openUrl(final String url) {
             if (url != null && url.startsWith("https://")) runOnUiThread(() -> openExternal(url));
+        }
+
+        /**
+         * The latest GitHub release as JSON; answers { ok, status, body }. Not via fetch() in the
+         * page: the WebView only knows Android 5's old root certificates (see Net).
+         */
+        @JavascriptInterface
+        public void checkUpdate(final String callback) {
+            worker.execute(() -> {
+                try {
+                    String[] res = Net.getText(RELEASE_API, userAgent(), tls());
+                    JSONObject r = new JSONObject();
+                    r.put("ok", true);
+                    r.put("status", Integer.parseInt(res[0]));
+                    r.put("body", res[1]);
+                    resolve(callback, r);
+                } catch (IOException | GeneralSecurityException | JSONException e) {
+                    Log.w(TAG, "checkUpdate", e);
+                    resolve(callback, error(networkMessage(e)));
+                }
+            });
+        }
+
+        /** Downloads the new APK (progress: window.__npUpdateProgress) and opens Android's installer. */
+        @JavascriptInterface
+        public void installUpdate(final String callback, final String url, final String digest) {
+            worker.execute(() -> resolve(callback, downloadAndInstall(url, digest)));
         }
 
         /** PDFs and images from the tablet (Downloads, USB stick, …) → Noten/; answers { records }. */
@@ -585,6 +625,75 @@ public class MainActivity extends Activity {
             // counts are only for the message
         }
         return c;
+    }
+
+    // ---------- updates ----------
+
+    private synchronized SSLSocketFactory tls() throws IOException, GeneralSecurityException {
+        if (tls == null) {
+            try (InputStream in = getAssets().open("cacerts.pem")) {
+                tls = Net.socketFactory(Net.readPem(in), true);
+            }
+        }
+        return tls;
+    }
+
+    private String userAgent() {
+        return "Notenpult-Android/" + appVersion();
+    }
+
+    private JSONObject downloadAndInstall(String url, String digest) {
+        if (url == null || !url.startsWith(DOWNLOAD_PREFIX)) return error("Unerwartete Download-Adresse.");
+        File apk = ApkProvider.updateFile(this);
+        try {
+            Net.download(url, apk, digest, userAgent(), tls(), this::progress);
+            PackageInfo info = getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+            if (info == null || !getPackageName().equals(info.packageName)) {
+                apk.delete();
+                return error("Die geladene Datei ist keine Notenpult-App.");
+            }
+            final Intent install = new Intent(Intent.ACTION_VIEW);
+            if (Build.VERSION.SDK_INT >= 24) {
+                install.setDataAndType(ApkProvider.uri(), ApkProvider.MIME);
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } else {
+                apk.setReadable(true, false); // the installer runs as another user
+                install.setDataAndType(Uri.fromFile(apk), ApkProvider.MIME);
+            }
+            install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> {
+                try {
+                    startActivity(install);
+                } catch (ActivityNotFoundException e) {
+                    Log.w(TAG, "no installer", e);
+                }
+            });
+            JSONObject r = new JSONObject();
+            r.put("ok", true);
+            r.put("opened", true);
+            return r;
+        } catch (IOException | GeneralSecurityException | JSONException e) {
+            Log.w(TAG, "installUpdate", e);
+            return error(networkMessage(e));
+        }
+    }
+
+    private void progress(long received, long total) {
+        final String js = "window.__npUpdateProgress && window.__npUpdateProgress({phase:'download',received:"
+                + received + ",total:" + total + "})";
+        runOnUiThread(() -> web.evaluateJavascript(js, null));
+    }
+
+    private static String networkMessage(Exception e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof CertificateExpiredException || t instanceof CertificateNotYetValidException) {
+                return "Sichere Verbindung abgelehnt – stimmen Datum und Uhrzeit des Tablets?";
+            }
+            if (t instanceof UnknownHostException) return "Keine Internetverbindung – später noch einmal versuchen.";
+            if (t instanceof SocketTimeoutException) return "GitHub antwortet nicht – später noch einmal versuchen.";
+        }
+        if (e instanceof SSLException) return "Sichere Verbindung zu GitHub fehlgeschlagen: " + e.getMessage();
+        return e.getMessage() != null ? e.getMessage() : e.toString();
     }
 
     // ---------- helpers ----------

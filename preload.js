@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('notenpult', {
 
   updateCheck: () => ipcRenderer.invoke('update:check'),
   updateInstall: () => ipcRenderer.invoke('update:install'),
+  updateLastResult: () => ipcRenderer.invoke('update:lastResult'),
   onUpdateProgress: (cb) => {
     const listener = (_e, p) => cb(p);
     ipcRenderer.on('update:progress', listener);

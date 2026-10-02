@@ -85,6 +85,7 @@ const electronBackend = {
   updateCheck: () => native.updateCheck(),
   updateInstall: () => native.updateInstall(),
   onUpdateProgress: (cb) => native.onUpdateProgress(cb),
+  updateLastResult: () => native.updateLastResult(),
   openDataDir: () => native.openDataDir(),
   info: () => native.info(),
   setFullscreen: (on) => native.setFullscreen(on),
@@ -99,20 +100,21 @@ const electronBackend = {
 // ---------- Android: WebView + Java bridge (android/app/src/main/java/…/MainActivity.java) ----------
 
 const ANDROID_ORIGIN = 'https://notenpult.local';
-const RELEASE_API = 'https://api.github.com/repos/MaxKuhnDE/notenpult/releases/latest';
 const androidPending = new Map();
+const androidUpdateListeners = new Set();
 let androidSeq = 0;
-let androidApkUrl = null;
+let androidApk = null; // { url, digest } from the last update check
 let androidFullscreen = false;
 
 if (android) {
-  // Java answers asynchronous calls (file dialogs, ZIP import/export) through this function.
+  // Java answers asynchronous calls (file dialogs, ZIP import/export, updates) through this function.
   window.__npResolve = (id, json) => {
     const done = androidPending.get(id);
     if (!done) return;
     androidPending.delete(id);
     done(JSON.parse(json));
   };
+  window.__npUpdateProgress = (p) => androidUpdateListeners.forEach((fn) => fn(p));
 }
 
 function androidCall(method, ...args) {
@@ -160,21 +162,20 @@ const androidBackend = {
   pickFolder: async () => null,
   poolScan: async (folder) => ({ ok: false, error: 'Auf Android nicht verfügbar', folder, files: [] }),
   detectGoogleDrive: async () => null,
-  /** New versions come as Notenpult-android.apk on the GitHub release. */
+  /**
+   * New versions come as Notenpult-android.apk on the GitHub release. Java asks GitHub, not
+   * fetch(): the WebView only knows Android 5's outdated root certificates (see Net.java).
+   */
   async updateCheck() {
     const current = JSON.parse(android.info()).version;
-    let res;
-    try {
-      res = await fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
-    } catch {
-      return { ok: false, current, error: 'Keine Verbindung zu GitHub – später noch einmal versuchen.' };
-    }
+    const res = await androidCall('checkUpdate');
+    if (!res.ok) return { ok: false, current, error: res.error };
     if (res.status === 404) return { ok: true, current, latest: null, newer: false };
-    if (!res.ok) return { ok: false, current, error: `GitHub antwortet mit Fehler ${res.status}.` };
-    const rel = await res.json();
+    if (res.status !== 200) return { ok: false, current, error: `GitHub antwortet mit Fehler ${res.status}.` };
+    const rel = JSON.parse(res.body);
     const latest = String(rel.tag_name || '').replace(/^v/, '');
     const apk = (rel.assets || []).find((a) => a.name === 'Notenpult-android.apk');
-    androidApkUrl = apk ? apk.browser_download_url : null;
+    androidApk = apk ? { url: apk.browser_download_url, digest: apk.digest || '' } : null;
     return {
       ok: true,
       current,
@@ -189,12 +190,27 @@ const androidBackend = {
       reason: apk ? '' : 'Die Android-Datei wird gerade noch gebaut – in ein paar Minuten noch einmal suchen.',
     };
   },
+  /** Java downloads the APK (checked against GitHub's SHA-256) and opens Android's installer. */
   async updateInstall() {
-    if (!androidApkUrl) throw new Error('Bitte zuerst nach Updates suchen.');
-    android.openUrl(androidApkUrl); // downloads in the browser, Android then offers "Installieren"
+    if (!androidApk) throw new Error('Bitte zuerst nach Updates suchen.');
+    const res = await androidCall('installUpdate', androidApk.url, androidApk.digest);
+    if (!res.ok) throw new Error(res.error);
     return { opened: true };
   },
-  onUpdateProgress: () => () => {},
+  onUpdateProgress(cb) {
+    androidUpdateListeners.add(cb);
+    return () => androidUpdateListeners.delete(cb);
+  },
+  /** The installer replaces the app, so the version that ran last tells whether it worked. */
+  async updateLastResult() {
+    const { version } = JSON.parse(android.info());
+    let last = null;
+    try {
+      last = localStorage.getItem('np-last-version');
+      localStorage.setItem('np-last-version', version);
+    } catch { /* nothing to report */ }
+    return last && isNewer(version, last) ? { updated: version } : null;
+  },
   openDataDir: async () => {},
   info: async () => JSON.parse(android.info()),
   async setFullscreen(on) {
@@ -282,6 +298,7 @@ const webBackend = {
   updateCheck: async () => ({ ok: false, error: 'Updates gibt es nur in der Windows-App.' }),
   updateInstall: async () => { throw new Error('Updates gibt es nur in der Windows-App.'); },
   onUpdateProgress: () => () => {},
+  updateLastResult: async () => null,
   openDataDir: async () => {},
   info: async () => ({ dataDir: 'Browser-Speicher (IndexedDB)', version: 'web', packaged: false }),
   async setFullscreen(on) {
