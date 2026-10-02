@@ -131,7 +131,8 @@ scripts/android/boot.js                          ES5: WebView-Version prüfen, S
 
 ```
 updater/index.js         Hauptprozess: GitHub-Release abfragen, Download mit SHA-256-Prüfung, ZIP entpacken (tar.exe)
-updater/apply-update.ps1 läuft nach dem Beenden: tauscht resources\app.asar bzw. spiegelt die ganze App, startet neu
+updater/apply-update.js  läuft nach dem Beenden in Notenpult.exe (Node-Modus): tauscht app.asar bzw. spiegelt die App
+updater/apply-update.ps1 nur für geschützte Ordner (C:\Program Files): dasselbe mit Administratorrechten (UAC)
 updater/result.js        nach dem Neustart: Ergebnis aus apply-update.log lesen („aktualisiert“ / Grund des Fehlers)
 renderer/js/updates.js   Einstellungen → Updates, automatische Suche beim Start, Punkt am Einstellungen-Knopf
 ```
@@ -139,14 +140,18 @@ renderer/js/updates.js   Einstellungen → Updates, automatische Suche beim Star
 1. `update:check` liest `releases/latest` und `update.json`. Ist die Electron-Version gleich, reicht `app.asar`
    (enthält main.js, preload.js, renderer, pdf.js), sonst kommt das ZIP.
 2. `update:install` lädt in `%TEMP%\notenpult-update-<version>` (über `original-fs`, weil Electrons `fs` jede
-   `*.asar`-Datei als Archiv behandelt), prüft Größe und Digest, startet `apply-update.ps1` losgelöst und beendet
-   die App.
-3. Das Skript wartet auf das Ende aller Notenpult-Prozesse, ersetzt die Dateien (nur in einem Ordner mit
-   `Notenpult.exe`), prüft die Kopie per Hash, schreibt `apply-update.log` und startet Notenpult neu. Die Daten in
-   `Dokumente\Notenpult` werden nie angefasst.
+   `*.asar`-Datei als Archiv behandelt), prüft Größe und Digest, startet den Tausch losgelöst und beendet die App.
+   Den Tausch macht `apply-update.js` in einer Notenpult.exe mit `ELECTRON_RUN_AS_NODE=1` – für `app.asar` die
+   installierte, für ein volles Update die neue aus `%TEMP%` (die installierten Laufzeitdateien dürfen dabei nicht
+   in Benutzung sein). Grund: Der Ransomware-Schutz von Windows („Überwachter Ordnerzugriff“) und Virenscanner
+   sperren PowerShell oft in „Dokumente“/OneDrive, Notenpult selbst aber nicht (es speichert dort seine Daten).
+3. Der Helfer wartet auf das Ende der App, ersetzt die Dateien (nur in einem Ordner mit `Notenpult.exe`), prüft
+   `app.asar` per Hash, schreibt `apply-update.log` und startet Notenpult neu (ohne `ELECTRON_RUN_AS_NODE`). Die
+   Daten in `Dokumente\Notenpult` werden nie angefasst.
 4. Schreibrechte prüft die App mit einer echten Testdatei – `fs.access` ignoriert unter Windows die Rechte (ACLs)
-   und hält z. B. `C:\Program Files` für beschreibbar. Fehlen sie, startet sich das Skript per UAC mit
-   Administratorrechten neu und startet Notenpult danach über `explorer.exe` wieder als normaler Benutzer.
+   und hält z. B. `C:\Program Files` für beschreibbar. `EPERM`/`EACCES` → `apply-update.ps1` startet sich per UAC
+   mit Administratorrechten und danach Notenpult über `explorer.exe` wieder als normaler Benutzer. Andere Fehler
+   (z. B. `ENOENT` durch den Ransomware-Schutz) → kein Update möglich; die App sagt das vor dem Download.
 5. Beim nächsten Start liest `update:lastResult` (`updater/result.js`) das Protokoll: Erfolg → Hinweis
    „aktualisiert“, Fehlschlag (Ordner einer neueren Version mit Protokoll) → Dialog mit dem Grund.
 

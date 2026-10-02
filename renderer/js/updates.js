@@ -84,15 +84,26 @@ export async function announceUpdateResult() {
     return;
   }
   if (!r.failed) return;
-  const denied = /Zugriff verweigert|Administratorrechte|denied|UnauthorizedAccess/i.test(r.reason || '');
+  const reason = r.reason || '';
+  // Creating a file fails with "not found": Windows' ransomware protection (or a virus scanner)
+  // blocks the folder – typical for Documents and OneDrive.
+  const blocked = /nicht gefunden|could not (be )?find|ENOENT|Ransomware|blockiert/i.test(reason);
+  const denied = !blocked && /Zugriff verweigert|Administratorrechte|denied|UnauthorizedAccess/i.test(reason);
+  let why = `Grund: ${reason}`;
+  if (blocked) {
+    why = 'Grund: Windows hat das Ändern des Programmordners blockiert – meist der Ransomware-Schutz '
+      + '(„Überwachter Ordnerzugriff“), weil Notenpult in „Dokumente“ bzw. OneDrive liegt. Abhilfe: Notenpult schließen, '
+      + 'den ganzen Notenpult-Ordner nach %LOCALAPPDATA%\\Programs\\Notenpult verschieben und die Verknüpfung anpassen – '
+      + 'dort klappen Updates, und OneDrive muss die Programmdateien nicht mehr synchronisieren.';
+  } else if (denied) {
+    why = 'Grund: Notenpult liegt in einem geschützten Ordner (z. B. „Programme“) und Windows hat keine Administratorrechte bekommen. Beim nächsten Versuch in der Windows-Abfrage „Ja“ wählen.';
+  }
   modal({
     title: 'Update nicht eingespielt',
     className: 'small',
     body: h('div', null,
       h('p.dialog-text', null, `Das Update auf Version ${r.failed} konnte nicht eingespielt werden – Notenpult läuft weiter mit ${r.current}. Deine Daten sind unverändert.`),
-      h('p.dialog-text', null, denied
-        ? 'Grund: Notenpult liegt in einem geschützten Ordner (z. B. „Programme“) und Windows hat keine Administratorrechte bekommen. Beim nächsten Versuch in der Windows-Abfrage „Ja“ wählen.'
-        : `Grund: ${r.reason}`),
+      h('p.dialog-text', null, why),
       h('p.muted.small', null, `Protokoll: ${r.log}`)),
     actions: [{ label: 'OK', kind: 'primary', value: true }],
   });
