@@ -15,6 +15,7 @@ const fs = require('node:fs');
 const ofs = require('original-fs');
 const crypto = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
+const { lastUpdateResult, compareVersions } = require('./result');
 
 const fsp = ofs.promises;
 const REPO = 'MaxKuhnDE/notenpult';
@@ -27,15 +28,6 @@ const SYSTEM32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
 let lastCheck = null; // { latest, asset, mode } – install only uses what the check found
 let installing = false;
 
-function compareVersions(a, b) {
-  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
-  }
-  return 0;
-}
-
 const request = (url) => net.fetch(url, {
   headers: { Accept: 'application/vnd.github+json', 'User-Agent': `Notenpult/${app.getVersion()}` },
   cache: 'no-store',
@@ -43,14 +35,21 @@ const request = (url) => net.fetch(url, {
 
 const installDir = () => path.dirname(process.execPath);
 
+/**
+ * fs.access() ignores Windows permissions (ACLs) and calls C:\Program Files writable – so try
+ * a real file. Without write access the update still works: apply-update.ps1 asks for
+ * administrator rights (elevate).
+ */
 function canInstall() {
-  if (!app.isPackaged && !TEST) return { ok: false, reason: 'Entwicklungsversion – Updates gehen nur in der installierten App.' };
+  if (!app.isPackaged && !TEST) return { ok: false, elevate: false, reason: 'Entwicklungsversion – Updates gehen nur in der installierten App.' };
+  const probe = path.join(installDir(), 'resources', `.notenpult-write-test-${process.pid}`);
   try {
-    fs.accessSync(installDir(), fs.constants.W_OK);
+    ofs.writeFileSync(probe, '');
+    ofs.rmSync(probe, { force: true });
+    return { ok: true, elevate: false, reason: '' };
   } catch {
-    return { ok: false, reason: 'Kein Schreibrecht im Programmordner.' };
+    return { ok: true, elevate: true, reason: '' };
   }
-  return { ok: true, reason: '' };
 }
 
 async function check() {
@@ -93,6 +92,7 @@ async function check() {
     mode,
     size: asset ? asset.size : null,
     installable: !!asset && can.ok,
+    elevate: can.elevate,
     reason: asset ? can.reason : 'Im Release fehlen die Update-Dateien.',
   };
 }
@@ -184,6 +184,8 @@ async function install(send) {
 
 function registerUpdater() {
   ipcMain.handle('update:check', () => check());
+  // Once per start: report the outcome of the update that ran before this start.
+  ipcMain.handle('update:lastResult', () => (TEST ? null : lastUpdateResult(app.getPath('temp'), app.getVersion())));
   ipcMain.handle('update:install', (e) => install((p) => {
     if (!e.sender.isDestroyed()) e.sender.send('update:progress', p);
   }));

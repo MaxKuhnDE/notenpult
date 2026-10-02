@@ -61,4 +61,6 @@ Test unter `test/` (Muster: `check('beschreibung', bedingung)` → `PASS …`/`F
 - `android.js` prüft die Android-Oberfläche in Electron 14 (Chromium 93 – älter als die WebView 95 von
   Android 5); `test/android/bridge.js` ersetzt dabei die Java-Brücke. Electron 14 wird beim ersten Lauf nach
   `node_modules/.cache` geladen. Den Java-Teil (ZIP-Import) prüfen JUnit-Tests in `android/app/src/test`.
+- Jede Suite bekommt einen leeren Datenordner (`NOTENPULT_DATA_DIR`) und ein eigenes Browser-Profil
+  (`NOTENPULT_TEST_PROFILE`) – eine geöffnete Notenpult-App und ihre Daten bleiben unberührt.
 - Mit `VERBOSE=1` zeigt der Runner die komplette Ausgabe der App.

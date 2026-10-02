@@ -1,10 +1,12 @@
-// Tests updater/apply-update.ps1 (the file swap after the app quits) on throw-away folders.
+// Tests updater/apply-update.ps1 (the file swap after the app quits) on throw-away folders,
+// and updater/result.js (what the app reports after the restart).
 'use strict';
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { lastUpdateResult } = require('../updater/result');
 
 const check = (label, ok, extra = '') => console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${extra ? ` (${extra})` : ''}`);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-apply-'));
@@ -26,11 +28,12 @@ function fakeInstall(dir) {
 function apply(mode, source, target) {
   try {
     execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
-      '-Mode', mode, '-Source', source, '-Target', target, '-Exe', path.join(target, 'Notenpult.exe'), '-NoRestart'],
+      '-Mode', mode, '-Source', source, '-Target', target, '-Exe', path.join(target, 'Notenpult.exe'), '-NoRestart', '-NoElevate'],
     { stdio: 'ignore', timeout: 120000 });
   } catch { /* the script logs errors itself */ }
 }
 
+(async () => {
 try {
   // Small update: only resources\app.asar changes
   const inst1 = path.join(tmp, 'install-asar');
@@ -58,6 +61,36 @@ try {
   const log = exists(tmp, 'apply-update.log') ? read(tmp, 'apply-update.log') : '';
   check('refuses folders that are not Notenpult', read(foreign, 'important.txt') === 'keep me'
     && !exists(foreign, 'Notenpult.exe') && log.includes('ERROR'));
+
+  // Protected folder (like C:\Program Files): without administrator rights nothing changes and
+  // the log says why. (The app would ask for the rights; -NoElevate keeps UAC out of tests.)
+  const locked = path.join(tmp, 'install-locked');
+  fakeInstall(locked);
+  const me = execFileSync('whoami', { encoding: 'utf8' }).trim();
+  const resources = path.join(locked, 'resources');
+  execFileSync('icacls', [resources, '/deny', `${me}:(OI)(CI)(WD,AD,WEA,WA)`], { stdio: 'ignore' });
+  try {
+    fs.rmSync(path.join(tmp, 'apply-update.log'), { force: true });
+    apply('asar', newAsar, locked);
+    const lockedLog = exists(tmp, 'apply-update.log') ? read(tmp, 'apply-update.log') : '';
+    check('protected folder: old version stays, log names the reason',
+      read(locked, 'resources', 'app.asar') === 'old asar' && /ERROR: Zugriff verweigert/.test(lockedLog), lockedLog.trim().split('\n').pop());
+  } finally {
+    execFileSync('icacls', [resources, '/remove:d', me], { stdio: 'ignore' });
+  }
+
+  // After the restart the app reads the logs (updater/result.js).
+  const temp = path.join(tmp, 'temp');
+  write(path.join(temp, 'notenpult-update-1.4.0', 'apply-update.log'), '10:00:01 no write access - asking for administrator rights\r\n10:00:03 ERROR: Administratorrechte wurden nicht erteilt\r\n');
+  write(path.join(temp, 'notenpult-update-1.3.0', 'apply-update.log'), '09:00:00 update applied (asar)\r\n09:00:00 restarted\r\n');
+  write(path.join(temp, 'notenpult-update-1.5.0', 'app.asar'), 'only downloaded'); // no log: not an attempt
+  const failed = await lastUpdateResult(temp, '1.3.0');
+  check('failed update is reported with its reason', failed && failed.failed === '1.4.0' && failed.reason === 'Administratorrechte wurden nicht erteilt', JSON.stringify(failed));
+  check('… only once, finished update folders are removed', (await lastUpdateResult(temp, '1.3.0')) === null
+    && !exists(temp, 'notenpult-update-1.3.0') && exists(temp, 'notenpult-update-1.5.0'));
+  write(path.join(temp, 'notenpult-update-1.4.0', 'apply-update.log'), '11:00:00 update applied (asar)\r\n');
+  check('successful update is reported after the restart', JSON.stringify(await lastUpdateResult(temp, '1.4.0')) === '{"updated":"1.4.0"}');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
+})();

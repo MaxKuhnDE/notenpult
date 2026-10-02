@@ -2,6 +2,7 @@
 // same methods, same answers, same data layout. The dialogs are replaced by test settings:
 //   window.__npTestPick   files that "Noten importieren" picks
 //   NP_PRESET_ZIP         where "Alles exportieren" writes and "Alles importieren" reads
+//   a fake release 99.0.0 for the update check (GitHub itself: Net.java, JUnit NetTest)
 // The ZIP code itself is Java (Preset.java) and tested with JUnit (android/app/src/test).
 'use strict';
 
@@ -20,6 +21,17 @@ const ZIP = process.env.NP_PRESET_ZIP;
 const TAR = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const { version } = require('../../package.json');
+
+const APK_URL = 'https://github.com/MaxKuhnDE/notenpult/releases/download/v99.0.0/Notenpult-android.apk';
+const RELEASE = {
+  tag_name: 'v99.0.0',
+  html_url: 'https://github.com/MaxKuhnDE/notenpult/releases/tag/v99.0.0',
+  published_at: '2026-10-01T12:00:00Z',
+  body: '### Hinzugefügt\n- Testversion',
+  assets: [{
+    name: 'Notenpult-android.apk', browser_download_url: APK_URL, size: 4 * 1048576, digest: 'sha256:00ff',
+  }],
+};
 
 fs.mkdirSync(NOTEN, { recursive: true });
 fs.mkdirSync(ANN, { recursive: true });
@@ -63,6 +75,14 @@ window.NotenpultAndroid = {
   openUrl(url) {
     window.__npOpened = url;
   },
+  checkUpdate(id) {
+    later(id, { ok: true, status: 200, body: JSON.stringify(RELEASE) });
+  },
+  installUpdate(id, url, digest) {
+    window.__npInstalled = { url, digest };
+    window.__npUpdateProgress({ phase: 'download', received: 2 * 1048576, total: 4 * 1048576 });
+    setTimeout(() => later(id, { ok: true, opened: true }), 100);
+  },
   pickFiles(id) {
     const records = (window.__npTestPick || []).map((src) => {
       const ext = path.extname(src).toLowerCase();
@@ -102,6 +122,7 @@ window.NotenpultAndroid = {
   },
 };
 
+window.__npTestApkUrl = APK_URL;
 window.__npTest = {
   capture: (name) => ipcRenderer.invoke('test:capture', name),
   done: () => ipcRenderer.invoke('test:done'),

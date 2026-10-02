@@ -41,6 +41,9 @@ if (TEST_SCRIPT) {
   // reload and stops painting (no animation frames → pdf.js never finishes a page).
   app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  // Own browser profile (localStorage, single-instance lock), never the installed app's –
+  // e.g. NOTENPULT_TEST_PROFILE from scripts/run-tests.js, removed after each suite.
+  if (process.env.NOTENPULT_TEST_PROFILE) app.setPath('userData', path.resolve(process.env.NOTENPULT_TEST_PROFILE));
 }
 
 // Must happen before the app is ready.

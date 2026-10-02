@@ -3,17 +3,21 @@
 //   js/app.js    renderer/ as one script for Chrome 92–95 (Android 5 WebView)
 //   styles.css   renderer/styles.css, lowered for the same browsers
 //   vendor/pdfjs pdf.js 3.11 legacy build (pdf.js 6 needs a newer Chrome)
+// and assets/cacerts.pem: current root certificates for Net.java (Android 5's are outdated).
 //
 //   node scripts/build-android-web.js [output folder]
 'use strict';
 
 const { execFileSync, execSync } = require('node:child_process');
+const { X509Certificate } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const tls = require('node:tls');
 const esbuild = require('esbuild');
 
 const root = path.join(__dirname, '..');
-const out = path.resolve(process.argv[2] || path.join(root, 'android', 'app', 'src', 'main', 'assets', 'www'));
+const assets = path.join(root, 'android', 'app', 'src', 'main', 'assets');
+const out = path.resolve(process.argv[2] || path.join(assets, 'www'));
 const PDFJS_VERSION = '3.11.174';
 const TARGET = ['chrome92'];
 
@@ -26,6 +30,20 @@ function pdfjsLegacy() {
   execSync(`npm pack pdfjs-dist@${PDFJS_VERSION} --silent`, { cwd: dir, stdio: 'ignore' });
   execFileSync('tar', ['-xzf', `pdfjs-dist-${PDFJS_VERSION}.tgz`], { cwd: dir });
   return pkg;
+}
+
+/**
+ * Mozilla's root list as Node ships it. GitHub needs ISRG Root X1 (downloads via Let's Encrypt)
+ * and Sectigo/USERTrust (github.com, api.github.com) – none of them is known to Android 5.
+ */
+function writeRootCertificates(file) {
+  const names = tls.rootCertificates.map((pem) => new X509Certificate(pem).subject);
+  for (const needed of ['ISRG Root X1', 'USERTrust ECC Certification Authority']) {
+    if (!names.some((n) => n.includes(needed))) throw new Error(`Stammzertifikat fehlt in Node: ${needed}`);
+  }
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${tls.rootCertificates.join('\n')}\n`);
+  return names.length;
 }
 
 async function main() {
@@ -76,18 +94,20 @@ async function main() {
     "img-src 'self' blob: data:",
     "font-src 'self' blob: data:",
     "worker-src 'self' blob:",
-    "connect-src 'self' blob: data: https://api.github.com", // update check
+    "connect-src 'self' blob: data:",
   ].join('; ');
   html = html
     .replace(/content="default-src[^"]*"/, `content="${csp}"`)
     .replace(/<script type="module" src="js\/app\.js"><\/script>/, '<script src="boot.js"></script>');
-  if (!html.includes('boot.js') || !html.includes('api.github.com')) throw new Error('renderer/index.html hat sich geändert – Ersetzungen anpassen');
+  if (!html.includes('boot.js') || html.includes('wasm-unsafe-eval')) throw new Error('renderer/index.html hat sich geändert – Ersetzungen anpassen');
   fs.writeFileSync(path.join(out, 'index.html'), html);
 
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
   const size = (dir) => fs.readdirSync(dir, { withFileTypes: true })
     .reduce((n, e) => n + (e.isDirectory() ? size(path.join(dir, e.name)) : fs.statSync(path.join(dir, e.name)).size), 0);
   console.log(`Android-Web ${version} → ${path.relative(root, out)} (${(size(out) / 1048576).toFixed(1)} MB)`);
+  // Only for the app itself (tests build into a temporary folder).
+  if (!process.argv[2]) console.log(`Stammzertifikate: ${writeRootCertificates(path.join(assets, 'cacerts.pem'))} → assets/cacerts.pem`);
 }
 
 main().catch((err) => {

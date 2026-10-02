@@ -115,8 +115,15 @@ scripts/android/boot.js                          ES5: WebView-Version prüfen, S
 - **Gerät**: `window.__npBack()` (Zurück-Taste), `window.__npFlush()` (beim Wechsel in den Hintergrund),
   Vollbild = Immersive Mode, „Bildschirm bleibt an“ = `FLAG_KEEP_SCREEN_ON`; Drehen lädt die Seite nicht neu.
 - **Speicher**: Auf Android rendert `render.js` höchstens 8 MP pro Seite und hält weniger Seiten im Cache.
-- **Updates**: `updateCheck` liest das GitHub-Release, „Jetzt aktualisieren“ öffnet `Notenpult-android.apk`
-  im Browser; Android installiert sie über die vorhandene App (gleicher Signaturschlüssel, Daten bleiben).
+- **GitHub & Zertifikate**: Android 5 kennt die heutigen Stammzertifikate von GitHub nicht (ISRG Root X1 für
+  Downloads erst ab Android 7.1.1, Sectigo E46/USERTrust für github.com). Die WebView und der Browser lehnen
+  GitHub deshalb ab. `Net.java` baut HTTPS selbst auf und vertraut zusätzlich `assets/cacerts.pem` – Mozillas
+  Liste aus Node (`tls.rootCertificates`), die `build-android-web.js` bei jedem Build schreibt. `NetTest` prüft
+  aufgezeichnete Ketten von api.github.com und vom Download-Server gegen diese Liste.
+- **Updates**: `checkUpdate` (Java) liest das GitHub-Release, `installUpdate` lädt `Notenpult-android.apk`
+  mit Fortschritt (`window.__npUpdateProgress`) und SHA-256-Prüfung, prüft den Paketnamen und öffnet die
+  Android-Installation (bis Android 6 per Datei, ab 7 über `ApkProvider`). Gleicher Signaturschlüssel → die Daten
+  bleiben.
 - **Tests**: `test/android.js` lädt das Bündel in Electron 14 (Chromium 93) mit `test/android/bridge.js` als
   Ersatz für die Java-Brücke; `PresetTest.java` prüft den ZIP-Import, u. a. mit einer echten Windows-Export-Datei.
 
@@ -125,6 +132,7 @@ scripts/android/boot.js                          ES5: WebView-Version prüfen, S
 ```
 updater/index.js         Hauptprozess: GitHub-Release abfragen, Download mit SHA-256-Prüfung, ZIP entpacken (tar.exe)
 updater/apply-update.ps1 läuft nach dem Beenden: tauscht resources\app.asar bzw. spiegelt die ganze App, startet neu
+updater/result.js        nach dem Neustart: Ergebnis aus apply-update.log lesen („aktualisiert“ / Grund des Fehlers)
 renderer/js/updates.js   Einstellungen → Updates, automatische Suche beim Start, Punkt am Einstellungen-Knopf
 ```
 
@@ -133,8 +141,14 @@ renderer/js/updates.js   Einstellungen → Updates, automatische Suche beim Star
 2. `update:install` lädt in `%TEMP%\notenpult-update-<version>` (über `original-fs`, weil Electrons `fs` jede
    `*.asar`-Datei als Archiv behandelt), prüft Größe und Digest, startet `apply-update.ps1` losgelöst und beendet
    die App.
-3. Das Skript wartet auf das Ende des Prozesses, ersetzt die Dateien (nur in einem Ordner mit `Notenpult.exe`),
-   schreibt `apply-update.log` und startet Notenpult neu. Die Daten in `Dokumente\Notenpult` werden nie angefasst.
+3. Das Skript wartet auf das Ende aller Notenpult-Prozesse, ersetzt die Dateien (nur in einem Ordner mit
+   `Notenpult.exe`), prüft die Kopie per Hash, schreibt `apply-update.log` und startet Notenpult neu. Die Daten in
+   `Dokumente\Notenpult` werden nie angefasst.
+4. Schreibrechte prüft die App mit einer echten Testdatei – `fs.access` ignoriert unter Windows die Rechte (ACLs)
+   und hält z. B. `C:\Program Files` für beschreibbar. Fehlen sie, startet sich das Skript per UAC mit
+   Administratorrechten neu und startet Notenpult danach über `explorer.exe` wieder als normaler Benutzer.
+5. Beim nächsten Start liest `update:lastResult` (`updater/result.js`) das Protokoll: Erfolg → Hinweis
+   „aktualisiert“, Fehlschlag (Ordner einer neueren Version mit Protokoll) → Dialog mit dem Grund.
 
 ## Tests
 
