@@ -5,6 +5,8 @@ name: Release
 #   app.asar                 small update (Electron runtime unchanged)
 #   Notenpult-win32-x64.zip  complete app
 #   update.json              { version, electron }
+#   Notenpult-android.apk    Android app, signed with the key from the repository secrets
+#                            NOTENPULT_KEYSTORE_BASE64 / NOTENPULT_KEYSTORE_PASSWORD (added by the second job)
 
 on:
   push:
@@ -22,7 +24,11 @@ jobs:
   release:
     name: Release bei neuer Version
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+      apk: ${{ steps.version.outputs.apk }}
     steps:
       - uses: actions/checkout@v5
 
@@ -37,9 +43,16 @@ jobs:
           gh release view "v$v" --repo "${{ github.repository }}" *> $null
           if ($LASTEXITCODE -eq 0) {
             "publish=false" >> $env:GITHUB_OUTPUT
-            Write-Host "v$v ist schon veröffentlicht – nichts zu tun."
+            $assets = gh release view "v$v" --repo "${{ github.repository }}" --json assets --jq '.assets[].name'
+            if ($assets -notcontains 'Notenpult-android.apk') {
+              "apk=true" >> $env:GITHUB_OUTPUT
+              Write-Host "v$v ist veröffentlicht, die Android-App fehlt noch."
+            } else {
+              Write-Host "v$v ist schon veröffentlicht – nichts zu tun."
+            }
           } else {
             "publish=true" >> $env:GITHUB_OUTPUT
+            "apk=true" >> $env:GITHUB_OUTPUT
             Write-Host "Neue Version v$v wird veröffentlicht."
           }
           $global:LASTEXITCODE = 0
@@ -82,3 +95,49 @@ jobs:
           --target "${{ github.sha }}"
           --title "Notenpult ${{ steps.version.outputs.version }}"
           --notes-file notes.md
+
+  android:
+    name: Android-App zum Release
+    needs: release
+    if: needs.release.outputs.apk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: node scripts/build-android-web.js
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Signierte APK bauen
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NOTENPULT_KEYSTORE_BASE64 }}
+          NOTENPULT_KEYSTORE_PASSWORD: ${{ secrets.NOTENPULT_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Secret NOTENPULT_KEYSTORE_BASE64 fehlt"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/notenpult.p12"
+          export NOTENPULT_KEYSTORE_FILE="$RUNNER_TEMP/notenpult.p12"
+          gradle -p android --no-daemon testReleaseUnitTest assembleRelease
+          cp android/app/build/outputs/apk/release/app-release.apk Notenpult-android.apk
+          rm -f "$RUNNER_TEMP/notenpult.p12"
+
+      - name: An das Release hängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v${{ needs.release.outputs.version }}" Notenpult-android.apk --clobber --repo "${{ github.repository }}"

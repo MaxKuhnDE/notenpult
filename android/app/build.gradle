@@ -1,0 +1,57 @@
+// Notenpult für Android: eine WebView mit der Oberfläche der Windows-App (siehe MainActivity).
+// Version kommt aus ../package.json. Release-Signatur über Umgebungsvariablen (GitHub Actions):
+//   NOTENPULT_KEYSTORE_FILE, NOTENPULT_KEYSTORE_PASSWORD, NOTENPULT_KEY_ALIAS
+plugins {
+    id 'com.android.application'
+}
+
+def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def (vMajor, vMinor, vPatch) = pkg.version.tokenize('.-').take(3).collect { it as int }
+def keystore = System.getenv('NOTENPULT_KEYSTORE_FILE')
+
+android {
+    namespace 'io.github.maxkuhnde.notenpult'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.github.maxkuhnde.notenpult'
+        minSdk 21 // Android 5.0 (Galaxy Tab S2)
+        targetSdk 34
+        versionCode vMajor * 10000 + vMinor * 100 + vPatch
+        versionName pkg.version
+    }
+
+    signingConfigs {
+        release {
+            if (keystore) {
+                storeFile file(keystore)
+                storeType 'pkcs12'
+                storePassword System.getenv('NOTENPULT_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('NOTENPULT_KEY_ALIAS') ?: 'notenpult'
+                keyPassword System.getenv('NOTENPULT_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystore ? signingConfigs.release : null
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        // Not published in the Play Store, so its target-SDK rules do not apply.
+        disable 'ExpiredTargetSdkVersion', 'OldTargetApi'
+        abortOnError true
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}

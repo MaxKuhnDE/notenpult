@@ -5,7 +5,7 @@ import { db, backend } from './store.js';
 import { h, icon, btn, toast } from './ui.js';
 
 let result = null; // last check result from the main process
-let phase = 'idle'; // idle | checking | download | extract | restart | staged | error
+let phase = 'idle'; // idle | checking | download | extract | restart | staged | opened (Android) | error
 let progress = null;
 let error = '';
 const listeners = new Set();
@@ -48,7 +48,7 @@ export async function installUpdate() {
   emit();
   try {
     const r = await backend.updateInstall();
-    phase = r && r.staged ? 'staged' : 'restart';
+    phase = r && r.staged ? 'staged' : r && r.opened ? 'opened' : 'restart';
   } catch (err) {
     phase = 'error';
     error = err.message;
@@ -97,6 +97,10 @@ export function updateSection() {
       action = h('div.update-msg', null, 'Wird entpackt …');
     } else if (phase === 'restart') {
       action = h('div.update-msg', null, 'Update wird eingespielt – Notenpult startet gleich neu …');
+    } else if (phase === 'opened') {
+      action = h('div.update-msg.ok', null, icon('check'), h('span', null,
+        'Der Download läuft im Browser. Danach die Datei „Notenpult-android.apk“ antippen und „Installieren“ wählen – '
+        + 'deine Noten bleiben erhalten.'));
     } else if (phase === 'staged') {
       action = h('div.update-msg.ok', null, icon('check'), h('span', null, 'Update geladen und geprüft (Testmodus – nichts ersetzt).'));
     } else {
@@ -109,9 +113,10 @@ export function updateSection() {
         h('strong', null, `Version ${result.latest} ist verfügbar`),
         result.published ? h('span.muted.small', null, ` · ${dateFmt.format(new Date(result.published))}`) : null),
       notes ? h('pre.update-notes', null, notes.length > 1500 ? `${notes.slice(0, 1500)} …` : notes) : null,
-      h('div.setting-hint', null, result.mode === 'asar'
-        ? `Download ${mb(result.size || 0)} – nur der App-Teil, die Laufzeit bleibt.`
-        : `Download ${mb(result.size || 0)} – komplettes Paket (neue Laufzeit).`),
+      h('div.setting-hint', null, {
+        asar: `Download ${mb(result.size || 0)} – nur der App-Teil, die Laufzeit bleibt.`,
+        apk: `Download ${mb(result.size || 0)} – neue Android-App (APK), wird über die vorhandene installiert.`,
+      }[result.mode] || `Download ${mb(result.size || 0)} – komplettes Paket (neue Laufzeit).`),
       action);
   }
 

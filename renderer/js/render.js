@@ -5,7 +5,11 @@ import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
 import { backend } from './store.js';
 
 const VENDOR = new URL('../vendor/pdfjs/', import.meta.url);
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdf.worker.min.mjs', VENDOR).href;
+// The Android build swaps pdf.js for an older version (scripts/android/pdfjs-shim.js)
+// that brings its own worker setup and options.
+const workerReady = pdfjsLib.setupWorker
+  ? pdfjsLib.setupWorker(VENDOR.href)
+  : Promise.resolve((pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdf.worker.min.mjs', VENDOR).href));
 
 const DOC_OPTIONS = {
   cMapUrl: new URL('cmaps/', VENDOR).href,
@@ -15,9 +19,12 @@ const DOC_OPTIONS = {
   iccUrl: new URL('iccs/', VENDOR).href,
   isEvalSupported: false,
   enableXfa: false,
+  ...(pdfjsLib.docOptions || {}),
 };
 
-const MAX_PIXELS = 24e6;
+// Tablets have far less memory than a PC: smaller canvases, fewer cached pages.
+const LOW_MEMORY = backend.kind === 'android';
+const MAX_PIXELS = LOW_MEMORY ? 8e6 : 24e6;
 
 export const isPdf = (file) => /\.pdf$/i.test(file);
 
@@ -48,16 +55,17 @@ class LRU {
   }
 }
 
-const docs = new LRU(8, (p) => p.then((d) => d.destroy()).catch(() => {}));
-const bitmaps = new LRU(8, (p) => p.then((b) => b.close()).catch(() => {}));
+const docs = new LRU(LOW_MEMORY ? 4 : 8, (p) => p.then((d) => d.destroy()).catch(() => {}));
+const bitmaps = new LRU(LOW_MEMORY ? 3 : 8, (p) => p.then((b) => b.close()).catch(() => {}));
 const sizes = new Map();
-const renders = new LRU(16);
-const thumbs = new LRU(150);
+const renders = new LRU(LOW_MEMORY ? 6 : 16);
+const thumbs = new LRU(LOW_MEMORY ? 60 : 150);
 
 function loadDoc(file) {
   let p = docs.get(file);
   if (!p) {
-    p = backend.readFile(file).then((data) => pdfjsLib.getDocument({ ...DOC_OPTIONS, data: new Uint8Array(data) }).promise);
+    p = Promise.all([backend.readFile(file), workerReady])
+      .then(([data]) => pdfjsLib.getDocument({ ...DOC_OPTIONS, data: new Uint8Array(data) }).promise);
     docs.set(file, p);
     p.catch(() => docs.delete(file));
   }
@@ -67,7 +75,11 @@ function loadDoc(file) {
 function loadBitmap(file) {
   let p = bitmaps.get(file);
   if (!p) {
-    p = backend.readFile(file).then((data) => createImageBitmap(new Blob([data]), { imageOrientation: 'from-image' }));
+    p = backend.readFile(file).then((data) => {
+      const blob = new Blob([data]);
+      // 'from-image' (EXIF rotation) is unknown before Chrome 105 and throws there.
+      return createImageBitmap(blob, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(blob));
+    });
     bitmaps.set(file, p);
     p.catch(() => bitmaps.delete(file));
   }

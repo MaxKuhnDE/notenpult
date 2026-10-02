@@ -181,6 +181,14 @@ async function start() {
   });
   // Pending annotation saves are debounced; write them out when the window closes.
   window.addEventListener('beforeunload', () => { ink.flushAll(); });
+  // Android may end the app any time it is in the background (MainActivity calls this in onPause).
+  window.__npFlush = () => {
+    ink.flushAll();
+    store.flushSaves();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') window.__npFlush();
+  });
   sync.startAutoSync();
   // A dot on the settings button while a new version is waiting.
   onUpdateState(() => {

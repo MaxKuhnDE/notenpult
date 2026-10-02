@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-and-build:
-    name: Tests & Windows-Build
+  windows:
+    name: Windows – Tests & Build
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Abhängigkeiten (inkl. Electron-Laufzeit und pdf.js)
         run: npm ci
 
-      - name: UI-Tests
+      - name: UI-Tests (auch die Android-Oberfläche in Chromium 93)
         run: npm test
 
       - name: Test-Screenshots hochladen
@@ -47,3 +47,63 @@ jobs:
           name: Notenpult-win32-x64
           path: dist/Notenpult-win32-x64
           retention-days: 14
+
+  android:
+    name: Android – Tests & APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Oberfläche für die WebView bündeln
+        run: node scripts/build-android-web.js
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Unit-Tests (ZIP-Import), Lint (Android 5) und Debug-APK
+        working-directory: android
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+
+      - name: Lint-Bericht hochladen
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: android/app/build/reports
+          retention-days: 14
+
+      - name: APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notenpult-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  # Required status check of the main branch (branch protection): passes only if both builds pass.
+  result:
+    name: Tests & Windows-Build
+    needs: [windows, android]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ergebnis
+        run: |
+          echo "Windows: ${{ needs.windows.result }}, Android: ${{ needs.android.result }}"
+          test "${{ needs.windows.result }}" = success
+          test "${{ needs.android.result }}" = success

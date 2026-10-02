@@ -19,3 +19,6 @@ desktop.ini
 .DS_Store
 .vscode/
 *.log
+
+# Test fixture: a real export of the Windows app (android/app/src/test)
+!android/app/src/test/resources/*.zip

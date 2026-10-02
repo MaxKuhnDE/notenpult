@@ -1,6 +1,6 @@
 # Notenpult
 
-Noten-App für Windows 11 für Blaskapelle und Brassband: Setlists mit Ordner-Nummern, A–Z-Bibliothek,
+Noten-App für Windows 11 und Android-Tablets für Blaskapelle und Brassband: Setlists mit Ordner-Nummern, A–Z-Bibliothek,
 Blättern mit einem Tipp, mehrere Stimmen pro Stück, Stift-Anmerkungen in Rot und Schwarz,
 A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch offline funktioniert.
 
@@ -63,6 +63,37 @@ starten. Selbst bauen: siehe [Entwicklung](#entwicklung).
 startet neu. Meist wird nur der App-Teil geladen (wenige MB), das komplette Paket nur bei einer neuen
 Electron-Laufzeit. Noten, Setlists, Stimmen und Anmerkungen in `Dokumente\Notenpult` bleiben unberührt.
 Auf Wunsch sucht die App beim Start selbst und zeigt einen roten Punkt am Einstellungen-Knopf.
+
+## Android-Tablet
+
+Die Android-App hat dieselbe Oberfläche und läuft ab **Android 5.0** – gedacht z. B. für das Galaxy Tab S2.
+
+**Installieren**
+
+1. Auf dem Tablet unter *Einstellungen → Sicherheit* (bzw. *Gerätesicherheit*) **„Unbekannte Quellen“** erlauben.
+2. Im Browser des Tablets die neueste Version unter
+   [Releases](https://github.com/MaxKuhnDE/notenpult/releases/latest) öffnen und `Notenpult-android.apk`
+   laden – oder die Datei am PC laden und per USB in den Ordner „Download“ kopieren.
+3. Die Datei antippen → **Installieren**.
+4. Zeigt Notenpult „Android System WebView ist zu alt“: im Play Store *Android System WebView* aktualisieren
+   (unter Android 5 gibt es dort Version 95, gebraucht wird mindestens 92).
+
+**Alles vom PC übernehmen**
+
+1. Am PC: *Einstellungen → Daten → „Exportieren …“* – speichert z. B. `Notenpult-Export-2026-10-02.zip`.
+2. Tablet per USB anschließen und die ZIP in den Ordner **„Download“** kopieren.
+3. Auf dem Tablet: *„Export vom PC importieren“* (bzw. *Einstellungen → Daten → „Importieren …“*) und die ZIP
+   wählen. Danach sind Stücke, Stimmen, Setlists mit Nummern, Genres, Anmerkungen und Einstellungen
+   **spiegelgleich** zum PC.
+
+Später geht es jederzeit wieder so – auch umgekehrt (Tablet exportieren, am PC importieren), z. B. um
+Anmerkungen vom Tablet zurückzuholen. Der Import ersetzt immer alles auf dem Zielgerät.
+
+**Bedienung**: Tippen blättert wie am PC. Das Galaxy Tab S2 hat keinen Stift – zum Schreiben oben den
+**Zeichenmodus** (Stift-Symbol) einschalten, dann schreibt der Finger; Radierer und Rückgängig wie gewohnt.
+Die Zurück-Taste schließt Dialoge und die Notenansicht. Updates: *Einstellungen → Updates → „Jetzt
+aktualisieren“* lädt die neue APK, danach antippen und „Installieren“ – die Daten bleiben erhalten.
+Google Drive (Noten-Pool) gibt es nur unter Windows; die Noten kommen über den Export aufs Tablet.
 
 ## Bedienung im Notenmodus
 
@@ -138,6 +169,8 @@ npm run package
 - `npm test` startet die App unsichtbar mit Beispielnoten und prüft Blättern, Stift, Stimmen, A4/A5,
   Drehen, Noten-Pool, Suche usw. (Screenshots landen in `test/out/`).
 - `npm run package` baut `dist/Notenpult-win32-x64/Notenpult.exe`.
+- Android: `npm run android:web` bündelt die Oberfläche nach `android/app/src/main/assets/www`, danach baut
+  `gradle -p android assembleDebug` (Android SDK, JDK 17, Gradle 8.11) die APK. Die CI macht beides.
 
 Aufbau des Codes: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md) · Arbeitsweise mit Branches und Pull Requests:
 [CONTRIBUTING.md](CONTRIBUTING.md) · Änderungen: [CHANGELOG.md](CHANGELOG.md)
@@ -146,3 +179,5 @@ Aufbau des Codes: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md) · Arbeitsweise mit
 
 [Electron](https://www.electronjs.org/) und [pdf.js](https://mozilla.github.io/pdf.js/) (Apache-2.0) mit
 reinem JavaScript (ES-Module) und CSS, ohne Framework und ohne Build-Schritt für die Oberfläche.
+Die Android-App ist eine schlanke Java-Activity mit WebView; dieselbe Oberfläche wird dafür mit
+[esbuild](https://esbuild.github.io/) für Chrome 92–95 gebündelt und nutzt pdf.js 3.11.
