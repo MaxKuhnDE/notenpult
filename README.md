@@ -31,6 +31,9 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
 - **Suche**: über Titel, Stimmen, Setlist-Nummern und den Noten-Pool. Während des Spielens wird ein
   gefundenes Stück eingeschoben (z. B. für Zugaben).
 - **Darstellung**: Hell/Dunkel, Noten optional invertiert, Hoch- und Querformat, Vollbild, Bildschirm bleibt an.
+- **Im WLAN teilen**: Ein Gerät zeigt einen 4-stelligen Code, ein anderes im selben WLAN (oder Handy-Hotspot)
+  holt sich damit die Noten – verschlüsselt, ohne ZIP-Datei, nur fehlende Dateien. Windows und Android in jeder
+  Richtung.
 
 | Setlist mit Nummern | Stimmen umschalten | A5 im Hochformat |
 | --- | --- | --- |
@@ -108,6 +111,9 @@ Stammzertifikate von GitHub nicht. Dann die APK am PC laden und per USB kopieren
 
 **Alles vom PC übernehmen**
 
+Am einfachsten über [Im WLAN teilen](#im-wlan-teilen-ohne-zip): am PC „Teilen …“, am Tablet „Aus dem WLAN
+holen“ und den Code eingeben. Ohne gemeinsames WLAN geht es mit der ZIP-Datei:
+
 1. Am PC: *Einstellungen → Daten → „Exportieren …“* – speichert z. B. `Notenpult-Export-2026-10-02.zip`.
 2. Tablet per USB anschließen und die ZIP in den Ordner **„Download“** kopieren.
 3. Auf dem Tablet: *„Export vom PC importieren“* (bzw. *Einstellungen → Daten → „Importieren …“*) und die ZIP
@@ -122,7 +128,39 @@ Anmerkungen vom Tablet zurückzuholen. Der Import ersetzt immer alles auf dem Zi
 Die Zurück-Taste schließt Dialoge und die Notenansicht. Updates: *Einstellungen → Updates → „Jetzt
 aktualisieren“* lädt die neue APK und öffnet die Installation – dort „Installieren“ tippen, die Daten bleiben
 erhalten.
-Google Drive (Noten-Pool) gibt es nur unter Windows; die Noten kommen über den Export aufs Tablet.
+Google Drive (Noten-Pool) gibt es nur unter Windows; die Noten kommen über „Im WLAN teilen“ oder den Export
+aufs Tablet.
+
+## Im WLAN teilen (ohne ZIP)
+
+Ein Gerät **teilt**, ein anderes **holt** – vom Laptop aufs Tablet, vom Tablet auf den Laptop oder das Tablet
+eines Freundes, zwischen zwei Tablets. Es geht immer nur in eine Richtung: Das teilende Gerät wird nie
+verändert. Und es ist nur eine Sitzung – nichts bleibt gekoppelt.
+
+1. Auf dem Gerät mit den Noten: *Einstellungen → Daten → „Im WLAN teilen“*. Es zeigt einen **4-stelligen Code**.
+2. Auf dem anderen Gerät: *Einstellungen → Daten → „Aus dem WLAN holen“* (bei leerer Bibliothek auch direkt auf
+   der Startseite). Das teilende Gerät erscheint in der Liste – antippen und den Code eingeben.
+3. Notenpult zeigt, was kommt und wie viel zu laden ist. Dann wählen:
+   - **Alles übernehmen (spiegelgleich)** – danach ist das Gerät wie das teilende (wie beim ZIP-Import).
+   - **Zu meinen Noten hinzufügen** – eigene Stücke und Einstellungen bleiben; Stücke, die es auf beiden Geräten
+     gibt, kommen im Stand des teilenden Geräts.
+4. Übertragen werden nur Notendateien, die noch fehlen – beim zweiten Mal geht es meist in Sekunden.
+
+Gut zu wissen:
+
+- **Beide Geräte im selben WLAN.** Ein **Handy-Hotspot** geht auch: Laptop und Tablet ins WLAN des Handys –
+  die Daten gehen über das Handy direkt von Gerät zu Gerät, nicht ins Internet (kein Datenvolumen).
+- Der Code gilt für **ein** Gerät und **eine** Übertragung, danach zeigt Notenpult einen neuen. Nach drei
+  falschen Eingaben gibt es ebenfalls einen neuen Code.
+- **Verschlüsselt**: Aus dem Code handeln beide Geräte einen Schlüssel aus (SPAKE2 – Diffie-Hellman mit
+  Passwort), alles danach läuft mit AES-256-GCM. Wer im WLAN mithört, sieht weder Noten noch Code und kann den
+  Code auch nicht nachträglich durch Ausprobieren herausfinden.
+- **Windows-Firewall**: Beim ersten Teilen fragt Windows, ob Notenpult im Netzwerk erreichbar sein darf –
+  erlauben. Im Handy-Hotspot gilt das Netz meist als „Öffentlich“: dort den Haken bei *Öffentliche Netzwerke*
+  setzen. Zum Holen braucht es keine Freigabe.
+- Erscheint das Gerät nicht in der Liste (manche Router und Gäste-WLANs blockieren die Suche), die
+  **Adresse** eingeben, die beim teilenden Gerät unter dem Code steht.
+- Den vorherigen Stand legt Notenpult vorher beiseite (unter Windows im Datenordner `_vor-abgleich`).
 
 ## Bedienung im Notenmodus
 
@@ -165,6 +203,7 @@ Alles liegt in `Dokumente\Notenpult`:
 | `Anmerkungen\` | Stiftstriche je Stück |
 | `pool-index.json` | zuletzt gelesener Inhalt des Noten-Pools (Suche offline) |
 | `_vor-import\` | Stand vor dem letzten „Alles importieren“ |
+| `_vor-abgleich\` | Stand vor dem letzten „Aus dem WLAN holen“ |
 
 ### Alles übertragen (z. B. PC → Tablet) oder sichern
 

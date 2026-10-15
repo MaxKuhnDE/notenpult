@@ -5,6 +5,26 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.5.0] – 2026-10-15
+
+### Hinzugefügt
+- **Im WLAN teilen / Aus dem WLAN holen:** Noten ohne ZIP-Datei von einem Gerät aufs andere – Windows und
+  Android in jeder Richtung, auch zwischen zwei Tablets oder zum Laptop eines Freundes. Das teilende Gerät zeigt
+  einen 4-stelligen Code, das andere findet es im WLAN (oder per Adresse) und holt sich die Noten. Immer nur in
+  eine Richtung und nur für diese Sitzung – keine dauerhafte Kopplung.
+- Zwei Arten: **Alles übernehmen (spiegelgleich)** wie beim ZIP-Import oder **Zu meinen Noten hinzufügen**
+  (eigene Stücke und Einstellungen bleiben). Vorher zeigt Notenpult, was kommt; übertragen werden nur
+  Notendateien, die noch fehlen.
+- **Verschlüsselt** mit einem Schlüsselaustausch aus dem Code (SPAKE2 – Diffie-Hellman mit Passwort,
+  2048-Bit-Gruppe nach RFC 3526) und AES-256-GCM. Jeder Code gilt für ein Gerät; nach drei falschen Eingaben
+  gibt es einen neuen.
+- Funktioniert auch im Handy-Hotspot. Der vorherige Stand bleibt in `_vor-abgleich`.
+- Tests: `lan.node.js` (Protokoll, falsche Codes, Manipulation, Abgleich), `lan.js` (Oberfläche unter Windows),
+  Teilen und Holen in der Android-Prüfung, JUnit `LanTest` mit Gegenprobe Java ↔ Windows-Implementierung.
+
+### Behoben
+- Genres verwalten: Ohne Vorschläge stand im Dialog das Wort „null“.
+
 ## [1.4.1] – 2026-10-02
 
 ### Behoben

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -11,10 +12,13 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -39,6 +43,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
@@ -47,7 +55,9 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -106,6 +116,8 @@ public class MainActivity extends Activity {
     }
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    /** "Im WLAN teilen": host start/stop and the receiver's steps, one after another. */
+    private final ExecutorService lan = Executors.newSingleThreadExecutor();
     private final SecureRandom random = new SecureRandom();
     private WebView web;
     private File root;
@@ -118,6 +130,10 @@ public class MainActivity extends Activity {
     private String importCallback;
     private boolean fullscreen;
     private SSLSocketFactory tls;
+    private LanHost lanHost; // only on the lan thread
+    private WifiManager.MulticastLock multicast; // only on the lan thread
+    private volatile LanClient.Session lanSession;
+    private volatile boolean lanDownloading;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -199,6 +215,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         worker.shutdown();
+        abortSession();
+        lan.execute(this::stopHost);
+        lan.shutdown();
         web.destroy();
         super.onDestroy();
     }
@@ -417,6 +436,156 @@ public class MainActivity extends Activity {
                 startForResult(i, REQ_IMPORT, callback);
             });
         }
+
+        // ---------- "Im WLAN teilen" (LanHost/LanClient; on Windows lan/*.js) ----------
+
+        /** Shares this library, read-only, with one receiver at a time; answers { ok, code, port, addresses, name }. */
+        @JavascriptInterface
+        public void lanHostStart(final String callback) {
+            lan.execute(() -> {
+                stopHost();
+                try {
+                    String name = deviceName();
+                    LanHost host = new LanHost(dataDir, name, appVersion(), MainActivity.this::lanEvent);
+                    int port = host.start(null, Lan.TCP_PORT, Lan.DISCOVERY_PORT);
+                    lanHost = host;
+                    multicast(true); // otherwise some tablets drop the receivers' broadcasts
+                    JSONObject r = new JSONObject();
+                    r.put("ok", true);
+                    r.put("code", host.code());
+                    r.put("port", port);
+                    r.put("addresses", new JSONArray(localAddresses()));
+                    r.put("name", name);
+                    resolve(callback, r);
+                } catch (IOException | JSONException e) {
+                    Log.w(TAG, "lanHostStart", e);
+                    resolve(callback, lanFailure(e));
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void lanHostStop() {
+            lan.execute(MainActivity.this::stopHost);
+        }
+
+        /** Hosts in the same network; answers { hosts: [{ name, address, port, app, pieces, busy }] }. */
+        @JavascriptInterface
+        public void lanDiscover(final String callback) {
+            lan.execute(() -> {
+                List<JSONObject> hosts = LanClient.discover(2500, Lan.DISCOVERY_PORT, LanClient.broadcastTargets());
+                JSONObject r = new JSONObject();
+                try {
+                    r.put("hosts", new JSONArray(hosts));
+                } catch (JSONException ignored) {
+                    // cannot happen
+                }
+                resolve(callback, r);
+            });
+        }
+
+        /** Connects with the code; answers { ok, manifest } or { ok: false, error, message }. */
+        @JavascriptInterface
+        public void lanConnect(final String callback, final String address, final String port, final String code) {
+            lan.execute(() -> {
+                abortSession();
+                LanClient.Session s = null;
+                try {
+                    s = LanClient.connect(address, Integer.parseInt(port), code, deviceName(), 5000);
+                    JSONObject manifest = s.manifest();
+                    lanSession = s;
+                    JSONObject r = new JSONObject();
+                    r.put("ok", true);
+                    r.put("manifest", manifest);
+                    resolve(callback, r);
+                } catch (IOException | JSONException | NumberFormatException e) {
+                    Log.w(TAG, "lanConnect", e);
+                    if (s != null) s.abort();
+                    resolve(callback, lanFailure(e));
+                }
+            });
+        }
+
+        /** Sheet files on this tablet, { name: size }. */
+        @JavascriptInterface
+        public String lanLocalFiles() {
+            JSONObject o = new JSONObject();
+            File[] files = sheetDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    try {
+                        if (f.isFile() && SAFE_FILE.matcher(f.getName()).matches()) o.put(f.getName(), f.length());
+                    } catch (JSONException ignored) {
+                        // cannot happen
+                    }
+                }
+            }
+            return o.toString();
+        }
+
+        /** Loads the missing sheet files into Noten/ (progress: window.__npLanEvent). */
+        @JavascriptInterface
+        public void lanDownload(final String callback, final String namesJson) {
+            lan.execute(() -> {
+                LanClient.Session s = lanSession;
+                if (s == null) {
+                    resolve(callback, lanFailure(new Lan.LanException("closed")));
+                    return;
+                }
+                final long[] last = {0};
+                try {
+                    JSONArray list = new JSONArray(namesJson);
+                    List<String> names = new ArrayList<>();
+                    for (int i = 0; i < list.length(); i++) names.add(list.getString(i));
+                    lanDownloading = true;
+                    s.download(names, sheetDir, (file, files, bytes) -> {
+                        long now = SystemClock.uptimeMillis();
+                        if (file < files && now - last[0] < 150) return; // the page needs no more than that
+                        last[0] = now;
+                        lanEvent(Lan.json("type", "download", "file", file, "files", files, "bytes", bytes));
+                    });
+                    resolve(callback, Lan.json("ok", true));
+                } catch (IOException | JSONException e) {
+                    Log.w(TAG, "lanDownload", e);
+                    if (lanSession == s) lanSession = null;
+                    s.abort();
+                    resolve(callback, lanFailure(e));
+                } finally {
+                    lanDownloading = false;
+                }
+            });
+        }
+
+        /** Writes the new library (put together by renderer/js/lan-plan.js) and ends the session. */
+        @JavascriptInterface
+        public void lanFinish(final String callback, final String payloadJson) {
+            lan.execute(() -> {
+                try {
+                    JSONObject p = new JSONObject(payloadJson);
+                    JSONArray list = p.optJSONArray("keep");
+                    List<String> keep = new ArrayList<>();
+                    for (int i = 0; list != null && i < list.length(); i++) keep.add(list.getString(i));
+                    JSONObject ann = p.optJSONObject("ann");
+                    LanApply.apply(dataDir, p.getString("db"), ann != null ? ann : new JSONObject(), keep, "mirror".equals(p.optString("mode")));
+                    LanClient.Session s = lanSession;
+                    lanSession = null;
+                    if (s != null) s.close(true);
+                    resolve(callback, Lan.json("ok", true));
+                } catch (IOException | JSONException e) {
+                    Log.e(TAG, "lanFinish", e);
+                    resolve(callback, lanFailure(e));
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void lanCancel() {
+            final LanClient.Session s = lanSession;
+            lanSession = null;
+            if (s == null) return;
+            if (lanDownloading) s.abort(); // the download thread notices and gives up
+            else lan.execute(() -> s.close(false));
+        }
     }
 
     private void startForResult(Intent intent, int request, String callback) {
@@ -625,6 +794,86 @@ public class MainActivity extends Activity {
             // counts are only for the message
         }
         return c;
+    }
+
+    // ---------- "Im WLAN teilen" ----------
+
+    private void lanEvent(JSONObject e) {
+        final String js = "window.__npLanEvent && window.__npLanEvent(" + e + ")";
+        runOnUiThread(() -> web.evaluateJavascript(js, null));
+    }
+
+    private void stopHost() {
+        if (lanHost != null) lanHost.stop();
+        lanHost = null;
+        multicast(false);
+    }
+
+    private void abortSession() {
+        LanClient.Session s = lanSession;
+        lanSession = null;
+        if (s != null) s.abort();
+    }
+
+    private void multicast(boolean on) {
+        try {
+            if (on && multicast == null) {
+                WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wifi == null) return;
+                multicast = wifi.createMulticastLock("notenpult-lan");
+                multicast.setReferenceCounted(false);
+                multicast.acquire();
+            } else if (!on && multicast != null) {
+                multicast.release();
+                multicast = null;
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "multicast", e); // the search may miss this tablet, the address on screen still works
+        }
+    }
+
+    /** The name other devices see: the one set in Android's settings, else the model. */
+    private String deviceName() {
+        String name = null;
+        try {
+            if (Build.VERSION.SDK_INT >= 25) name = Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME);
+            if (name == null || name.trim().isEmpty()) name = Settings.Secure.getString(getContentResolver(), "bluetooth_name");
+        } catch (RuntimeException e) {
+            name = null; // newer Android versions keep the Bluetooth name to themselves
+        }
+        return name == null || name.trim().isEmpty() ? Build.MODEL : name.trim();
+    }
+
+    /** IPv4 addresses of this tablet, the local network ones (WLAN, hotspot) first. */
+    private static List<String> localAddresses() {
+        List<String> local = new ArrayList<>();
+        List<String> other = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> all = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface ni : all == null ? Collections.<NetworkInterface>emptyList() : Collections.list(all)) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (!(a instanceof Inet4Address) || a.isLoopbackAddress()) continue;
+                    (a.isSiteLocalAddress() ? local : other).add(a.getHostAddress());
+                }
+            }
+        } catch (SocketException e) {
+            Log.w(TAG, "localAddresses", e);
+        }
+        local.addAll(other);
+        return local;
+    }
+
+    private static JSONObject lanFailure(Exception e) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("ok", false);
+            o.put("error", e instanceof Lan.LanException ? ((Lan.LanException) e).code : "error");
+            o.put("message", e.getMessage() != null ? e.getMessage() : e.toString());
+        } catch (JSONException ignored) {
+            // cannot happen
+        }
+        return o;
     }
 
     // ---------- updates ----------

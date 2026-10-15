@@ -95,6 +95,15 @@ const electronBackend = {
   setTheme: (mode) => native.setTheme(mode),
   exportPreset: () => native.exportPreset(),
   importPreset: () => native.importPreset(),
+  lanHostStart: () => native.lanHostStart(),
+  lanHostStop: () => native.lanHostStop(),
+  lanDiscover: () => native.lanDiscover(),
+  lanConnect: (target) => native.lanConnect(target),
+  lanLocalFiles: () => native.lanLocalFiles(),
+  lanDownload: (names) => native.lanDownload(names),
+  lanFinish: (payload) => native.lanFinish(payload),
+  lanCancel: () => native.lanCancel(),
+  onLanEvent: (cb) => native.onLanEvent(cb),
 };
 
 // ---------- Android: WebView + Java bridge (android/app/src/main/java/…/MainActivity.java) ----------
@@ -102,6 +111,7 @@ const electronBackend = {
 const ANDROID_ORIGIN = 'https://notenpult.local';
 const androidPending = new Map();
 const androidUpdateListeners = new Set();
+const androidLanListeners = new Set();
 let androidSeq = 0;
 let androidApk = null; // { url, digest } from the last update check
 let androidFullscreen = false;
@@ -115,6 +125,7 @@ if (android) {
     done(JSON.parse(json));
   };
   window.__npUpdateProgress = (p) => androidUpdateListeners.forEach((fn) => fn(p));
+  window.__npLanEvent = (e) => androidLanListeners.forEach((fn) => fn(e));
 }
 
 function androidCall(method, ...args) {
@@ -224,6 +235,19 @@ const androidBackend = {
   setTheme: async () => {},
   exportPreset: () => androidCall('exportPreset'),
   importPreset: () => androidCall('importPreset'),
+  // "Im WLAN teilen" – the network part runs in Java (LanHost/LanClient.java).
+  lanHostStart: () => androidCall('lanHostStart'),
+  lanHostStop: async () => { android.lanHostStop(); },
+  lanDiscover: () => androidCall('lanDiscover').then((r) => r.hosts || []),
+  lanConnect: ({ address, port, code }) => androidCall('lanConnect', String(address), String(port), String(code)),
+  lanLocalFiles: async () => JSON.parse(android.lanLocalFiles()),
+  lanDownload: (names) => androidCall('lanDownload', JSON.stringify(names)),
+  lanFinish: (payload) => androidCall('lanFinish', JSON.stringify(payload)),
+  lanCancel: async () => { android.lanCancel(); },
+  onLanEvent(cb) {
+    androidLanListeners.add(cb);
+    return () => androidLanListeners.delete(cb);
+  },
 };
 
 let idbPromise = null;

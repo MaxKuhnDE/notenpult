@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Update check and APK download from GitHub. Everything else works offline. -->
+    <!-- Update check and APK download from GitHub, "Im WLAN teilen" in the local network. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 8+: hand the downloaded update to the installer (Android 5 needs no permission). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- "Im WLAN teilen": find the other device (UDP broadcast) and hold the WLAN for it. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <application
         android:allowBackup="true"
