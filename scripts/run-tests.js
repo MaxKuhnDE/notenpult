@@ -19,7 +19,8 @@ const electron = require('electron');
 const root = path.join(__dirname, '..');
 const suites = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js', 'android.js'];
+  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js',
+    'lan.node.js', 'lan.js', 'android.js'];
 const TIMEOUT_MS = 240000;
 
 /** Data folder as written by version 1.0 (pages directly on the piece, layout 'two'). */
@@ -123,7 +124,72 @@ function setupAndroid() {
   };
 }
 
+/**
+ * "Im WLAN teilen": a test host "Testgerät" (codes 4711, 4712) with three sample pieces on
+ * 127.0.0.1; when the app shares (it prints "LANCODE <code> <port>"), this runner pulls the
+ * library as receiver and checks the files.
+ */
+async function setupLan() {
+  const { startHost } = require('../lan/host');
+  const { connect } = require('../lan/client');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-lanhost-'));
+  const samples = path.join(root, 'test', 'samples');
+  fs.mkdirSync(path.join(dir, 'Noten'));
+  fs.mkdirSync(path.join(dir, 'Anmerkungen'));
+  const pieces = [['f1', 'Florentiner Marsch', 'Florentiner Marsch.pdf', 'aa11.pdf'], ['b1', 'Böhmischer Traum', 'Böhmischer Traum.pdf', 'bb22.pdf'], ['p1', 'Polka Nr 5', 'Polka Nr 5.png', 'cc33.png']];
+  for (const [, , src, file] of pieces) fs.copyFileSync(path.join(samples, src), path.join(dir, 'Noten', file));
+  fs.writeFileSync(path.join(dir, 'notenpult.json'), JSON.stringify({
+    version: 2,
+    pieces: pieces.map(([id, title, , file]) => ({
+      id, title, genres: [], part: 0, addedAt: 1, parts: [{ id: `${id}a`, name: '1. Stimme', pages: [{ id: `${id}g`, file, page: 1 }] }],
+    })),
+    setlists: [{ id: 's1', name: 'Frühjahrskonzert', entries: [{ id: 'e1', pieceId: 'f1', number: '47' }, { id: 'e2', pieceId: 'p1', number: '12' }] }],
+    genres: [{ name: 'Marsch' }],
+    settings: { theme: 'dark' },
+    ui: { mode: 'library' },
+  }));
+  fs.writeFileSync(path.join(dir, 'Anmerkungen', 'f1.json'), JSON.stringify({ pages: { f1g: [{ c: 'red', w: 0.003, p: [0.1, 0.1, 0.4, 0.3] }] } }));
+  const host = await startHost({
+    paths: {
+      dataDir: dir, dbFile: path.join(dir, 'notenpult.json'), filesDir: path.join(dir, 'Noten'), annDir: path.join(dir, 'Anmerkungen'),
+    },
+    name: 'Testgerät', app: 'test', bind: '127.0.0.1', port: 0, codes: ['4711', '4712'],
+  });
+  const results = [];
+  let pulling = null;
+  return {
+    env: { NOTENPULT_LAN_BIND: '127.0.0.1', NOTENPULT_LAN_TARGETS: '127.0.0.1' },
+    onLine(line, dataDir) {
+      const m = /^LANCODE (\d{4}) (\d+)$/.exec(line);
+      if (!m || pulling) return;
+      pulling = (async () => {
+        const out = fs.mkdtempSync(path.join(os.tmpdir(), 'notenpult-lanrecv-'));
+        try {
+          const s = await connect({
+            address: '127.0.0.1', port: Number(m[2]), code: m[1], name: 'Test-Empfänger',
+          });
+          const manifest = await s.manifest();
+          await s.download(manifest.files.map(([n]) => n), out);
+          const same = manifest.files.every(([n]) => fs.readFileSync(path.join(out, n)).equals(fs.readFileSync(path.join(dataDir, 'Noten', n))));
+          results.push(`${JSON.parse(manifest.db).pieces.length === 4 && same ? 'PASS' : 'FAIL'} the app shares its library: 4 pieces, ${manifest.files.length} files arrive unchanged`);
+          await s.close(true);
+        } catch (err) {
+          results.push(`FAIL the app shares its library: ${err.message}`);
+        } finally {
+          fs.rmSync(out, { recursive: true, force: true });
+        }
+      })();
+    },
+    after: () => (results.length ? results : ['FAIL the app did not start sharing']),
+    cleanup() {
+      host.stop();
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
+
 const SETUP = {
+  'lan.js': setupLan,
   'migrate.js': setupV1, 'update.js': setupUpdateServer, 'preset.js': setupPreset, 'android.js': setupAndroid,
 };
 const AFTER = {
@@ -161,6 +227,7 @@ async function runSuite(name) {
       while ((i = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, i).replace(/^\[renderer:\w+\]\s*/, '').trimEnd();
         buffer = buffer.slice(i + 1);
+        setup.onLine?.(line, dataDir);
         if (/^PASS /.test(line)) pass++;
         else if (/^FAIL /.test(line)) fail++;
         else if (/SMOKE FAIL|Test script failed/.test(line)) crashed = true;

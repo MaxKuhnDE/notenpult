@@ -280,6 +280,32 @@ body.viewer-open #app { visibility: hidden; }
 .piece-meta { font-size: 12.5px; color: var(--muted); }
 .row-more { margin-right: 6px; color: var(--muted); }
 
+/* Im WLAN teilen / aus dem WLAN holen */
+.lan-code {
+  margin: 14px 0 6px;
+  text-align: center;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+.lan-status { min-height: 1.5em; text-align: center; font-weight: 600; }
+.lan-code-input {
+  width: 100%;
+  text-align: center;
+  font-size: 36px;
+  letter-spacing: 0.4em;
+  font-variant-numeric: tabular-nums;
+}
+.lan-error { color: var(--danger); font-weight: 600; }
+.lan-manual { display: flex; gap: 8px; }
+.lan-manual .text-input { flex: 1; min-width: 0; }
+.lan-actions { justify-content: flex-end; margin-top: 12px; }
+.lan-choice { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.lan-host > span:nth-child(2) { flex: 1; font-weight: 600; }
+.lan-transfer { font-weight: 600; }
+
 /* Selection: tap the icon in front of a piece */
 .piece-select {
   margin-left: 12px;

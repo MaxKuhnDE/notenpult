@@ -8,6 +8,7 @@ main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-
 preload.js         sichere Brücke (contextBridge) → window.notenpult
 updater/           In-App-Updates aus GitHub-Releases (siehe unten)
 preset.js          „Alles exportieren/importieren“: komplette Bibliothek als ZIP (tar.exe)
+lan/               „Im WLAN teilen“: protocol.js (SPAKE2, AES-GCM, Rahmen), host.js, client.js, apply.js, ipc.js
 renderer/
   index.html, styles.css
   js/app.js        Start, Kopfzeile, Moduswechsel, Drag & Drop, Tastenkürzel
@@ -23,10 +24,12 @@ renderer/
   js/search.js     Suche über Bibliothek, Nummern, Genres (#tag), Setlists, Pool
   js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
+  js/lan.js        Dialoge „Im WLAN teilen“ / „Aus dem WLAN holen“
+  js/lan-plan.js   was beim Holen entsteht: spiegelgleich oder hinzufügen, welche Dateien fehlen
   js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
 scripts/           copy-vendor (pdf.js), make-icon, run-tests, build-android-web (+ android/boot.js, pdfjs-shim.js)
 test/              UI-Tests (laufen in der echten App) + Generator für Beispielnoten; android/ = Prüfumgebung
-android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), Preset.java (ZIP)
+android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), Preset.java (ZIP), Lan*.java (WLAN)
 ```
 
 ## Datenmodell (`Dokumente\Notenpult\notenpult.json`, Version 2)
@@ -91,11 +94,37 @@ Anmerkungen/…           Stiftstriche je Stück
   verschiebt den bisherigen Stand nach `_vor-import` und den neuen an seine Stelle (bei einem Fehler zurück).
   Danach lädt die Oberfläche neu.
 
+## Im WLAN teilen
+
+Ein Gerät teilt (Host, nur lesend), eines holt (Empfänger). Gleiches Protokoll in `lan/*.js` (Windows) und
+`Lan*.java` (Android); `LanTest.java` prüft beide gegeneinander (über `test/lan-peer.js`).
+
+- **Finden**: Der Empfänger fragt per UDP-Broadcast auf Port 47321 `{"np":"discover","v":1}`, Hosts antworten
+  mit Name, TCP-Port, Version, Zahl der Stücke und ob sie gerade belegt sind. Ohne Broadcast: Adresse eingeben.
+- **Verbinden**: TCP auf Port 47322 (ist er belegt, ein freier – dann steht der Port beim Code). Rahmen =
+  4 Byte Länge (Big Endian) + Inhalt. Ein Empfänger zur Zeit, ein zweiter bekommt `busy`.
+- **Schlüssel**: SPAKE2 in der 2048-Bit-Gruppe aus RFC 3526 (Untergruppe der Ordnung q = (p−1)/2, g = 2).
+  w = SHA-256(„Notenpult SPAKE2 w “ + Code) mod q; M, N = Quadrat eines Hashwerts mod p (niemand kennt ihren
+  Logarithmus). Empfänger sendet T = gˣ·Mʷ, Host S = gʸ·Nʷ; beide berechnen K = gˣʸ. Aus dem Transkript
+  (T, S, K, w) entstehen per HMAC-SHA-256 je ein Bestätigungswert pro Richtung und je ein AES-Schlüssel pro
+  Richtung. Falscher Code → Bestätigung passt nicht → `code`; ein Mithörer kann den Code nicht offline erraten,
+  ein aktiver Angreifer hat einen Versuch pro Verbindung, der Host nach drei Fehlversuchen einen neuen Code.
+- **Danach**: AES-256-GCM, Nonce = Richtungs-Zähler (kein Wiederholen, keine Umsortierung möglich). Erstes Byte
+  im Klartext: 1 = JSON, 2 = Dateidaten. Nachrichten: `manifest` (Bibliothek, Anmerkungen, Dateiliste mit
+  Größen), `get` (eine Notendatei, in Blöcken zu 256 KiB), `bye`. Dateinamen nur nach `[A-Za-z0-9_-]+\.ext`.
+- **Holen**: `lan-plan.js` baut aus der eigenen Bibliothek und dem Manifest die neue (spiegelgleich = die des
+  Hosts; hinzufügen = Stücke/Setlists nach ID zusammenführen, Genres nach Name, eigene Einstellungen bleiben)
+  und die Liste fehlender Dateien (nicht vorhanden oder andere Größe). Die Dateien landen als `.part` und werden
+  erst vollständig umbenannt. `apply.js`/`LanApply.java` prüfen, dass jede gebrauchte Datei da ist, sichern den
+  alten Stand nach `_vor-abgleich`, schreiben Anmerkungen und zuletzt `notenpult.json`; danach lädt die
+  Oberfläche neu (wie beim ZIP-Import, Speichern ist solange angehalten).
+
 ## Android
 
 ```
 android/app/src/main/java/…/MainActivity.java   WebView, https://notenpult.local, Brücke window.NotenpultAndroid
 android/app/src/main/java/…/Preset.java         ZIP-Export/-Import (reines Java, JUnit-getestet)
+android/app/src/main/java/…/Lan*.java           „Im WLAN teilen“ (wie lan/*.js, JUnit-getestet)
 scripts/build-android-web.js                     renderer/ → assets/www (esbuild, Ziel chrome92) + pdf.js 3.11 legacy
 scripts/android/boot.js                          ES5: WebView-Version prüfen, Startfehler anzeigen, pdf.js + App laden
 ```
@@ -124,8 +153,12 @@ scripts/android/boot.js                          ES5: WebView-Version prüfen, S
   mit Fortschritt (`window.__npUpdateProgress`) und SHA-256-Prüfung, prüft den Paketnamen und öffnet die
   Android-Installation (bis Android 6 per Datei, ab 7 über `ApkProvider`). Gleicher Signaturschlüssel → die Daten
   bleiben.
+- **WLAN**: `lanHostStart`/`lanConnect`/`lanDownload`/`lanFinish` laufen in einem eigenen Thread und antworten
+  über `__npResolve`; Ereignisse (Verbunden, Fortschritt, neuer Code) kommen über `window.__npLanEvent`. Beim
+  Teilen hält ein `MulticastLock` den Empfang der Broadcasts offen. Gerätename aus den Android-Einstellungen.
 - **Tests**: `test/android.js` lädt das Bündel in Electron 14 (Chromium 93) mit `test/android/bridge.js` als
-  Ersatz für die Java-Brücke; `PresetTest.java` prüft den ZIP-Import, u. a. mit einer echten Windows-Export-Datei.
+  Ersatz für die Java-Brücke (für das WLAN mit `lan/*.js`); `PresetTest.java` prüft den ZIP-Import, u. a. mit einer
+  echten Windows-Export-Datei, `LanTest.java` das WLAN-Protokoll gegen die Windows-Implementierung.
 
 ## Updates
 

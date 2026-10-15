@@ -21,6 +21,13 @@ export function h(sel, props, ...kids) {
   return el;
 }
 
+/** replaceChildren that skips null/false like h() does – the DOM method would show them as "null". */
+export function fill(el, ...kids) {
+  el.replaceChildren();
+  appendKids(el, kids);
+  return el;
+}
+
 function appendKids(el, kids) {
   for (const kid of kids) {
     if (kid == null || kid === false) continue;
@@ -56,6 +63,7 @@ const ICONS = {
   sort: '<path d="M4 6h8M4 12h6M4 18h4"/><path d="M17 4v16M13.5 16.5L17 20l3.5-3.5"/>',
   import: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>',
   export: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>',
+  wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.6 12.4a9.6 9.6 0 0 1 12.8 0M8.8 15.8a5 5 0 0 1 6.4 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/>',
   tablet: '<rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M11 18.5h2"/>',
   folder: '<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.2h7.5A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>',

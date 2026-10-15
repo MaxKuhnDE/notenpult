@@ -16,6 +16,7 @@ import { openViewer } from './viewer.js';
 import { searchPieces, searchPool, poolRow } from './search.js';
 import { openPoolSetup } from './settings.js';
 import { presetsAvailable, importAll } from './presets.js';
+import { lanAvailable, openReceive } from './lan.js';
 import * as sync from './sync.js';
 import {
   genreFilterBar, genreTags, matchesGenres, openGenreManager, openGenrePicker,
@@ -60,10 +61,11 @@ function emptyState() {
     h('div.empty-icon', null, icon('music')),
     h('h2', null, 'Noch keine Noten'),
     h('p', null, onAndroid
-      ? 'Übernimm alles vom PC: dort unter Einstellungen → „Alles exportieren“ eine ZIP-Datei erstellen, per USB auf das Tablet (Ordner „Download“) kopieren und hier importieren.'
+      ? 'Übernimm alles vom PC: dort unter Einstellungen → „Im WLAN teilen“ wählen und hier „Aus dem WLAN holen“ – oder per ZIP-Datei („Alles exportieren“ am PC, per USB in den Ordner „Download“ kopieren).'
       : 'Importiere deine Noten als PDF oder Bild (JPG, PNG). Jede Datei wird ein Stück – mehrseitige PDFs bleiben zusammen.'),
     h('div.empty-actions', null,
-      onAndroid ? btn('Export vom PC importieren', importAll, { icon: 'tablet', kind: 'primary' }) : null,
+      lanAvailable() ? btn('Aus dem WLAN holen', () => openReceive(), { icon: 'wifi', kind: onAndroid ? 'primary' : '' }) : null,
+      onAndroid ? btn('Export vom PC importieren', importAll, { icon: 'tablet' }) : null,
       btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: onAndroid ? '' : 'primary' }),
       onAndroid ? null : btn('Ganzen Ordner importieren', () => importFromPicker({ folder: true }), { icon: 'folder' }),
       sync.available() && !sync.isLinked()

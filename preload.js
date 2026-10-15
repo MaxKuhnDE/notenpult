@@ -37,6 +37,20 @@ contextBridge.exposeInMainWorld('notenpult', {
   exportPreset: () => ipcRenderer.invoke('preset:export'),
   importPreset: () => ipcRenderer.invoke('preset:import'),
 
+  lanHostStart: () => ipcRenderer.invoke('lan:hostStart'),
+  lanHostStop: () => ipcRenderer.invoke('lan:hostStop'),
+  lanDiscover: () => ipcRenderer.invoke('lan:discover'),
+  lanConnect: (target) => ipcRenderer.invoke('lan:connect', target),
+  lanLocalFiles: () => ipcRenderer.invoke('lan:localFiles'),
+  lanDownload: (names) => ipcRenderer.invoke('lan:download', names),
+  lanFinish: (payload) => ipcRenderer.invoke('lan:finish', payload),
+  lanCancel: () => ipcRenderer.invoke('lan:cancel'),
+  onLanEvent: (cb) => {
+    const listener = (_e, ev) => cb(ev);
+    ipcRenderer.on('lan:event', listener);
+    return () => ipcRenderer.removeListener('lan:event', listener);
+  },
+
   openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
   info: () => ipcRenderer.invoke('app:info'),
 

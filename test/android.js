@@ -1,6 +1,9 @@
 // The Android build in Chromium 93 (older than the tablet's WebView 95), see test/android/harness.js.
-// Phase 1: import, view PDFs and images, draw with the finger, back button, update, export, import.
-// Phase 2 (after the reload that follows the import): everything is as exported.
+// Phase 1: import, view PDFs and images, draw with the finger, back button, update,
+//          "Im WLAN teilen" (a friend's laptop pulls everything), export, import.
+// Phase 2 (after the reload that follows the import): everything is as exported; then
+//          "Aus dem WLAN holen" from another device, adding to the own pieces.
+// Phase 3 (after the reload that follows receiving): the new piece is there.
 (async () => {
   const T = window.__npTest;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -18,6 +21,10 @@
   const check = (label, ok, extra = '') => console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${extra ? ` (${extra})` : ''}`);
   const toastText = () => [...document.querySelectorAll('#toast-root .toast')].map((t) => t.textContent).join(' | ');
   const fire = (el, type, o) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, isPrimary: true, ...o }));
+  const type = (el, value) => {
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
   const pagesReady = () => waitFor(() => !$('.viewer.loading') && $('.viewer .page canvas.sheet'), 20000, 'page render');
   const shot = async (name) => {
     await sleep(300);
@@ -43,7 +50,8 @@
     const { db } = store;
     check('Android backend in use', store.backend.kind === 'android');
 
-    if (localStorage.getItem('np-test-phase') !== '2') {
+    const phase = localStorage.getItem('np-test-phase') || '1';
+    if (phase === '1') {
       // ---------- import single sheets (stands in for the Android file picker) ----------
       const dir = __SAMPLES_DIR__;
       window.__npTestPick = ['Florentiner Marsch.pdf', 'Florentiner Marsch - 2. Stimme.pdf', 'Böhmischer Traum.pdf', 'Polka Nr 5.png']
@@ -131,6 +139,24 @@
         inst.url === window.__npTestApkUrl && inst.digest === 'sha256:00ff' && !!byText('.settings-modal .update-msg', 'Android zeigt jetzt die Installation'),
         JSON.stringify(inst));
 
+      // ---------- "Im WLAN teilen": a friend's laptop pulls the library from the tablet ----------
+      byText('.settings-modal .btn', 'Teilen').click();
+      const code = await waitFor(() => /^\d{4}$/.test(($('.lan-code') || {}).textContent) && $('.lan-code').textContent, 8000, 'code');
+      const where = $('.lan-modal .muted.small').textContent;
+      check('sharing shows code, device name and address', /Test-Tablet · Adresse: 127\.0\.0\.1/.test(where), where);
+      check('screen stays on while sharing', window.__npAwake === true);
+      const pulled = await T.lanPull(Number((where.match(/Port (\d+)/) || [])[1]), code);
+      const ownFiles = Object.keys(JSON.parse(window.NotenpultAndroid.lanLocalFiles())).length;
+      check('the laptop gets all pieces and sheet files unchanged', pulled.pieces === 3 && pulled.files === ownFiles && pulled.same
+        && pulled.hostName === 'Test-Tablet', JSON.stringify(pulled));
+      await waitFor(() => /Fertig: „Laptop eines Freundes“ hat die Noten geholt/.test($('.lan-status').textContent), 5000, 'done').catch(() => {});
+      check('tablet shows the finished transfer and a new code', /Fertig: „Laptop eines Freundes“/.test($('.lan-status').textContent)
+        && $('.lan-code').textContent !== code, $('.lan-status').textContent);
+      await shot('android-05-wlan-teilen');
+      byText('.lan-modal .btn', 'Beenden').click();
+      await sleep(200);
+      check('screen may turn off after sharing', window.__npAwake === false);
+
       // ---------- export, change, import ----------
       db.settings.theme = 'dark';
       store.commit('settings');
@@ -155,6 +181,19 @@
       return;
     }
 
+    if (phase === '3') {
+      localStorage.removeItem('np-test-phase');
+      await sleep(300);
+      check('message after receiving', toastText().includes('Fertig: Noten von „WLAN-Testgerät“ hinzugefügt – jetzt 4 Stücke'), toastText());
+      const abend = db.pieces.find((p) => p.title === 'Abendlied');
+      check('the new piece came along, the own ones stayed', !!abend && db.pieces.length === 4 && db.setlists.length === 1);
+      window.__np.openViewer({ queue: [{ pieceId: abend.id, number: '' }], start: 0, context: { kind: 'library' } });
+      await pagesReady();
+      check('its sheet opens', ink($('.viewer .page canvas.sheet')) > 0.01);
+      await T.done();
+      return;
+    }
+
     // ---------- phase 2 ----------
     localStorage.removeItem('np-test-phase');
     await sleep(300);
@@ -166,6 +205,27 @@
     await pagesReady();
     check('imported sheets open', ink($('.viewer .page canvas.sheet')) > 0.01);
     localStorage.removeItem('np-test-expected');
+    window.__npBack();
+
+    // ---------- "Aus dem WLAN holen": another device has one piece more ----------
+    await T.lanServe();
+    $('.topbar .icon-btn:last-child').click();
+    await waitFor(() => byText('.settings-modal .btn', 'Holen'), 5000, 'settings');
+    byText('.settings-modal .btn', 'Holen').click();
+    await waitFor(() => byText('.lan-modal .choice', 'WLAN-Testgerät'), 8000, 'host in list');
+    byText('.lan-modal .choice', 'WLAN-Testgerät').click();
+    await waitFor(() => $('.lan-code-input'), 5000, 'code input');
+    type($('.lan-code-input'), '2580');
+    await waitFor(() => byText('.lan-modal .choice', 'Zu meinen Noten hinzufügen'), 10000, 'preview');
+    const preview = $('.lan-modal').textContent;
+    check('preview: only the missing sheet file is loaded', preview.includes('„WLAN-Testgerät“: 4 Stücke') && preview.includes('Zu laden: 1 Datei')
+      && !preview.includes('null'), preview.slice(0, 300));
+    byText('.lan-modal .choice', 'Zu meinen Noten hinzufügen').click();
+    await shot('android-06-wlan-holen');
+    localStorage.setItem('np-test-phase', '3');
+    byText('.lan-modal .btn', 'Holen').click();
+    await sleep(20000);
+    check('receiving reloaded the app', false, ($('.lan-modal') || {}).textContent);
   } catch (err) {
     console.log(`FAIL ${err && err.stack ? err.stack : err}`);
   }

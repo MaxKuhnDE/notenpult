@@ -6,7 +6,7 @@ import {
   cleanGenre, findGenre, sortedPieces, norm, pagesOf,
 } from './store.js';
 import {
-  h, icon, btn, iconBtn, modal, toast, promptDialog, confirmDialog, plural,
+  h, fill, icon, btn, iconBtn, modal, toast, promptDialog, confirmDialog, plural,
 } from './ui.js';
 
 const SUGGESTIONS = ['Marsch', 'Polka', 'Walzer', 'Konzert', 'Choral', 'Kirche', 'Böhmisch', 'Solo', 'Weihnachten', 'Pop'];
@@ -50,7 +50,7 @@ export function genreSelector(selected, onChange) {
   });
   const render = () => {
     const names = genreNames();
-    wrap.replaceChildren(
+    fill(wrap,
       h('div.genre-chips', null,
         names.length
           ? names.map((name) => genreChip(name, {
@@ -147,7 +147,7 @@ export function openGenreManager() {
   function render() {
     const names = genreNames();
     const missing = SUGGESTIONS.filter((s) => !findGenre(s));
-    body.replaceChildren(
+    fill(body,
       form,
       missing.length ? h('div.genre-suggest', null, h('span.muted.small', null, 'Vorschläge:'), missing.map((s) => h('button.genre-chip.ghost', { type: 'button', onclick: () => create(s) }, h('span.genre-hash', null, '+'), h('span', null, s)))) : null,
       names.length

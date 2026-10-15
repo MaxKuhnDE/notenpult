@@ -9,6 +9,7 @@ const fsp = fs.promises;
 const crypto = require('node:crypto');
 const { registerUpdater } = require('./updater');
 const { exportPreset, importPreset } = require('./preset');
+const { registerLan } = require('./lan/ipc');
 
 const HOST = 'notenpult';
 // Tests can serve another web root (e.g. the Android bundle in android/app/src/main/assets/www).
@@ -293,6 +294,7 @@ function registerIpc() {
   const presetFile = TEST_SCRIPT ? process.env.NOTENPULT_TEST_PRESET || null : null;
   ipcMain.handle('preset:export', () => exportPreset(win, paths, presetFile));
   ipcMain.handle('preset:import', () => importPreset(win, paths, presetFile));
+  registerLan(() => win, paths);
 
   ipcMain.handle('app:openDataDir', async () => {
     await fsp.mkdir(paths.dataDir, { recursive: true });

@@ -5,6 +5,7 @@ import {
 import * as sync from './sync.js';
 import { updateSection } from './updates.js';
 import { presetsAvailable, exportAll, importAll } from './presets.js';
+import { lanAvailable, openShare, openReceive } from './lan.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -154,6 +155,16 @@ export function openSettings() {
     pool ? pool.el : null,
 
     h('h3.settings-section', null, 'Daten · Übertragen & Sichern'),
+    lanAvailable() ? h('div.setting', null,
+      h('div.setting-text', null,
+        h('div.setting-label', null, 'Im WLAN teilen'),
+        h('div.setting-hint', null, 'Ein anderes Gerät im selben WLAN (oder Handy-Hotspot) holt sich deine Noten – mit einem 4-stelligen Code, verschlüsselt, nur fehlende Dateien.')),
+      btn('Teilen …', () => openShare(), { icon: 'wifi' })) : null,
+    lanAvailable() ? h('div.setting', null,
+      h('div.setting-text', null,
+        h('div.setting-label', null, 'Aus dem WLAN holen'),
+        h('div.setting-hint', null, 'Noten von einem Gerät holen, auf dem gerade „Im WLAN teilen“ offen ist – alles übernehmen oder zu deinen Noten hinzufügen.')),
+      btn('Holen …', () => openReceive(), { icon: 'import' })) : null,
     presetsAvailable() ? h('div.setting', null,
       h('div.setting-text', null,
         h('div.setting-label', null, 'Alles exportieren'),

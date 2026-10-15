@@ -18,6 +18,7 @@ import {
   autoCheck as autoUpdateCheck, onUpdateState, updateAvailable, announceUpdateResult,
 } from './updates.js';
 import { announceImport } from './presets.js';
+import { announceReceived } from './lan.js';
 import {
   openViewer, closeViewer, isViewerOpen, next, prev,
 } from './viewer.js';
@@ -207,6 +208,7 @@ async function start() {
   announceUpdateResult();
   setTimeout(() => autoUpdateCheck().catch(() => {}), 6000);
   announceImport();
+  announceReceived();
   // Android back button (MainActivity asks this first): dialog → viewer → leave the app.
   window.__npBack = () => {
     closeMenu();
