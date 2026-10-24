@@ -9,9 +9,11 @@
 // Layout "auto" fills the screen: two pages side by side (A4 portrait on a
 // landscape screen) or stacked (A5 landscape on a portrait screen) whenever
 // that doesn't make the pages noticeably smaller than showing one alone.
+// A layout chosen in the viewer belongs to the piece's current part (Stimme) and
+// orientation; the settings hold the layout for all other pieces.
 
 import {
-  db, commit, subscribe, pieceById, backend, pagesOf, activePart,
+  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, setPartLayout,
 } from './store.js';
 import {
   pageView, renderView, viewTransform, toPagePixels, harmonizeViews, FULL,
@@ -33,6 +35,20 @@ const ERASER_RADIUS = 14;
 const NEXT_KEYS = new Set(['ArrowRight', 'PageDown', ' ', 'ArrowDown', 'Enter']);
 const PREV_KEYS = new Set(['ArrowLeft', 'PageUp', 'ArrowUp', 'Backspace']);
 const FALLBACK_VIEW = { rot: 0, crop: FULL, w0: 595, h0: 842, dw: 595, dh: 842 };
+const LAYOUT_LABELS = {
+  auto: 'Automatisch (Bildschirm füllen)',
+  two: 'Immer zwei Seiten',
+  firstSingle: 'Erste Seite einzeln, dann je zwei',
+  pair2: 'Zwei Seiten nur bei 2-seitigen Stücken',
+  single: 'Immer eine Seite',
+  width: 'Seitenbreite (scrollen)',
+};
+const LAYOUT_SHORT = {
+  auto: 'Automatisch', two: 'Zwei Seiten', firstSingle: 'Erste einzeln', pair2: 'Nur 2-seitige', single: 'Eine Seite', width: 'Breite',
+};
+const LAYOUT_ICONS = {
+  auto: 'auto', two: 'two', firstSingle: 'firstSingle', pair2: 'two', single: 'single', width: 'width',
+};
 
 let V = null;
 let fullscreen = false;
@@ -193,11 +209,12 @@ function applyViewerTheme() {
 // ---------- layout ----------
 
 const isLandscape = () => window.innerWidth >= window.innerHeight;
-/** 'auto' | 'two' (always two pages) | 'pair2' (two pages only for 2-page pieces) | 'single' | 'width' */
-function layoutMode() {
-  return isLandscape() ? db.settings.landscapeLayout : db.settings.portraitLayout;
-}
+const orientation = () => (isLandscape() ? 'landscape' : 'portrait');
 const pieceAt = (qi) => pieceById(V.queue[qi].pieceId);
+/** Layout (store.LAYOUTS) of a piece's current part: its own or the setting. */
+function layoutMode(piece = pieceAt(V.qi)) {
+  return layoutOf(activePart(piece), orientation());
+}
 
 function stageBox() {
   return { w: V.stage.clientWidth, hgt: V.stage.clientHeight };
@@ -239,15 +256,21 @@ function screensOf(qi) {
   if (!p) {
     p = (async () => {
       const pages = pagesOf(piece);
-      const mode = layoutMode();
+      const mode = layoutMode(piece);
       const singles = () => pages.map((_, i) => ({ idx: [i], dir: 'single' }));
       if (pages.length < 2 || mode === 'single' || mode === 'width') return singles();
       if (mode === 'pair2' && pages.length !== 2) return singles();
       const views = await viewsFor(pages);
-      // 'two' and 'pair2' always pair; 'auto' only when the pages stay large enough.
+      // 'two', 'pair2' and 'firstSingle' always pair; 'auto' only when the pages stay large enough.
       const minRatio = mode === 'auto' ? PAIR_THRESHOLD : 0;
       const out = [];
-      for (let i = 0; i < pages.length;) {
+      let i = 0;
+      if (mode === 'firstSingle') {
+        // e.g. rests at the end of page 1 to turn the page, pages 2 and 3 together without turning
+        out.push({ idx: [0], dir: 'single' });
+        i = 1;
+      }
+      while (i < pages.length) {
         const dir = i + 1 < pages.length ? pairDirection(views[i], views[i + 1], minRatio) : null;
         if (dir) {
           out.push({ idx: [i, i + 1], dir });
@@ -307,8 +330,8 @@ async function show({ keepScroll = false } = {}) {
   const v = V;
   const token = ++v.showToken;
   const alive = () => V === v && token === v.showToken;
-  const mode = layoutMode();
   const piece = pieceAt(v.qi);
+  const mode = layoutMode(piece);
   const scrollRatio = keepScroll && v.stage.scrollHeight > 0 ? v.stage.scrollTop / v.stage.scrollHeight : 0;
   const spinnerTimer = setTimeout(() => alive() && v.el.classList.add('loading'), 200);
   try {
@@ -337,7 +360,7 @@ async function show({ keepScroll = false } = {}) {
     clearTimeout(spinnerTimer);
     if (alive()) v.el.classList.remove('loading');
   }
-  if (alive()) prefetch(v, token, mode);
+  if (alive()) prefetch(v, token);
 }
 
 function mount(piece, refs, views, boxes, canvases, ann, dir, mode, dpr) {
@@ -382,7 +405,7 @@ function redrawSlot(slot) {
 }
 
 /** Renders the next two screens and the previous one in the background. */
-async function prefetch(v, token, mode) {
+async function prefetch(v, token) {
   const here = { qi: v.qi, pi: v.pi };
   const stillCurrent = () => V === v && token === v.showToken;
   try {
@@ -397,7 +420,7 @@ async function prefetch(v, token, mode) {
       const refs = screen.idx.map((i) => pagesOf(piece)[i]);
       const views = harmonizeViews(await viewsFor(refs));
       if (!stillCurrent()) return;
-      const boxes = layoutBoxes(views, screen.dir, mode);
+      const boxes = layoutBoxes(views, screen.dir, layoutMode(piece));
       await Promise.all(refs.map((r, i) => renderView(r, views[i], boxes[i].w).catch(() => {})));
       ink.load(piece.id);
     }
@@ -874,12 +897,39 @@ function setBarHidden(hidden) {
 function openMore(anchor) {
   const land = isLandscape();
   const key = land ? 'landscapeLayout' : 'portraitLayout';
-  const cur = layoutMode();
-  const setLayout = (value) => {
-    db.settings[key] = value;
-    commit('settings');
-  };
   const piece = pieceAt(V.qi);
+  const part = activePart(piece);
+  const presets = db.settings.piecePresets;
+  const own = ownLayout(part, orientation());
+  const cur = layoutMode(piece);
+  const where = land ? 'Querformat' : 'Hochformat';
+  const forWhat = piece.parts.length > 1 ? `„${piece.title}“ · ${part.name}` : `„${piece.title}“`;
+  // With presets on, a choice here is remembered for this piece's part only; otherwise it is the setting.
+  const setLayout = (value) => {
+    if (!presets) {
+      db.settings[key] = value;
+      commit('settings');
+      return;
+    }
+    setPartLayout(part, orientation(), value);
+    relayout();
+    toast(value ? `Ansicht gespeichert für ${forWhat} (${where})` : `${forWhat} folgt wieder den Einstellungen`, { ms: 2600 });
+  };
+  const layoutItem = (value) => ({
+    label: LAYOUT_LABELS[value], icon: LAYOUT_ICONS[value], checked: (presets ? own : cur) === value, onClick: () => setLayout(value),
+  });
+  const layoutItems = presets
+    ? [
+      { heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'} · ${where}` },
+      {
+        label: `Wie in den Einstellungen (${LAYOUT_SHORT[db.settings[key]]})`, icon: 'settings', checked: !own, onClick: () => setLayout(null),
+      },
+      ...['auto', 'two', 'firstSingle', 'single', 'width'].map(layoutItem),
+    ]
+    : [
+      { heading: `Ansicht im ${where} (alle Stücke)` },
+      ...['auto', 'two', 'firstSingle', 'pair2', 'single', 'width'].map(layoutItem),
+    ];
   const partItems = piece.parts.length > 1
     ? [{ heading: 'Stimme' }, ...piece.parts.map((p, i) => ({
       label: p.name, icon: 'layers', checked: i === (piece.part || 0), onClick: () => setPart(i),
@@ -887,12 +937,7 @@ function openMore(anchor) {
     : [];
   popMenu(anchor, [
     ...partItems,
-    { heading: land ? 'Ansicht im Querformat' : 'Ansicht im Hochformat' },
-    { label: 'Automatisch (Bildschirm füllen)', icon: 'auto', checked: cur === 'auto', onClick: () => setLayout('auto') },
-    { label: 'Immer zwei Seiten', icon: 'two', checked: cur === 'two', onClick: () => setLayout('two') },
-    { label: 'Zwei Seiten nur bei 2-seitigen Stücken', icon: 'two', checked: cur === 'pair2', onClick: () => setLayout('pair2') },
-    { label: 'Immer eine Seite', icon: 'single', checked: cur === 'single', onClick: () => setLayout('single') },
-    { label: 'Seitenbreite (scrollen)', icon: 'width', checked: cur === 'width', onClick: () => setLayout('width') },
+    ...layoutItems,
     {
       label: 'Weiße Ränder abschneiden',
       icon: 'crop',

@@ -3,7 +3,7 @@
 // The connection itself (SPAKE2 + AES-GCM) is native: lan/ (Windows), Lan*.java (Android).
 
 import {
-  db, backend, flushSaves, suspendSaving, resumeSaving,
+  db, backend, flushSaves, suspendSaving, resumeSaving, DEVICE_SETTINGS,
 } from './store.js';
 import * as ink from './ink.js';
 import {
@@ -155,7 +155,7 @@ export function openReceive() {
     let mode = 'mirror';
     const render = () => {
       const plan = planReceive({
-        local, host: manifest, mode, localFiles,
+        local, host: manifest, mode, localFiles, keepSettings: DEVICE_SETTINGS,
       });
       const choice = (value, label, hint) => h(`button.choice${mode === value ? '.active' : ''}`, {
         type: 'button',
@@ -172,7 +172,8 @@ export function openReceive() {
           : 'Alle Notendateien sind schon auf diesem Gerät.'),
         h('div.choice-list', null,
           choice('mirror', 'Alles übernehmen (spiegelgleich)',
-            `Danach ist dieses Gerät wie „${from}“ – Stücke, Setlists, Genres, Anmerkungen und Einstellungen.`
+            `Danach ist dieses Gerät wie „${from}“ – Stücke, Setlists, Genres, Anmerkungen und Einstellungen `
+            + '(nur die Seitenansicht dieses Geräts bleibt).'
             + `${local.pieces.length ? ` Deine ${plural(local.pieces.length, 'Stück', 'Stücke')} hier werden ersetzt (Sicherung in „_vor-abgleich“).` : ''}`),
           choice('add', 'Zu meinen Noten hinzufügen',
             'Deine Stücke, Setlists und Einstellungen bleiben; die Stücke von dort kommen dazu, gleiche werden aktualisiert.')),

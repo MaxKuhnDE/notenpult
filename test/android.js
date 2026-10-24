@@ -83,6 +83,25 @@
       check('PDF page rendered by pdf.js 3.11', ink(sheet) > 0.01, `dark ${(ink(sheet) * 100).toFixed(1)} %, ${sheet.width}×${sheet.height}`);
       check('screen stays on in the viewer', window.__npAwake === true);
       await shot('android-02-viewer');
+
+      // ---------- own layout for this piece and part; the long menu fits the tablet ----------
+      $('.viewer [title="Ansicht & mehr"]').click();
+      await waitFor(() => $('.menu-item'), 3000, 'menu');
+      const menuBox = $('.menu').getBoundingClientRect();
+      check('long menu fits the tablet screen (scrolls)', menuBox.top >= 0 && menuBox.bottom <= window.innerHeight,
+        `${Math.round(menuBox.top)}–${Math.round(menuBox.bottom)} of ${window.innerHeight}, content ${$('.menu').scrollHeight}`);
+      byText('.menu-item', 'Erste Seite einzeln, dann je zwei').click();
+      await sleep(150);
+      await pagesReady();
+      await store.flushSaves();
+      const floSaved = JSON.parse(window.NotenpultAndroid.loadDb()).pieces.find((p) => p.id === flo.id);
+      check('own layout for this part, saved through the bridge', document.querySelectorAll('.viewer .page').length === 1
+        && floSaved.parts[0].layout.landscape === 'firstSingle', JSON.stringify(floSaved.parts[0].layout));
+      $('.viewer [title="Ansicht & mehr"]').click();
+      await waitFor(() => $('.menu-item'), 3000, 'menu');
+      byText('.menu-item', 'Wie in den Einstellungen').click();
+      await sleep(150);
+      await pagesReady();
       const stage = $('.stage');
       const r = stage.getBoundingClientRect();
       fire(stage, 'pointerdown', { pointerId: 1, pointerType: 'touch', clientX: r.left + r.width * 0.7, clientY: r.top + r.height / 2, button: 0, buttons: 1 });

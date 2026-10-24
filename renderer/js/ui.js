@@ -71,6 +71,7 @@ const ICONS = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
   single: '<rect x="6.5" y="3" width="11" height="18" rx="1.5"/><path d="M9.5 8h5M9.5 11.5h5M9.5 15h3"/>',
   two: '<rect x="2.5" y="4" width="8.5" height="16" rx="1.3"/><rect x="13" y="4" width="8.5" height="16" rx="1.3"/>',
+  firstSingle: '<rect x="1.5" y="5" width="6" height="14" rx="1"/><rect x="10.5" y="5" width="5.5" height="14" rx="1"/><rect x="16.5" y="5" width="5.5" height="14" rx="1"/>',
   auto: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v4M3 8h4M16 21v-4M21 16h-4M8 21v-4M3 16h4M16 3v4M21 8h-4"/>',
   width: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 12h8M10 10l-2 2 2 2M14 10l2 2-2 2"/>',
   fullscreen: '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>',
@@ -293,7 +294,8 @@ export function popMenu(anchor, items, { align = 'end' } = {}) {
   let left = align === 'end' ? r.right - mw : r.left;
   left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
   let top = r.bottom + 6;
-  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+  if (top + mh > window.innerHeight - 8) top = r.top - mh - 6;
+  if (top < 8) top = Math.max(8, window.innerHeight - mh - 8); // fits neither below nor above
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
   openMenu = menu;

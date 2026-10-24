@@ -3,7 +3,7 @@
 // on Windows, MainActivity.java on Android); importing replaces everything.
 
 import {
-  backend, flushSaves, suspendSaving, resumeSaving,
+  backend, flushSaves, suspendSaving, resumeSaving, keepDeviceSettings,
 } from './store.js';
 import * as ink from './ink.js';
 import {
@@ -34,7 +34,8 @@ export async function importAll() {
   const onAndroid = backend.kind === 'android';
   const ok = await confirmDialog(
     'Der Import ersetzt alle Stücke, PDFs, Stimmen, Setlists, Genres, Anmerkungen und Einstellungen auf diesem Gerät '
-    + 'durch den Inhalt der Export-Datei – danach ist alles wie auf dem Gerät, das exportiert hat. '
+    + 'durch den Inhalt der Export-Datei – danach ist alles wie auf dem Gerät, das exportiert hat (nur die Seitenansicht '
+    + 'dieses Geräts bleibt). '
     + (onAndroid
       ? 'Die ZIP-Datei vorher z. B. per USB-Kabel in den Ordner „Download“ des Tablets kopieren.'
       : 'Der bisherige Stand bleibt im Datenordner unter „_vor-import“ erhalten.'),
@@ -44,6 +45,7 @@ export async function importAll() {
   await ink.flushAll();
   await flushSaves();
   suspendSaving(); // nothing old may be written over the imported data
+  keepDeviceSettings(); // applied again by store.init() after the reload
   const wait = busy('Import läuft – bitte warten …');
   let r;
   try {
@@ -59,6 +61,7 @@ export async function importAll() {
     return;
   }
   resumeSaving();
+  keepDeviceSettings(false);
   wait.close();
   if (r && !r.canceled) toast(`Import fehlgeschlagen: ${r.error}`, { kind: 'error', ms: 9000 });
 }

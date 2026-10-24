@@ -23,8 +23,12 @@ A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch 
   Stifttaste. Handballen-Erkennung, Rückgängig. Anmerkungen gelten je Stimme und Seite.
 - **A4 / A5**: Die Ansicht „Automatisch“ füllt den Bildschirm: A4 im Querformat zwei Seiten nebeneinander,
   A5-Querformat im Hochformat zwei Seiten untereinander. Weiße Ränder werden automatisch abgeschnitten.
-- **Zwei-Seiten-Ansicht**: „Zwei Seiten“ zeigt immer zwei Seiten zusammen; „Nur 2-seitige“ zeigt Stücke mit genau
-  zwei Seiten komplett auf einem Bildschirm (ohne Umblättern), alle anderen einseitig. Je für Quer- und Hochformat.
+- **Zwei-Seiten-Ansicht**: „Zwei Seiten“ zeigt immer zwei Seiten zusammen; „Erste einzeln“ zeigt die erste Seite
+  allein und danach je zwei; „Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm (ohne
+  Umblättern), alle anderen einseitig. Je für Quer- und Hochformat.
+- **Ansicht je Stück und Stimme**: Im Notenmodus über ⋯ gewählt, merkt sich Notenpult die Ansicht für genau dieses
+  Stück und diese Stimme – beim nächsten Öffnen ist sie wieder da. Per Schalter abschaltbar, z. B. auf einem kleinen
+  Tablet, das immer nur eine Seite zeigen soll ([mehr](#ansicht-je-stück-und-stimme)).
 - **Drehen**: ⟲ ⟳ dreht Seiten um 90°, die Drehung wird gespeichert.
 - **Google Drive / Noten-Pool**: Ein Drive-Ordner wird zum Pool, auf Wunsch gefiltert auf die eigene Stimme.
   Noten werden kopiert und sind offline verfügbar; Änderungen kommen bei Verbindung automatisch.
@@ -118,7 +122,7 @@ holen“ und den Code eingeben. Ohne gemeinsames WLAN geht es mit der ZIP-Datei:
 2. Tablet per USB anschließen und die ZIP in den Ordner **„Download“** kopieren.
 3. Auf dem Tablet: *„Export vom PC importieren“* (bzw. *Einstellungen → Daten → „Importieren …“*) und die ZIP
    wählen. Danach sind Stücke, Stimmen, Setlists mit Nummern, Genres, Anmerkungen und Einstellungen
-   **spiegelgleich** zum PC.
+   **spiegelgleich** zum PC – nur die Seitenansicht des Tablets bleibt, wie sie ist.
 
 Später geht es jederzeit wieder so – auch umgekehrt (Tablet exportieren, am PC importieren), z. B. um
 Anmerkungen vom Tablet zurückzuholen. Der Import ersetzt immer alles auf dem Zielgerät.
@@ -161,6 +165,8 @@ Gut zu wissen:
 - Erscheint das Gerät nicht in der Liste (manche Router und Gäste-WLANs blockieren die Suche), die
   **Adresse** eingeben, die beim teilenden Gerät unter dem Code steht.
 - Den vorherigen Stand legt Notenpult vorher beiseite (unter Windows im Datenordner `_vor-abgleich`).
+- Die **Seitenansicht** (Quer-/Hochformat und „Ansicht je Stück und Stimme merken“) gehört zum Bildschirm und
+  bleibt auch bei „Alles übernehmen“ so, wie sie auf diesem Gerät eingestellt ist.
 
 ## Bedienung im Notenmodus
 
@@ -176,6 +182,25 @@ Gut zu wissen:
 | ⟲ ⟳ | Seite um 90° drehen |
 | Lupe / Strg+F | Suche, auch im Noten-Pool |
 | F11 / Esc | Vollbild / zurück zur Übersicht |
+| ⋯ → Ansicht | Ansicht für dieses Stück und diese Stimme (siehe unten) |
+
+### Ansicht je Stück und Stimme
+
+Im Notenmodus oben rechts **⋯** antippen und unter „Ansicht für dieses Stück“ wählen:
+
+- **Automatisch**, **Immer zwei Seiten**, **Immer eine Seite**, **Seitenbreite** – wie in den Einstellungen.
+- **Erste Seite einzeln, dann je zwei** – z. B. bei drei Seiten: Seite 1 allein (am Ende stehen Pausentakte zum
+  Umblättern), Seiten 2 und 3 zusammen, weil dort keine Zeit zum Blättern ist.
+- **Wie in den Einstellungen** – vergisst die eigene Ansicht wieder.
+
+Die Wahl gilt nur für **dieses Stück und die gerade gezeigte Stimme** (Stimmen haben oft unterschiedlich viele
+Seiten) und getrennt für Quer- und Hochformat. Sie wird sofort gespeichert und kommt beim nächsten Öffnen wieder –
+auch in jeder Setlist. Alle anderen Stücke zeigen die Ansicht aus *Einstellungen → Notenansicht*.
+
+Der Schalter **„Ansicht je Stück und Stimme merken“** (*Einstellungen → Notenansicht*) gilt für dieses Gerät und
+bleibt beim Übertragen von einem anderen Gerät erhalten. Ist er aus, zeigen alle Stücke die Ansicht aus den
+Einstellungen – praktisch auf einem kleinen Tablet, das immer nur eine Seite zeigen soll, während der Laptop
+Doppelseiten nutzt. Die gemerkten Ansichten gehen dabei nicht verloren und kommen beim Übertragen trotzdem mit.
 
 ## Google Drive (Noten-Pool)
 
@@ -209,7 +234,8 @@ Alles liegt in `Dokumente\Notenpult`:
 
 *Einstellungen → Daten → „Exportieren …“* erstellt **eine ZIP-Datei** mit allen Stücken (PDFs/Bilder), Stimmen,
 Setlists, Genres, Anmerkungen und Einstellungen. Auf dem anderen Gerät *„Importieren …“* wählen und die ZIP
-öffnen: Danach ist dort alles **spiegelgleich** – vorher Vorhandenes wird ersetzt (unter Windows bleibt es in
+öffnen: Danach ist dort alles **spiegelgleich** (außer der Seitenansicht des Geräts) – vorher Vorhandenes wird
+ersetzt (unter Windows bleibt es in
 `_vor-import` erhalten). Das funktioniert in beide Richtungen, also auch, um Anmerkungen vom Tablet zurück auf
 den PC zu holen.
 

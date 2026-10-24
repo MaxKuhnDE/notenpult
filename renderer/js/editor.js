@@ -14,7 +14,7 @@ import {
   h, icon, btn, iconBtn, modal, toast, promptDialog, confirmDialog, popMenu, plural,
 } from './ui.js';
 
-const copyParts = (piece) => piece.parts.map((p) => ({ id: p.id, name: p.name, pages: p.pages.map((pg) => ({ ...pg })) }));
+const copyParts = (piece) => piece.parts.map((p) => ({ ...p, pages: p.pages.map((pg) => ({ ...pg })) }));
 
 export function openPieceEditor(pieceId) {
   const piece = pieceById(pieceId);
@@ -151,7 +151,7 @@ export function openPieceEditor(pieceId) {
     const before = allPages(piece).map((p) => p.file);
     piece.title = cleanTitle(titleInput.value) || piece.title;
     for (const g of genreNames()) setPieceGenre(piece, g, [...draftGenres].some((d) => norm(d) === norm(g)));
-    piece.parts = parts.map((p, i) => ({ id: p.id, name: p.name.trim() || `${i + 1}. Stimme`, pages: p.pages.map((pg) => ({ ...pg })) }));
+    piece.parts = parts.map((p, i) => ({ ...p, name: p.name.trim() || `${i + 1}. Stimme`, pages: p.pages.map((pg) => ({ ...pg })) }));
     piece.part = Math.min(piece.part || 0, piece.parts.length - 1);
     return before;
   }

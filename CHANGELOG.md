@@ -5,6 +5,30 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.6.0] – 2026-10-24
+
+### Hinzugefügt
+- **Ansicht je Stück und Stimme:** Was im Notenmodus über ⋯ als Ansicht gewählt wird (eine Seite, zwei Seiten,
+  automatisch, Seitenbreite …), merkt sich Notenpult für genau dieses Stück und die gerade gezeigte Stimme –
+  getrennt für Quer- und Hochformat – und zeigt es beim nächsten Öffnen wieder. Alle anderen Stücke behalten die
+  Ansicht aus den Einstellungen; „Wie in den Einstellungen“ vergisst die eigene Ansicht.
+- Neue Ansicht **„Erste Seite einzeln, dann je zwei“** (in den Einstellungen „Erste einzeln“): z. B. Seite 1 allein,
+  wenn am Ende Pausentakte zum Umblättern sind, Seiten 2 und 3 zusammen.
+- Schalter **„Ansicht je Stück und Stimme merken“** (Einstellungen → Notenansicht). Aus: Alle Stücke zeigen die
+  Ansicht aus den Einstellungen, die gemerkten Ansichten bleiben für später erhalten.
+- Test `layout.js`.
+
+### Geändert
+- Die **Seitenansicht ist eine Einstellung des Geräts:** Quer-/Hochformat-Ansicht und der neue Schalter bleiben bei
+  „Alles importieren“ und „Aus dem WLAN holen → Alles übernehmen“ so, wie sie auf dem Gerät eingestellt sind –
+  das kleine Tablet zeigt weiter eine Seite, auch wenn der Laptop Doppelseiten nutzt. Die Ansichten je Stück
+  kommen trotzdem mit.
+
+### Behoben
+- Lange Menüs (z. B. ⋯ im Notenmodus bei Stücken mit mehreren Stimmen) passten auf dem Tablet nicht auf den
+  Bildschirm – die unteren Einträge waren nicht erreichbar. Sie scrollen jetzt.
+- Bearbeiten eines Stücks behält alle Angaben einer Stimme (bisher nur Name und Seiten).
+
 ## [1.5.0] – 2026-10-15
 
 ### Hinzugefügt
