@@ -52,7 +52,7 @@ const errCode = async (promise) => {
       pieces: [piece('p1', 'Florentiner Marsch', ['aaaa1111.pdf']), piece('p2', 'Polka', ['bbbb2222.png']), piece('p3', 'Walzer', ['cccc3333.pdf'])],
       setlists: [{ id: 's1', name: 'Konzert', entries: [{ id: 'e1', pieceId: 'p1', number: '47' }] }],
       genres: [{ name: 'Marsch' }],
-      settings: { theme: 'dark' },
+      settings: { theme: 'dark', landscapeLayout: 'two', piecePresets: true },
       ui: { mode: 'setlists' },
     }));
     write(path.join(hostPaths.annDir, 'p1.json'), '{"pages":{"p1g0":[{"c":"red","w":0.003,"p":[0.1,0.1,0.2,0.2]}]}}');
@@ -118,6 +118,16 @@ const errCode = async (promise) => {
     });
     check('mirror: library and settings of the host, only missing or different files', mirror.db.pieces.length === 3 && mirror.db.settings.theme === 'dark'
       && mirror.download.sort().join() === 'aaaa1111.pdf,cccc3333.pdf' && mirror.keep.length === 3 && !mirror.keep.includes('xxxx9999.pdf'), mirror.download.join());
+    const own = planReceive({
+      local: { ...local, settings: { theme: 'light', landscapeLayout: 'single', piecePresets: false } },
+      host: manifest,
+      mode: 'mirror',
+      localFiles: have,
+      keepSettings: ['landscapeLayout', 'portraitLayout', 'piecePresets'],
+    });
+    check('mirror keeps the page layout of this screen, the rest comes from the host', own.db.settings.theme === 'dark'
+      && own.db.settings.landscapeLayout === 'single' && own.db.settings.piecePresets === false && !('portraitLayout' in own.db.settings),
+    JSON.stringify(own.db.settings));
     const add = planReceive({
       local, host: manifest, mode: 'add', localFiles: have,
     });

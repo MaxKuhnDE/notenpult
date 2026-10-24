@@ -1,7 +1,8 @@
 // "Aus dem WLAN holen": which library this device ends up with and which sheet files have
 // to come over the network. No DOM – test/lan.node.js uses it directly.
 //
-//   mirror  this device becomes like the host (as with "Alles importieren")
+//   mirror  this device becomes like the host (as with "Alles importieren"), except the
+//           settings listed in keepSettings (store.DEVICE_SETTINGS: page layout of this screen)
 //   add     the host's pieces join this library; same id = the host's version wins;
 //           setlists likewise, genres merged by name; settings stay
 
@@ -10,10 +11,10 @@ const filesOf = (piece) => (Array.isArray(piece.parts) ? piece.parts : [{ pages:
 
 /**
  * local: this device's library (the saved object); host: the manifest { db: text, ann, files };
- * localFiles: { name: size } of sheet files here.
+ * localFiles: { name: size } of sheet files here; keepSettings: setting keys that stay as they are here.
  */
 export function planReceive({
-  local, host, mode, localFiles,
+  local, host, mode, localFiles, keepSettings = [],
 }) {
   const hostDb = JSON.parse(host.db);
   const hostAnn = host.ann || {};
@@ -25,6 +26,9 @@ export function planReceive({
   if (mode === 'mirror') {
     db = hostDb;
     ann = { ...hostAnn };
+    const own = local.settings || {};
+    const kept = keepSettings.filter((k) => own[k] !== undefined);
+    if (kept.length) db.settings = { ...(hostDb.settings || {}), ...Object.fromEntries(kept.map((k) => [k, own[k]])) };
   } else {
     db = JSON.parse(JSON.stringify(local));
     db.pieces = db.pieces || [];

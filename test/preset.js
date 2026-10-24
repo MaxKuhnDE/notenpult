@@ -19,11 +19,10 @@
   const toastText = () => [...document.querySelectorAll('#toast-root .toast')].map((t) => t.textContent).join(' | ');
   // What must survive the round trip.
   const fingerprint = (db) => JSON.stringify({
-    pieces: db.pieces.map((p) => [p.id, p.title, p.genres, p.parts.map((x) => [x.name, x.pages.map((pg) => pg.file)])]),
+    pieces: db.pieces.map((p) => [p.id, p.title, p.genres, p.parts.map((x) => [x.name, x.pages.map((pg) => pg.file), x.layout || null])]),
     setlists: db.setlists.map((s) => [s.name, s.entries.map((e) => [e.pieceId, e.number])]),
     genres: db.genres.map((g) => g.name),
     theme: db.settings.theme,
-    layout: db.settings.landscapeLayout,
   });
 
   try {
@@ -47,6 +46,7 @@
       store.addToSetlist(s.id, [bt.id], 12);
       db.settings.theme = 'dark';
       db.settings.landscapeLayout = 'two';
+      store.setPartLayout(flo.parts[1], 'landscape', 'firstSingle');
       store.commit('settings');
       const ann = await ink.load(flo.id);
       ink.strokesOf(ann, flo.parts[1].pages[0].id).push({ c: 'red', w: 0.003, p: [0.1, 0.1, 0.5, 0.6, 0.4, 0.5] });
@@ -64,6 +64,9 @@
       // Change things that the import must undo.
       await store.deletePiece(bt.id);
       db.settings.theme = 'light';
+      // … but not the page layout of this screen: it belongs to the device.
+      db.settings.landscapeLayout = 'single';
+      db.settings.piecePresets = false;
       store.commit('settings');
       await sleep(300);
       check('library changed before import', db.pieces.length === 2 && fingerprint(db) !== localStorage.getItem('np-test-expected'));
@@ -86,6 +89,8 @@
     check('library is identical to the export (pieces, parts, genres, setlists, settings)',
       fingerprint(db) === localStorage.getItem('np-test-expected'));
     check('deleted piece is back', !!db.pieces.find((p) => p.title === 'Böhmischer Traum'));
+    check('the page layout of this device stays (layout per piece came along)', db.settings.landscapeLayout === 'single' && db.settings.piecePresets === false,
+      `${db.settings.landscapeLayout} ${db.settings.piecePresets}`);
     const flo = db.pieces.find((p) => p.id === localStorage.getItem('np-test-flo'));
     const ann = JSON.parse((await window.notenpult.loadAnnotations(flo.id)) || '{"pages":{}}');
     check('annotations came along', ann.pages[flo.parts[1].pages[0].id]?.length === 1);

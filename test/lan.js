@@ -64,6 +64,7 @@
     } else if (phase === '2') {
       check('toast after receiving', toastText().includes('Fertig: Noten von „Testgerät“ übernommen – jetzt 3 Stücke'), toastText());
       check('library mirrored: pieces, setlist with numbers, settings', db.pieces.length === 3 && db.setlists[0]?.entries.find((e) => e.number === '47') && db.settings.theme === 'dark');
+      check('the page layout of this screen stays', db.settings.landscapeLayout === 'auto', db.settings.landscapeLayout);
       const flo = db.pieces.find((p) => p.title === 'Florentiner Marsch');
       const ann = JSON.parse((await window.notenpult.loadAnnotations(flo.id)) || '{"pages":{}}');
       check('annotations came along', Object.values(ann.pages).some((l) => l.length === 1));

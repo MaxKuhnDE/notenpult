@@ -13,8 +13,9 @@ export function clone(obj) {
 export const DEFAULT_SETTINGS = {
   theme: 'system', // 'system' | 'light' | 'dark'
   invertSheets: false, // Noten im Dunkelmodus hell-auf-dunkel darstellen
-  portraitLayout: 'auto', // 'auto' | 'two' | 'pair2' | 'single' | 'width'
-  landscapeLayout: 'auto', // 'auto' | 'two' (immer zwei Seiten) | 'pair2' (nur 2-seitige Stücke) | 'single' | 'width'
+  portraitLayout: 'auto', // see LAYOUTS
+  landscapeLayout: 'auto',
+  piecePresets: true, // im Notenmodus gewählte Ansicht je Stück und Stimme merken und benutzen
   autoCrop: true, // weiße Ränder automatisch abschneiden
   leftZoneBack: false, // Tippen auf linkes Viertel blättert zurück
   penAlwaysDraws: true, // Stift schreibt immer, Finger/Maus blättern
@@ -23,6 +24,19 @@ export const DEFAULT_SETTINGS = {
   tensBlocks: true,
   autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
 };
+
+/**
+ * Page layouts: 'auto' (fill the screen) | 'two' (always two pages) | 'pair2' (two pages only for
+ * 2-page pieces) | 'firstSingle' (first page alone, then two at a time) | 'single' | 'width'.
+ */
+export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'];
+
+/**
+ * Settings that belong to the screen, not to the library: they stay on this device when the
+ * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
+ */
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets'];
+const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
 export const DEFAULT_SYNC = {
   folder: null, // linked pool folder, e.g. X:\Meine Ablage\Noten
@@ -36,7 +50,9 @@ export const DEFAULT_SYNC = {
 
 /*
  * piece: { id, title, part (active part index), addedAt, genres: ['Marsch', …],
- *          parts: [{ id, name, pages: [{ id, file, page, rot?, crop? }] }] }
+ *          parts: [{ id, name, pages: [{ id, file, page, rot?, crop? }], layout? }] }
+ *   layout: { landscape?, portrait? } – page layout chosen in the viewer for this part (Stimme);
+ *           used while the setting piecePresets is on
  * genres: [{ name }] – the user's own genre list (shown as #hashtags)
  */
 export const db = {
@@ -435,6 +451,7 @@ export async function init() {
     db.pieces = (Array.isArray(saved.pieces) ? saved.pieces : []).map(migratePiece);
     db.setlists = Array.isArray(saved.setlists) ? saved.setlists : [];
     db.settings = { ...DEFAULT_SETTINGS, ...(saved.settings || {}) };
+    if (restoreDeviceSettings()) queueSave();
     // In 1.0, 'two' was the default landscape view; from 1.1 on 'auto' does that job better.
     // ('two' is again a valid choice since 1.2: always two pages.)
     if ((saved.version || 1) < 2) {
@@ -448,6 +465,46 @@ export async function init() {
     // Every genre used on a piece must exist in the list.
     for (const p of db.pieces) for (const g of p.genres) addGenre(g);
   }
+}
+
+// ---------- page layout ----------
+
+/** Remembers this device's DEVICE_SETTINGS until the reload after an import. */
+export function keepDeviceSettings(on = true) {
+  try {
+    if (on) localStorage.setItem(KEEP_DEVICE_SETTINGS, JSON.stringify(Object.fromEntries(DEVICE_SETTINGS.map((k) => [k, db.settings[k]]))));
+    else localStorage.removeItem(KEEP_DEVICE_SETTINGS);
+  } catch { /* without storage the imported values apply */ }
+}
+
+function restoreDeviceSettings() {
+  let kept = null;
+  try {
+    kept = JSON.parse(localStorage.getItem(KEEP_DEVICE_SETTINGS) || 'null');
+    localStorage.removeItem(KEEP_DEVICE_SETTINGS);
+  } catch { /* nothing kept */ }
+  if (!kept) return false;
+  for (const k of DEVICE_SETTINGS) if (kept[k] !== undefined) db.settings[k] = kept[k];
+  return true;
+}
+
+/** The layout this part chose for 'landscape' | 'portrait' (null: none, or presets are off). */
+export function ownLayout(part, orientation) {
+  const own = db.settings.piecePresets && part.layout ? part.layout[orientation] : null;
+  return LAYOUTS.includes(own) ? own : null;
+}
+
+/** Page layout for a part: its own (chosen in the viewer) or the setting for all pieces. */
+export const layoutOf = (part, orientation) => ownLayout(part, orientation) || db.settings[`${orientation}Layout`];
+
+/** Remembers a layout for this part (Stimme) only; null: back to the setting. */
+export function setPartLayout(part, orientation, layout) {
+  const own = { ...(part.layout || {}) };
+  if (layout) own[orientation] = layout;
+  else delete own[orientation];
+  if (Object.keys(own).length) part.layout = own;
+  else delete part.layout;
+  commit('part');
 }
 
 // ---------- genres (#hashtags) ----------

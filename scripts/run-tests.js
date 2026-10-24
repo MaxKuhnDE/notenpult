@@ -19,7 +19,7 @@ const electron = require('electron');
 const root = path.join(__dirname, '..');
 const suites = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js',
+  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'layout.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js',
     'lan.node.js', 'lan.js', 'android.js'];
 const TIMEOUT_MS = 240000;
 
@@ -98,7 +98,14 @@ function setupPreset() {
 /** Electron whose Chromium is older than the WebView on Android 5; installed on first use. */
 const OLD_ELECTRON = '14.2.9'; // Chromium 93
 function oldElectron() {
-  const dir = path.join(root, 'node_modules', '.cache', `electron-${OLD_ELECTRON}`);
+  const cached = path.join(root, 'node_modules', '.cache', `electron-${OLD_ELECTRON}`);
+  let dir = cached;
+  // Windows cannot start a program whose path is longer than 260 characters (deep checkouts).
+  if (path.join(dir, 'node_modules', 'electron', 'dist', 'electron.exe').length >= 250) {
+    dir = path.join(os.tmpdir(), `notenpult-electron-${OLD_ELECTRON}`);
+    const ready = (d) => fs.existsSync(path.join(d, 'node_modules', 'electron', 'path.txt'));
+    if (!ready(dir) && ready(cached)) fs.cpSync(cached, dir, { recursive: true });
+  }
   const pkg = path.join(dir, 'node_modules', 'electron');
   if (!fs.existsSync(path.join(pkg, 'path.txt'))) {
     console.log(`  lädt Electron ${OLD_ELECTRON} (Chromium 93) für die Android-Prüfung …`);
@@ -145,7 +152,7 @@ async function setupLan() {
     })),
     setlists: [{ id: 's1', name: 'Frühjahrskonzert', entries: [{ id: 'e1', pieceId: 'f1', number: '47' }, { id: 'e2', pieceId: 'p1', number: '12' }] }],
     genres: [{ name: 'Marsch' }],
-    settings: { theme: 'dark' },
+    settings: { theme: 'dark', landscapeLayout: 'two' },
     ui: { mode: 'library' },
   }));
   fs.writeFileSync(path.join(dir, 'Anmerkungen', 'f1.json'), JSON.stringify({ pages: { f1g: [{ c: 'red', w: 0.003, p: [0.1, 0.1, 0.4, 0.3] }] } }));

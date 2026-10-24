@@ -47,12 +47,13 @@ function toggle(key, label, hint) {
 const LAYOUTS = [
   ['auto', 'Automatisch', 'auto'],
   ['two', 'Zwei Seiten', 'two'],
+  ['firstSingle', 'Erste einzeln', 'firstSingle'],
   ['pair2', 'Nur 2-seitige', 'two'],
   ['single', 'Eine Seite', 'single'],
   ['width', 'Breite', 'width'],
 ];
 
-/** Page layout per orientation; full width so all five choices fit. */
+/** Page layout per orientation; full width so all six choices fit. */
 function layoutRow(label, key) {
   const control = segmented(key, LAYOUTS);
   control.classList.add('wrap');
@@ -135,8 +136,13 @@ export function openSettings() {
     h('div.setting-hint.block', null,
       '„Automatisch“ füllt den Bildschirm (A4 im Querformat nebeneinander, A5 im Hochformat untereinander). ',
       '„Zwei Seiten“ zeigt immer zwei Seiten zusammen. ',
+      '„Erste einzeln“ zeigt die erste Seite allein, danach je zwei – z. B. wenn am Ende der ersten Seite Pausentakte zum Umblättern sind. ',
       '„Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm – ohne Umblättern –, alle anderen einseitig. ',
       '„Breite“: Tippen scrollt erst nach unten.'),
+    toggle('piecePresets', 'Ansicht je Stück und Stimme merken',
+      'Was du im Notenmodus über ⋯ wählst, gilt nur für dieses Stück und diese Stimme und kommt beim nächsten Öffnen wieder. '
+      + 'Aus: Alle Stücke zeigen die Ansicht von oben – z. B. auf einem kleinen Tablet immer eine Seite. '
+      + 'Diese Einstellungen gelten nur für dieses Gerät und bleiben beim Übernehmen von einem anderen Gerät erhalten.'),
     toggle('autoCrop', 'Weiße Ränder automatisch abschneiden', 'Die Noten werden so groß wie möglich gezeigt – z. B. ein A5-Blatt, das auf A4 eingescannt wurde.'),
     toggle('showNextHint', 'Nächstes Stück anzeigen', 'Auf der letzten Seite eines Stücks steht oben in der Leiste, was danach kommt.'),
 
