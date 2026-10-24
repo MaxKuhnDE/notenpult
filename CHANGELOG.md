@@ -5,6 +5,13 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [1.6.1] – 2026-10-24
+
+### Geändert
+- **Ansicht je Stück und Stimme gilt jetzt für Quer- und Hochformat gemeinsam** – ein Gerät wird ohnehin immer
+  gleich herum benutzt, so ist es einfacher. In 1.6.0 gemerkte Ansichten werden übernommen (bei zwei
+  verschiedenen gilt die fürs Querformat).
+
 ## [1.6.0] – 2026-10-24
 
 ### Hinzugefügt

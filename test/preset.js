@@ -46,7 +46,7 @@
       store.addToSetlist(s.id, [bt.id], 12);
       db.settings.theme = 'dark';
       db.settings.landscapeLayout = 'two';
-      store.setPartLayout(flo.parts[1], 'landscape', 'firstSingle');
+      store.setPartLayout(flo.parts[1], 'firstSingle');
       store.commit('settings');
       const ann = await ink.load(flo.id);
       ink.strokesOf(ann, flo.parts[1].pages[0].id).push({ c: 'red', w: 0.003, p: [0.1, 0.1, 0.5, 0.6, 0.4, 0.5] });

@@ -43,7 +43,7 @@ android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), 
     part: 0,                                  // aktive Stimme
     parts: [{ id, name: '1. Stimme',
               pages: [{ id, file: 'a1b2….pdf', page: 1, rot: 90?, crop: { f, v, r: [x, y, w, h] }? }],
-              layout: { landscape: 'firstSingle', portrait: 'single' }? }],  // im Notenmodus gewählt
+              layout: 'firstSingle'? }],               // im Notenmodus gewählt (Quer- und Hochformat)
   }],
   setlists: [{ id, name, entries: [{ id, pieceId, number: '47' }] }],
   genres: [{ name: 'Marsch' }],               // eigene Genres (#Hashtags)
@@ -68,7 +68,9 @@ android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), 
   untereinander, wenn jede Seite dabei mindestens 85 % ihrer Einzelgröße behält (`pairDirection`).
   „two“ paart immer, „firstSingle“ zeigt Seite 1 allein und paart ab Seite 2, „pair2“ paart nur 2-seitige Stimmen.
 - Welches Layout gilt, entscheidet `store.layoutOf(part, orientation)`: das der Stimme (`part.layout`, im Menü ⋯
-  gewählt), solange `settings.piecePresets` an ist, sonst `settings.landscapeLayout`/`portraitLayout`.
+  gewählt, für beide Ausrichtungen), solange `settings.piecePresets` an ist, sonst
+  `settings.landscapeLayout`/`portraitLayout`. 1.6.0 speicherte je Ausrichtung ein Layout; `migratePiece` macht
+  daraus eines.
 - `DEVICE_SETTINGS` (die drei Layout-Einstellungen) gehören zum Bildschirm: `lan-plan.js` übernimmt sie im
   Spiegel-Modus nicht vom Host, und vor „Alles importieren“ merkt `keepDeviceSettings()` sie in `localStorage`,
   `store.init()` setzt sie nach dem Neuladen wieder ein.

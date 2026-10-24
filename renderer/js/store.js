@@ -51,8 +51,8 @@ export const DEFAULT_SYNC = {
 /*
  * piece: { id, title, part (active part index), addedAt, genres: ['Marsch', …],
  *          parts: [{ id, name, pages: [{ id, file, page, rot?, crop? }], layout? }] }
- *   layout: { landscape?, portrait? } – page layout chosen in the viewer for this part (Stimme);
- *           used while the setting piecePresets is on
+ *   layout: page layout (LAYOUTS) chosen in the viewer for this part (Stimme), in either
+ *           orientation; used while the setting piecePresets is on
  * genres: [{ name }] – the user's own genre list (shown as #hashtags)
  */
 export const db = {
@@ -442,6 +442,11 @@ function migratePiece(p) {
   if (!p.parts.length) p.parts.push({ id: uid(), name: '1. Stimme', pages: [] });
   p.part = Math.min(Math.max(0, p.part || 0), p.parts.length - 1);
   if (!Array.isArray(p.genres)) p.genres = [];
+  for (const part of p.parts) {
+    // 1.6.0 kept one layout per orientation; a device is used one way round, so one is enough.
+    if (part.layout && typeof part.layout === 'object') part.layout = part.layout.landscape || part.layout.portrait;
+    if (!LAYOUTS.includes(part.layout)) delete part.layout;
+  }
   return p;
 }
 
@@ -488,21 +493,15 @@ function restoreDeviceSettings() {
   return true;
 }
 
-/** The layout this part chose for 'landscape' | 'portrait' (null: none, or presets are off). */
-export function ownLayout(part, orientation) {
-  const own = db.settings.piecePresets && part.layout ? part.layout[orientation] : null;
-  return LAYOUTS.includes(own) ? own : null;
-}
+/** The layout this part chose (null: none, or presets are off). */
+export const ownLayout = (part) => (db.settings.piecePresets && LAYOUTS.includes(part.layout) ? part.layout : null);
 
-/** Page layout for a part: its own (chosen in the viewer) or the setting for all pieces. */
-export const layoutOf = (part, orientation) => ownLayout(part, orientation) || db.settings[`${orientation}Layout`];
+/** Page layout for a part: its own (chosen in the viewer) or the setting for this orientation. */
+export const layoutOf = (part, orientation) => ownLayout(part) || db.settings[`${orientation}Layout`];
 
 /** Remembers a layout for this part (Stimme) only; null: back to the setting. */
-export function setPartLayout(part, orientation, layout) {
-  const own = { ...(part.layout || {}) };
-  if (layout) own[orientation] = layout;
-  else delete own[orientation];
-  if (Object.keys(own).length) part.layout = own;
+export function setPartLayout(part, layout) {
+  if (layout) part.layout = layout;
   else delete part.layout;
   commit('part');
 }

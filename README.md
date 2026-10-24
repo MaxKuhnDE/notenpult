@@ -194,8 +194,8 @@ Im Notenmodus oben rechts **⋯** antippen und unter „Ansicht für dieses Stü
 - **Wie in den Einstellungen** – vergisst die eigene Ansicht wieder.
 
 Die Wahl gilt nur für **dieses Stück und die gerade gezeigte Stimme** (Stimmen haben oft unterschiedlich viele
-Seiten) und getrennt für Quer- und Hochformat. Sie wird sofort gespeichert und kommt beim nächsten Öffnen wieder –
-auch in jeder Setlist. Alle anderen Stücke zeigen die Ansicht aus *Einstellungen → Notenansicht*.
+Seiten), egal ob das Gerät quer oder hochkant steht. Sie wird sofort gespeichert und kommt beim nächsten Öffnen
+wieder – auch in jeder Setlist. Alle anderen Stücke zeigen die Ansicht aus *Einstellungen → Notenansicht*.
 
 Der Schalter **„Ansicht je Stück und Stimme merken“** (*Einstellungen → Notenansicht*) gilt für dieses Gerät und
 bleibt beim Übertragen von einem anderen Gerät erhalten. Ist er aus, zeigen alle Stücke die Ansicht aus den
