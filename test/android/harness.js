@@ -30,6 +30,9 @@ const MIME = {
 app.commandLine.appendSwitch('force-device-scale-factor', '2');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+// Chromium 93's GPU process crashes on current Windows runners ("GPU process isn't usable");
+// the check is about JavaScript and layout, software rendering is enough.
+app.disableHardwareAcceleration();
 if (process.env.NOTENPULT_TEST_PROFILE) app.setPath('userData', process.env.NOTENPULT_TEST_PROFILE);
 
 app.whenReady().then(() => {
