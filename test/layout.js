@@ -1,4 +1,4 @@
-// Page layout per piece and part (Stimme): chosen in the viewer, remembered per orientation,
+// Page layout per piece and part (Stimme): chosen in the viewer, remembered for the part,
 // "Erste Seite einzeln, dann je zwei", kept by "Bearbeiten", and the setting
 // "Ansicht je Stück und Stimme merken" (off: the layout from the settings for every piece).
 (async () => {
@@ -72,7 +72,7 @@
     check('without an own layout: "Automatisch" pairs pages 1–2', boxes() === 2 && sub().includes('Seiten 1–2 von 3'), sub());
     await openMenu();
     check('menu: layout for this piece, standard from the settings',
-      !!byText('.menu-heading', 'Ansicht für dieses Stück · Querformat') && !!byText('.menu-item.checked', 'Wie in den Einstellungen (Automatisch)')
+      !!byText('.menu-heading', 'Ansicht für dieses Stück') && !!byText('.menu-item.checked', 'Wie in den Einstellungen (Automatisch)')
       && !!byText('.menu-item', 'Erste Seite einzeln, dann je zwei'));
     await sleep(400); // menu fades in
     await T.capture('90-ansicht-je-stueck');
@@ -80,24 +80,23 @@
     await sleep(150);
     await pagesReady();
     check('"Erste Seite einzeln": page 1 alone', boxes() === 1 && sub().includes('Seite 1 von 3'), sub());
-    check('saved message names the piece', toastText().includes('Ansicht gespeichert für „Alte Kameraden“ (Querformat)'), toastText());
+    check('saved message names the piece', toastText().includes('Ansicht gespeichert für „Alte Kameraden“'), toastText());
     await next();
     check('… then pages 2 and 3 together', boxes() === 2 && sub().includes('Seiten 2–3 von 3'), sub());
-    check('remembered for this part and orientation only, the setting stays',
-      alte.parts[0].layout?.landscape === 'firstSingle' && !alte.parts[0].layout.portrait && db.settings.landscapeLayout === 'auto',
+    check('remembered for this part only, the setting stays', alte.parts[0].layout === 'firstSingle' && db.settings.landscapeLayout === 'auto',
       JSON.stringify(alte.parts[0].layout));
     await store.flushSaves();
     const saved = await window.notenpult.loadDb();
     const savedDb = typeof saved === 'string' ? JSON.parse(saved) : saved;
-    check('saved in the library file', JSON.stringify(savedDb.pieces.find((p) => p.id === alte.id).parts[0].layout) === '{"landscape":"firstSingle"}');
+    check('saved in the library file', savedDb.pieces.find((p) => p.id === alte.id).parts[0].layout === 'firstSingle');
     await next();
     check('the next piece keeps the standard', title().includes('Florentiner Marsch') && boxes() === 2, `${title()} ${boxes()}`);
 
     // ---------- per part (Stimme) ----------
     await choose('Immer eine Seite');
-    check('Florentiner, 1. Stimme: one page', boxes() === 1 && flo.parts[0].layout?.landscape === 'single');
+    check('Florentiner, 1. Stimme: one page', boxes() === 1 && flo.parts[0].layout === 'single');
     await openMenu();
-    check('menu names the part', !!byText('.menu-heading', 'Ansicht für 1. Stimme · Querformat'));
+    check('menu names the part', !!byText('.menu-heading', 'Ansicht für 1. Stimme'));
     const menu = $('.menu').getBoundingClientRect();
     check('the longer menu stays on screen (scrolls if needed)', menu.top >= 0 && menu.bottom <= window.innerHeight,
       `${Math.round(menu.top)}–${Math.round(menu.bottom)} of ${window.innerHeight}, content ${$('.menu').scrollHeight}`);
@@ -115,8 +114,9 @@
     await T.resize(800, 1280);
     await sleep(700);
     await pagesReady();
+    check('portrait: the same layout, page 1 alone', boxes() === 1 && sub().includes('Seite 1 von 3'), sub());
     await next();
-    check('portrait: the landscape choice does not apply', boxes() === 1 && sub().includes('Seite 2 von 3'), sub());
+    check('portrait: then pages 2 and 3 together', boxes() === 2 && sub().includes('Seiten 2–3 von 3'), sub());
     await T.resize(1280, 800);
     await sleep(700);
     await pagesReady();
@@ -131,7 +131,7 @@
     await waitFor(() => byText('.editor-modal .btn', 'Speichern'), 3000, 'editor');
     byText('.editor-modal .btn', 'Speichern').click();
     await sleep(400);
-    check('saving in "Bearbeiten" keeps the layout', alte.parts[0].layout?.landscape === 'firstSingle', JSON.stringify(alte.parts[0].layout));
+    check('saving in "Bearbeiten" keeps the layout', alte.parts[0].layout === 'firstSingle', JSON.stringify(alte.parts[0].layout));
 
     // ---------- setting off: the same view for every piece ----------
     $('.topbar .icon-btn:last-child').click();
@@ -148,12 +148,12 @@
     await sleep(200);
     await open([alte]);
     check('off: the piece shows the standard view', boxes() === 2 && sub().includes('Seiten 1–2 von 3'), sub());
-    check('off: its own layout is kept for later', alte.parts[0].layout?.landscape === 'firstSingle');
+    check('off: its own layout is kept for later', alte.parts[0].layout === 'firstSingle');
     await openMenu();
     check('off: the menu changes the view of all pieces', !!byText('.menu-heading', 'alle Stücke') && !byText('.menu-item', 'Wie in den Einstellungen'));
     closeMenu();
     await choose('Immer eine Seite');
-    check('off: a choice changes the setting, not the piece', db.settings.landscapeLayout === 'single' && alte.parts[0].layout.landscape === 'firstSingle'
+    check('off: a choice changes the setting, not the piece', db.settings.landscapeLayout === 'single' && alte.parts[0].layout === 'firstSingle'
       && boxes() === 1);
     window.__np.closeViewer();
 
@@ -163,6 +163,19 @@
     await open([flo]);
     check('setting "Erste einzeln": 2-page piece starts with page 1 alone', boxes() === 1 && sub().includes('Seite 1 von 2'), sub());
     window.__np.closeViewer();
+
+    // ---------- 1.6.0 kept one layout per orientation: one per part now ----------
+    await store.flushSaves();
+    const old = await store.backend.loadDb();
+    old.pieces.find((p) => p.id === alte.id).parts[0].layout = { portrait: 'single' };
+    old.pieces.find((p) => p.id === flo.id).parts[0].layout = { landscape: 'two', portrait: 'single' };
+    old.pieces.find((p) => p.id === flo.id).parts[1].layout = { landscape: 'kaputt' };
+    await store.backend.saveDb(old);
+    await store.init();
+    const [a, f] = [alte.id, flo.id].map((id) => db.pieces.find((p) => p.id === id));
+    check('layouts saved by 1.6.0 are taken over (landscape first, unknown ones dropped)',
+      a.parts[0].layout === 'single' && f.parts[0].layout === 'two' && !('layout' in f.parts[1]),
+      JSON.stringify([a.parts[0].layout, f.parts[0].layout, f.parts[1].layout]));
   } catch (err) {
     console.error('SMOKE FAIL', err && err.stack ? err.stack : err);
   }

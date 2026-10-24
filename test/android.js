@@ -96,7 +96,7 @@
       await store.flushSaves();
       const floSaved = JSON.parse(window.NotenpultAndroid.loadDb()).pieces.find((p) => p.id === flo.id);
       check('own layout for this part, saved through the bridge', document.querySelectorAll('.viewer .page').length === 1
-        && floSaved.parts[0].layout.landscape === 'firstSingle', JSON.stringify(floSaved.parts[0].layout));
+        && floSaved.parts[0].layout === 'firstSingle', JSON.stringify(floSaved.parts[0].layout));
       $('.viewer [title="Ansicht & mehr"]').click();
       await waitFor(() => $('.menu-item'), 3000, 'menu');
       byText('.menu-item', 'Wie in den Einstellungen').click();

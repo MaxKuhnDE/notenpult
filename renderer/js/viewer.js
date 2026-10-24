@@ -9,8 +9,8 @@
 // Layout "auto" fills the screen: two pages side by side (A4 portrait on a
 // landscape screen) or stacked (A5 landscape on a portrait screen) whenever
 // that doesn't make the pages noticeably smaller than showing one alone.
-// A layout chosen in the viewer belongs to the piece's current part (Stimme) and
-// orientation; the settings hold the layout for all other pieces.
+// A layout chosen in the viewer belongs to the piece's current part (Stimme); the
+// settings hold the layout for all other pieces.
 
 import {
   db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, setPartLayout,
@@ -900,7 +900,7 @@ function openMore(anchor) {
   const piece = pieceAt(V.qi);
   const part = activePart(piece);
   const presets = db.settings.piecePresets;
-  const own = ownLayout(part, orientation());
+  const own = ownLayout(part);
   const cur = layoutMode(piece);
   const where = land ? 'Querformat' : 'Hochformat';
   const forWhat = piece.parts.length > 1 ? `„${piece.title}“ · ${part.name}` : `„${piece.title}“`;
@@ -911,16 +911,16 @@ function openMore(anchor) {
       commit('settings');
       return;
     }
-    setPartLayout(part, orientation(), value);
+    setPartLayout(part, value);
     relayout();
-    toast(value ? `Ansicht gespeichert für ${forWhat} (${where})` : `${forWhat} folgt wieder den Einstellungen`, { ms: 2600 });
+    toast(value ? `Ansicht gespeichert für ${forWhat}` : `${forWhat} folgt wieder den Einstellungen`, { ms: 2600 });
   };
   const layoutItem = (value) => ({
     label: LAYOUT_LABELS[value], icon: LAYOUT_ICONS[value], checked: (presets ? own : cur) === value, onClick: () => setLayout(value),
   });
   const layoutItems = presets
     ? [
-      { heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'} · ${where}` },
+      { heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'}` },
       {
         label: `Wie in den Einstellungen (${LAYOUT_SHORT[db.settings[key]]})`, icon: 'settings', checked: !own, onClick: () => setLayout(null),
       },
