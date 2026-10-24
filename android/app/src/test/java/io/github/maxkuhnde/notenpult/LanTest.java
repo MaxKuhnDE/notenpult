@@ -76,6 +76,17 @@ public class LanTest {
         }
     }
 
+    /** Waits (up to 5 s) until the host has reported n events of this type. */
+    private static void awaitEvents(List<JSONObject> events, String type, int n) throws InterruptedException {
+        for (int i = 0; i < 250; i++) {
+            int count = 0;
+            for (JSONObject e : events) if (type.equals(e.optString("type"))) count++;
+            if (count >= n) return;
+            Thread.sleep(20);
+        }
+        fail("host did not report " + n + " × " + type);
+    }
+
     private static LanClient.Session connect(int port, String code) {
         try {
             return LanClient.connect("127.0.0.1", port, code, "Java-Empfänger", 5000);
@@ -100,12 +111,16 @@ public class LanTest {
         LanHost host = new LanHost(dir, "Tablet", "1.5.0", events::add, "1234", "5555");
         int port = host.start(InetAddress.getByName("127.0.0.1"), 0, 0);
         try {
+            // The host finishes each attempt on its own thread; until then it answers "busy".
             assertEquals("code", errorCode(() -> connect(port, "0000")));
+            awaitEvents(events, "wrongCode", 1);
             assertEquals("code", errorCode(() -> connect(port, "0001")));
+            awaitEvents(events, "wrongCode", 2);
             assertEquals("code", errorCode(() -> connect(port, "0002")));
-            Thread.sleep(100);
+            awaitEvents(events, "newCode", 1);
             assertEquals("after 3 wrong codes a new one", "5555", host.code());
             assertEquals("code", errorCode(() -> connect(port, "1234")));
+            awaitEvents(events, "wrongCode", 4);
 
             LanClient.Session s = connect(port, "5555");
             assertEquals("Tablet", s.hostName);
@@ -122,7 +137,7 @@ public class LanTest {
             assertArrayEquals(Files.readAllBytes(new File(dir, "Noten/aaaa1111.pdf").toPath()), Files.readAllBytes(new File(out, "aaaa1111.pdf").toPath()));
             assertEquals(700 * 1024 + 3, last[0]);
             s.close(true);
-            Thread.sleep(200);
+            awaitEvents(events, "newCode", 2); // after "done": one code, one receiver
             boolean done = false;
             for (JSONObject e : events) done |= "done".equals(e.optString("type")) && e.optBoolean("ok") && e.optInt("files") == 2;
             assertTrue("host reports the finished transfer", done);
@@ -197,6 +212,7 @@ public class LanTest {
             assertTrue(ready, ready != null && ready.startsWith("READY "));
             int port = Integer.parseInt(ready.substring(6).trim());
             assertEquals("code", errorCode(() -> connect(port, "1111")));
+            assertEquals("the Node host has handled the wrong code", "WRONG", out.readLine());
             LanClient.Session s = connect(port, "4711");
             assertEquals("Node-Host", s.hostName);
             JSONObject m = s.manifest();
@@ -218,7 +234,8 @@ public class LanTest {
     public void nodeReceiverFromJavaHost() throws Exception {
         Assume.assumeTrue("Node.js not available", nodeAvailable());
         File dir = library();
-        LanHost host = new LanHost(dir, "Java-Host", "1.5.0", e -> { }, "2468");
+        List<JSONObject> events = new CopyOnWriteArrayList<>();
+        LanHost host = new LanHost(dir, "Java-Host", "1.5.0", events::add, "2468");
         int port = host.start(InetAddress.getByName("127.0.0.1"), 0, 0);
         try {
             File target = tmp.newFolder();
@@ -227,6 +244,7 @@ public class LanTest {
             p.waitFor();
             assertEquals("OK 2 2 Java-Host", result);
             assertArrayEquals(Files.readAllBytes(new File(dir, "Noten/aaaa1111.pdf").toPath()), Files.readAllBytes(new File(target, "aaaa1111.pdf").toPath()));
+            awaitEvents(events, "done", 1);
             Process wrong = node("client", String.valueOf(port), "0000", target.getPath());
             assertEquals("ERROR code", new BufferedReader(new InputStreamReader(wrong.getInputStream(), StandardCharsets.UTF_8)).readLine());
         } finally {
