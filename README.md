@@ -4,6 +4,10 @@ Noten-App für Windows 11 und Android-Tablets für Blaskapelle und Brassband: Se
 Blättern mit einem Tipp, mehrere Stimmen pro Stück, Stift-Anmerkungen in Rot und Schwarz,
 A4/A5-Unterstützung, Dunkelmodus und ein Noten-Pool aus Google Drive, der auch offline funktioniert.
 
+## Entstehung
+
+Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem KI-Assistenten (Claude Code) entwickelt: Anforderungen, Tests auf den Geräten und Releases kommen von mir, den Großteil des Codes hat der Assistent geschrieben.
+
 ![Notenansicht mit Anmerkungen](docs/screenshots/notenansicht.png)
 
 ## Funktionen
