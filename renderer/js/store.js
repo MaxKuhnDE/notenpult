@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   portraitLayout: 'auto', // see LAYOUTS
   landscapeLayout: 'auto',
   piecePresets: true, // im Notenmodus gewählte Ansicht je Stück und Stimme merken und benutzen
+  scrollPages: false, // mehrseitige Stücke untereinander in voller Breite zum Scrollen (je Gerät)
   autoCrop: true, // weiße Ränder automatisch abschneiden
   leftZoneBack: false, // Tippen auf linkes Viertel blättert zurück
   penAlwaysDraws: true, // Stift schreibt immer, Finger/Maus blättern
@@ -51,7 +52,7 @@ export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'
  * Settings that belong to the screen, not to the library: they stay on this device when the
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
-export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'scrollPages', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
   'halfTurn', 'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize',
   'metronomeBpm', 'sheetMetronomeSize'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
@@ -551,8 +552,17 @@ function restoreDeviceSettings() {
 /** The layout this part chose (null: none, or presets are off). */
 export const ownLayout = (part) => (db.settings.piecePresets && LAYOUTS.includes(part.layout) ? part.layout : null);
 
-/** Page layout for a part: its own (chosen in the viewer) or the setting for this orientation. */
-export const layoutOf = (part, orientation) => ownLayout(part) || db.settings[`${orientation}Layout`];
+/** True when the setting "Mehrseitige Stücke scrollen" makes this part scroll (it has more than one page). */
+export const scrollsByDefault = (part) => !!db.settings.scrollPages && (part.pages || []).length > 1;
+
+/**
+ * Layout from the settings: 'scroll' (all pages one below the other, full width) for pieces with several pages
+ * if switched on, else the one for this orientation.
+ */
+export const defaultLayout = (part, orientation) => (scrollsByDefault(part) ? 'scroll' : db.settings[`${orientation}Layout`]);
+
+/** Page layout for a part: its own (chosen in the viewer) or the one from the settings. */
+export const layoutOf = (part, orientation) => ownLayout(part) || defaultLayout(part, orientation);
 
 /** Remembers a layout for this part (Stimme) only; null: back to the setting. */
 export function setPartLayout(part, layout) {

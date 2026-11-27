@@ -20,7 +20,8 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
   Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
   Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste. Auf Wunsch **halbe Seiten**:
-  oben schon die nächste Seite, unten noch die aktuelle ([mehr](#halbe-seite-umblättern)).
+  oben schon die nächste Seite, unten noch die aktuelle ([mehr](#halbe-seite-umblättern)). Oder **mehrseitige Stücke
+  scrollen**: alle Seiten untereinander, stufenlos mit Finger, Mausrad oder Scroll-Ring ([mehr](#mehrseitige-stücke-scrollen)).
 - **Sprung-Links** für Wiederholungen, D.S. und Coda: antippen (oder Pedal) springt zur Zielstelle, ein Knopf
   bringt dich zurück ([mehr](#sprung-links-wiederholungen-ds-coda)).
 - **Blättern per Gesicht**: Kopf drehen, Mund öffnen oder zwinkern – die Kamera vorne erkennt es, alles bleibt auf
@@ -208,6 +209,7 @@ Gut zu wissen:
 | F11 / Esc | Vollbild / zurück zur Übersicht |
 | ⋯ → Ansicht | Ansicht für dieses Stück und diese Stimme (siehe unten) |
 | ⋯ → Halbe Seite umblättern | erst die obere Hälfte der nächsten Seite, dann die ganze |
+| ⋯ → Mehrseitige Stücke scrollen | alle Seiten eines Stücks untereinander zum Scrollen (an/aus) |
 | ⋯ → Sprung-Link setzen | Wiederholung, D.S., Coda: antippen springt, „Zurück zu Seite …“ zurück |
 | Stempel-Knopf in der Leiste | Blau, Grün, Textmarker, Text, Stempel |
 | Stimmgabel oben / ⋯ → Stimmgerät | Stimmgerät |
@@ -222,6 +224,21 @@ Linie trennt beide. Beim nächsten Blättern kommt die ganze Seite. Gilt für An
 Tablet im Hochformat) und nur für dieses Gerät. Anmerkungen schreibst du auch dabei auf die richtige Seite.
 
 ![Halbe Seite](docs/screenshots/halbe-seite.png)
+
+### Mehrseitige Stücke scrollen
+
+*Einstellungen → Notenansicht → „Mehrseitige Stücke scrollen“* (oder ⋯ im Notenmodus). Dann stehen alle Seiten
+eines Stücks mit mehreren Seiten **untereinander in voller Breite**, und du scrollst stufenlos hindurch – mit dem
+Finger, dem Mausrad, dem Trackpad oder einem Scroll-Ring. Tippen (oder das Pedal) scrollt ein gutes Stück weiter,
+am Ende geht es ins nächste Stück; zurück scrollt entsprechend nach oben. Oben in der Leiste läuft die Seitenzahl
+mit, „Letzte Seite · Als Nächstes“ erscheint erst, wenn die letzte Seite zu sehen ist. Der Stift schreibt auf die
+Seite, auf der er gerade ist.
+
+Einseitige Stücke bleiben, wie unter Querformat/Hochformat eingestellt. Hast du für ein Stück im Notenmodus über ⋯
+eine eigene Ansicht gemerkt, geht die vor („Wie in den Einstellungen“ bringt das Scrollen zurück). Gilt nur für
+dieses Gerät.
+
+![Mehrseitige Stücke scrollen](docs/screenshots/mehrseitig-scrollen.png)
 
 ### Sprung-Links (Wiederholungen, D.S., Coda)
 

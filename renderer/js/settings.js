@@ -219,6 +219,10 @@ export function openSettings() {
       '„Erste einzeln“ zeigt die erste Seite allein, danach je zwei – z. B. wenn am Ende der ersten Seite Pausentakte zum Umblättern sind. ',
       '„Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm – ohne Umblättern –, alle anderen einseitig. ',
       '„Breite“: Tippen scrollt erst nach unten.'),
+    toggle('scrollPages', 'Mehrseitige Stücke scrollen',
+      'Stücke mit mehreren Seiten stehen untereinander in voller Breite – mit Finger, Mausrad oder Scroll-Ring stufenlos scrollen. '
+      + 'Tippen scrollt ein Stück weiter, am Ende ins nächste Stück. Einseitige Stücke bleiben wie oben eingestellt. '
+      + 'Eine im Notenmodus für ein Stück gemerkte Ansicht geht vor. Gilt nur für dieses Gerät.'),
     toggle('piecePresets', 'Ansicht je Stück und Stimme merken',
       'Was du im Notenmodus über ⋯ wählst, gilt nur für dieses Stück und diese Stimme und kommt beim nächsten Öffnen wieder. '
       + 'Aus: Alle Stücke zeigen die Ansicht von oben – z. B. auf einem kleinen Tablet immer eine Seite. '

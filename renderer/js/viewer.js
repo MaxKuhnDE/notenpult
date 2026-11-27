@@ -15,7 +15,7 @@
 // settings hold the layout for all other pieces.
 
 import {
-  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, setPartLayout, uid,
+  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, scrollsByDefault, setPartLayout, uid,
 } from './store.js';
 import {
   pageView, renderView, viewTransform, toPagePixels, harmonizeViews, FULL,
@@ -210,6 +210,15 @@ function build() {
   stage.addEventListener('pointerup', onPointerUp);
   stage.addEventListener('pointercancel', onPointerCancel);
   stage.addEventListener('wheel', onWheel, { passive: false });
+  // scrolling through a whole piece: the page count in the bar follows
+  let infoFrame = 0;
+  stage.addEventListener('scroll', () => {
+    if (infoFrame || V?.screen?.dir !== 'scroll') return;
+    infoFrame = requestAnimationFrame(() => {
+      infoFrame = 0;
+      if (V?.screen?.dir === 'scroll' && V.shownScreens) updateInfo(V.shownScreens);
+    });
+  }, { passive: true });
   el.addEventListener('contextmenu', (e) => e.preventDefault());
   // Pen hovering anywhere over the viewer counts as pen activity (palm rejection).
   el.addEventListener('pointermove', (e) => {
@@ -280,6 +289,8 @@ function applyViewerTheme() {
 // ---------- layout ----------
 
 const isLandscape = () => window.innerWidth >= window.innerHeight;
+/** 'width' (one page in full width) and 'scroll' (all pages one below the other) scroll instead of turning. */
+const scrolls = (mode) => mode === 'width' || mode === 'scroll';
 const orientation = () => (isLandscape() ? 'landscape' : 'portrait');
 const pieceAt = (qi) => pieceById(V.queue[qi].pieceId);
 /** Layout (store.LAYOUTS) of a piece's current part: its own or the setting. */
@@ -329,8 +340,10 @@ function screensOf(qi) {
       const pages = pagesOf(piece);
       const mode = layoutMode(piece);
       const singles = () => pages.map((_, i) => ({ idx: [i], dir: 'single' }));
-      const halves = (list) => (db.settings.halfTurn && mode !== 'width' ? withHalfTurns(list) : list);
-      if (pages.length < 2 || mode === 'single' || mode === 'width') return halves(singles());
+      const halves = (list) => (db.settings.halfTurn && !scrolls(mode) ? withHalfTurns(list) : list);
+      // "Mehrseitige Stücke scrollen": the whole piece is one screen
+      if (mode === 'scroll' && pages.length > 1) return [{ idx: pages.map((_, i) => i), dir: 'scroll' }];
+      if (pages.length < 2 || mode === 'single' || scrolls(mode)) return halves(singles());
       if (mode === 'pair2' && pages.length !== 2) return halves(singles());
       const views = await viewsFor(pages);
       // 'two', 'pair2' and 'firstSingle' always pair; 'auto' only when the pages stay large enough.
@@ -391,7 +404,7 @@ function relayout() {
 function layoutBoxes(views, dir, mode) {
   const { aw, ah } = avail();
   const box = (v, s) => ({ w: Math.max(1, Math.floor(v.dw * s)), h: Math.max(1, Math.floor(v.dh * s)) });
-  if (mode === 'width') return views.map((v) => box(v, aw / v.dw));
+  if (scrolls(mode)) return views.map((v) => box(v, aw / v.dw));
   if (dir === 'half') return views.map((v) => box(v, fitScale(v, aw, ah))); // both full size, one above the other
   if (views.length === 2) {
     const cw = dir === 'row' ? (aw - GAP) / 2 : aw;
@@ -435,6 +448,7 @@ async function show({ keepScroll = false } = {}) {
     v.pi = screen.idx[0];
     v.half = screen.dir === 'half';
     v.screen = screen;
+    v.shownScreens = screens;
     updateInfo(screens);
     const refs = screen.idx.map((i) => pagesOf(piece)[i]);
     const views = harmonizeViews(await viewsFor(refs));
@@ -451,6 +465,7 @@ async function show({ keepScroll = false } = {}) {
     if (!alive()) return;
     mount(piece, refs, views, boxes, canvases, ann, screen.dir, mode, dpr);
     v.stage.scrollTop = scrollRatio * v.stage.scrollHeight;
+    if (screen.dir === 'scroll') updateInfo(screens); // now the pages are there: which ones are in view
   } finally {
     clearTimeout(spinnerTimer);
     if (alive()) v.el.classList.remove('loading');
@@ -459,7 +474,8 @@ async function show({ keepScroll = false } = {}) {
 }
 
 function mount(piece, refs, views, boxes, canvases, ann, dir, mode, dpr) {
-  const spread = h(`div.spread.${dir === 'column' || dir === 'half' ? dir : 'row'}`);
+  const cls = dir === 'scroll' ? 'column' : dir === 'column' || dir === 'half' ? dir : 'row';
+  const spread = h(`div.spread.${cls}`);
   V.slots = refs.map((ref, i) => {
     const box = boxes[i];
     const view = views[i];
@@ -491,7 +507,7 @@ function mount(piece, refs, views, boxes, canvases, ann, dir, mode, dpr) {
     return slot;
   });
   if (dir === 'half') spread.append(h('div.half-line'));
-  V.stage.classList.toggle('scroll', mode === 'width');
+  V.stage.classList.toggle('scroll', scrolls(mode));
   V.stage.replaceChildren(spread);
   const { w, hgt } = stageBox();
   V.lastSize = { w, hgt };
@@ -529,6 +545,20 @@ function itemLabel(q, piece) {
   return q.number ? `Nr. ${q.number} · ${piece.title}` : piece.title;
 }
 
+/** Scrolling through the whole piece: the indices of the pages in view (null while they are not drawn yet). */
+function pagesInView(piece) {
+  const { idx } = V.screen;
+  const pages = pagesOf(piece);
+  if (V.slots.length !== idx.length || V.slots.some((sl, i) => sl.pageId !== pages[idx[i]]?.id)) return null;
+  const top = V.stage.scrollTop + 40;
+  const bottom = V.stage.scrollTop + V.stage.clientHeight - 40;
+  const seen = idx.filter((_, i) => {
+    const w = V.slots[i].wrap;
+    return w.offsetTop < bottom && w.offsetTop + w.offsetHeight > top;
+  });
+  return seen.length ? seen : null;
+}
+
 function updateInfo(screens) {
   const q = V.queue[V.qi];
   const piece = pieceById(q.pieceId);
@@ -536,14 +566,16 @@ function updateInfo(screens) {
   if (q.number) V.titleEl.prepend(h('span.v-nr', null, q.number));
 
   const n = pagesOf(piece).length;
-  const idx = V.screen.idx;
+  // the whole piece scrolls: count the pages in view, "Letzte Seite" only once the last one shows
+  const seen = V.screen.dir === 'scroll' ? pagesInView(piece) : null;
+  const idx = seen || V.screen.idx;
   const from = idx[0] + 1;
   const to = idx[idx.length - 1] + 1;
   const pages = V.screen.dir === 'half' ? `Seite ${to} unten, ${from} oben von ${n}`
     : n === 1 ? '1 Seite' : to > from ? `Seiten ${from}–${to} von ${n}` : `Seite ${from} von ${n}`;
   const where = q.inserted ? 'eingeschoben' : `Stück ${V.qi + 1} von ${V.queue.length}`;
   const main = `${pages} · ${where}${V.context.name ? ` · ${V.context.name}` : ''}`;
-  const onLast = screens[screens.length - 1] === V.screen;
+  const onLast = screens[screens.length - 1] === V.screen && (!seen || idx[idx.length - 1] === V.screen.idx[V.screen.idx.length - 1]);
   let nextText = '';
   if (db.settings.showNextHint && onLast) {
     const nx = V.queue[V.qi + 1];
@@ -588,7 +620,7 @@ export function next() {
   if (!V) return;
   leaveScreen();
   enqueue(async () => {
-    if (layoutMode() === 'width') {
+    if (scrolls(layoutMode())) {
       const st = V.stage;
       const max = st.scrollHeight - st.clientHeight;
       if (st.scrollTop < max - 4) {
@@ -613,7 +645,7 @@ export function prev() {
   if (!V) return;
   leaveScreen();
   enqueue(async () => {
-    if (layoutMode() === 'width' && V.stage.scrollTop > 4) {
+    if (scrolls(layoutMode()) && V.stage.scrollTop > 4) {
       V.stage.scrollTop = Math.max(0, V.stage.scrollTop - V.stage.clientHeight * 0.85);
       return;
     }
@@ -723,7 +755,7 @@ function stepPiece(dir) {
 
 /** Mouse wheel, trackpad or scroll ring: one page per turn of the wheel (also with inertia). */
 function onWheel(e) {
-  if (!V || !db.settings.wheelTurns || e.ctrlKey || layoutMode() === 'width') return;
+  if (!V || !db.settings.wheelTurns || e.ctrlKey || scrolls(layoutMode())) return;
   e.preventDefault();
   const w = V.wheel;
   const now = performance.now();
@@ -874,7 +906,7 @@ function onPointerMove(e) {
   if (g && e.pointerId === g.id) {
     const dx = e.clientX - g.x0;
     const dy = e.clientY - g.y0;
-    if (!g.panning && g.type === 'touch' && layoutMode() === 'width' && Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
+    if (!g.panning && g.type === 'touch' && scrolls(layoutMode()) && Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
       g.panning = true;
     }
     if (g.panning) V.stage.scrollTop = g.scroll0 - dy;
@@ -903,7 +935,7 @@ function onPointerUp(e) {
     return;
   }
   // Up = next, like scrolling a feed – also what scroll rings send.
-  if (db.settings.swipeTurns && layoutMode() !== 'width' && Math.abs(dy) > SWIPE && Math.abs(dy) > 1.4 * Math.abs(dx) && dt < 900) {
+  if (db.settings.swipeTurns && !scrolls(layoutMode()) && Math.abs(dy) > SWIPE && Math.abs(dy) > 1.4 * Math.abs(dx) && dt < 900) {
     if (dy < 0) next();
     else prev();
     return;
@@ -1355,7 +1387,7 @@ function pulseLinkTarget(mode) {
   const ring = h('div.link-pulse', { style: { left: `${left}px`, top: `${top}px` } });
   slot.wrap.append(ring);
   setTimeout(() => ring.remove(), 1600);
-  if (mode === 'width') V.stage.scrollTop = Math.max(0, slot.wrap.offsetTop + top - 80);
+  if (scrolls(mode)) V.stage.scrollTop = Math.max(0, slot.wrap.offsetTop + top - 80);
 }
 
 function startLinkMode() {
@@ -1467,6 +1499,8 @@ function openMore(anchor) {
   const setLayout = (value) => {
     if (!presets) {
       db.settings[key] = value;
+      // "Mehrseitige Stücke scrollen" would cover the choice for this piece: a view picked here wins
+      if (scrollsByDefault(part)) db.settings.scrollPages = false;
       commit('settings');
       return;
     }
@@ -1481,7 +1515,10 @@ function openMore(anchor) {
     ? [
       { heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'}` },
       {
-        label: `Wie in den Einstellungen (${LAYOUT_SHORT[db.settings[key]]})`, icon: 'settings', checked: !own, onClick: () => setLayout(null),
+        label: `Wie in den Einstellungen (${scrollsByDefault(part) ? 'Scrollen' : LAYOUT_SHORT[db.settings[key]]})`,
+        icon: 'settings',
+        checked: !own,
+        onClick: () => setLayout(null),
       },
       ...['auto', 'two', 'firstSingle', 'single', 'width'].map(layoutItem),
     ]
@@ -1504,6 +1541,15 @@ function openMore(anchor) {
       checked: !!db.settings.halfTurn,
       onClick: () => {
         db.settings.halfTurn = !db.settings.halfTurn;
+        commit('settings');
+      },
+    },
+    {
+      label: 'Mehrseitige Stücke scrollen',
+      icon: 'width',
+      checked: !!db.settings.scrollPages,
+      onClick: () => {
+        db.settings.scrollPages = !db.settings.scrollPages;
         commit('settings');
       },
     },

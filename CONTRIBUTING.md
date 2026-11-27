@@ -71,7 +71,8 @@ Test unter `test/` (Muster: `check('beschreibung', bedingung)` → `PASS …`/`F
   `hwkeys.js` dort keine globalen Kürzel; `test:hwKey` schickt die Taste wie der Hauptprozess.
 - `viewer21.js` (halbe Seite, Sprung-Links, Stempel/Text), `tuner.js` (Tonerkennung mit erzeugten Tönen, Dialog
   und Stimmgerät auf dem Blatt mit einem Oszillator statt Mikrofon), `metronome.js` (Schlagabstand auf der
-  Audio-Uhr, − / + / Halten, Tempo-Feld mit Tastatur, Start/Stopp, Verschieben) und `face.js` (Gesten, MediaPipe offline). Im Test sind Kamera und Mikrofon
+  Audio-Uhr, − / + / Halten, Tempo-Feld mit Tastatur, Start/Stopp, Verschieben), `scroll.js` (mehrseitige Stücke
+  scrollen: Einstellung, Seiten untereinander, Tippen, Stift, ⋯-Menü) und `face.js` (Gesten, MediaPipe offline). Im Test sind Kamera und Mikrofon
   künstlich (`main.js`, `test/android/harness.js`) – eine echte Webcam geht nie an.
 - `perf.js` misst mit einer großen Bibliothek (600 Stücke) und prüft großzügige Grenzen; mit `VERBOSE=1` zeigt es
   die Zeiten (`PERF …`). Wer Listen, Speichern oder den Start anfasst, vergleicht die Zahlen vorher und nachher.

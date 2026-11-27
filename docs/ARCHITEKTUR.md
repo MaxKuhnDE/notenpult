@@ -134,6 +134,11 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
   die Cent (`centsLabel`). Es hängt am Notenmodus (`V.sheetTuner`), nicht an der Seite; Zeiger-Ereignisse
   enden dort, damit nichts blättert. Größe in `settings.sheetTunerSize` (Geräte-Einstellung, gespeichert mit
   `persist()` ohne Neuzeichnen).
+- Mehrseitige Stücke scrollen (`settings.scrollPages`, Geräte-Einstellung): `store.defaultLayout()` liefert für
+  Stimmen mit mehr als einer Seite die Ansicht `'scroll'` (eine eigene, gemerkte Ansicht geht vor). `screensOf`
+  macht daraus einen einzigen Bildschirm mit allen Seiten (`dir: 'scroll'`), `layoutBoxes` rechnet wie bei
+  „Breite“ auf volle Breite, der `.stage` scrollt. `next()`/`prev()` scrollen erst und blättern am Ende ins
+  nächste/vorige Stück; die Seitenzahl in der Leiste folgt dem Scrollen (`pagesInView`).
 - Metronom auf dem Blatt: `startSheetMetronome()` legt die Klicks alle 25 ms bis 0,12 s im Voraus auf die
   Uhr des `AudioContext` (kurzer Dreieckston) – unabhängig davon, ob der Haupt-Thread gerade zeichnet. Ein neues
   Tempo gilt ab dem nächsten Schlag; Stopp trennt den Ausgang (bereits geplante Klicks bleiben stumm) und
