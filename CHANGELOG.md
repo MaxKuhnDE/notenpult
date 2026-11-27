@@ -5,6 +5,17 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.2.0] – 2026-11-27
+
+### Hinzugefügt
+- **Metronom auf dem Blatt:** Knopf in der Stift-Leiste (neben der Stimmgabel) blendet mit einem Klick ein kleines
+  Metronom oben links ein – − / + (gedrückt halten zählt schnell), die Tempo-Zahl zum Antippen und Eintippen
+  (Enter übernimmt, Esc verwirft, 20–300 BPM) und ein Knopf für Start und Stopp. Verschieben und Größe wie beim
+  Stimmgerät auf dem Blatt; Tempo und Größe je Gerät. Die Zahl leuchtet im Takt.
+
+### Geändert
+- Stimmgerät und Metronom auf dem Blatt teilen sich das Verschieben und Vergrößern (`floating.js`).
+
 ## [2.1.2] – 2026-11-27
 
 ### Behoben

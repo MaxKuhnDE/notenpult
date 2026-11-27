@@ -29,6 +29,7 @@ import { openSettings } from './settings.js';
 import { openSearch } from './search.js';
 import * as remote from './remote.js';
 import { openTuner, startSheetTuner, micMessage } from './tuner.js';
+import { startSheetMetronome } from './metronome.js';
 import { startFaceControl } from './face.js';
 
 const PAD = 10;
@@ -161,6 +162,13 @@ function build() {
       'aria-pressed': 'false',
       onclick: () => toggleSheetTuner(),
     }, icon('tuner')),
+    metronome: h('button.icon-btn.tool.metronome-tool', {
+      type: 'button',
+      title: 'Metronom auf dem Blatt an/aus',
+      'aria-label': 'Metronom auf dem Blatt',
+      'aria-pressed': 'false',
+      onclick: () => toggleSheetMetronome(),
+    }, icon('metronome')),
   };
   const fsBtn = iconBtn('fullscreen', 'Vollbild (F11)', toggleFullscreen, { class: 'v-fs' });
   const isSetlist = V.context.kind === 'setlist';
@@ -175,7 +183,7 @@ function build() {
         iconBtn('next', 'Weiterblättern (→)', next)),
       iconBtn('search', 'Suchen – auch im Noten-Pool (Strg+F)', openViewerSearch),
       isSetlist ? iconBtn('hash', 'Nummer eingeben', () => openJump('')) : null,
-      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.more, tools.eraser, tools.undo, tools.tuner),
+      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.more, tools.eraser, tools.undo, tools.tuner, tools.metronome),
       h('div.v-group.rotate-tools', null,
         iconBtn('rotateLeft', 'Seite 90° nach links drehen', () => rotateVisible(-90)),
         iconBtn('rotateRight', 'Seite 90° nach rechts drehen', () => rotateVisible(90))),
@@ -212,6 +220,7 @@ function build() {
   const ro = new ResizeObserver(() => {
     if (!V) return;
     V.sheetTuner?.clamp();
+    V.sheetMetronome?.clamp();
     clearTimeout(V.resizeTimer);
     V.resizeTimer = setTimeout(() => {
       if (!V) return;
@@ -231,6 +240,7 @@ function build() {
   });
   syncFace();
   syncSheetTuner();
+  syncSheetMetronome();
   // Pedals and remotes: volume/media keys from the system, MIDI if a MIDI key is assigned.
   const v = V;
   const offSystemKeys = remote.onSystemKey((id) => runRemote(id));
@@ -252,6 +262,7 @@ function build() {
     () => remote.capture('viewer', false),
     () => v.face?.stop(),
     () => v.sheetTuner?.stop(),
+    () => v.sheetMetronome?.stop(),
     () => stopMidi(),
     () => clearTimeout(v.resizeTimer),
   );
@@ -1152,12 +1163,44 @@ function syncSheetTuner() {
         if (V === v && sheetTunerOn) toggleSheetTuner();
       },
     });
+    // the tuner owns the top left corner: a metronome sitting there moves down below it
+    const m = V.sheetMetronome?.el;
+    if (m && overlaps(m, V.sheetTuner.el)) V.sheetMetronome.place(m.offsetLeft, V.sheetTuner.el.offsetTop + V.sheetTuner.el.offsetHeight + 8);
   } else if (!sheetTunerOn && V.sheetTuner) {
     V.sheetTuner.stop();
     V.sheetTuner = null;
   }
   V.tools.tuner.classList.toggle('active', sheetTunerOn);
   V.tools.tuner.setAttribute('aria-pressed', String(sheetTunerOn));
+}
+
+const overlaps = (a, b) => a.offsetLeft < b.offsetLeft + b.offsetWidth && b.offsetLeft < a.offsetLeft + a.offsetWidth
+  && a.offsetTop < b.offsetTop + b.offsetHeight && b.offsetTop < a.offsetTop + a.offsetHeight;
+
+// ---------- the metronome on the sheet ----------
+
+/** Like the tuner: stays shown for the next pieces until switched off – but always starts stopped. */
+let sheetMetronomeOn = false;
+
+function toggleSheetMetronome() {
+  sheetMetronomeOn = !sheetMetronomeOn;
+  syncSheetMetronome();
+}
+
+function syncSheetMetronome() {
+  if (!V) return;
+  if (sheetMetronomeOn && !V.sheetMetronome) {
+    // top left as well – below the toolbar, and below the tuner if that is there
+    const top = (V.el.classList.contains('bar-hidden') ? 0 : V.bar.offsetHeight) + 10;
+    V.sheetMetronome = startSheetMetronome({ parent: V.el, left: 12, top });
+    const t = V.sheetTuner?.el;
+    if (t && overlaps(V.sheetMetronome.el, t)) V.sheetMetronome.place(12, t.offsetTop + t.offsetHeight + 8);
+  } else if (!sheetMetronomeOn && V.sheetMetronome) {
+    V.sheetMetronome.stop();
+    V.sheetMetronome = null;
+  }
+  V.tools.metronome.classList.toggle('active', sheetMetronomeOn);
+  V.tools.metronome.setAttribute('aria-pressed', String(sheetMetronomeOn));
 }
 
 // ---------- turning pages by face ----------
@@ -1403,7 +1446,10 @@ function updateFsButton() {
 
 function setBarHidden(hidden) {
   V.el.classList.toggle('bar-hidden', hidden);
-  if (!hidden) V.sheetTuner?.keepBelow(V.bar.offsetHeight + 10);
+  if (!hidden) {
+    V.sheetTuner?.keepBelow(V.bar.offsetHeight + 10);
+    V.sheetMetronome?.keepBelow(V.bar.offsetHeight + 10);
+  }
   if (hidden) toast('Leiste ausgeblendet – oben rechts wieder einblenden.', { ms: 2400 });
 }
 

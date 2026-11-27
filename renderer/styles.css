@@ -1762,3 +1762,71 @@ button.genre-chip:hover { background: var(--hover); }
 .sheet-tuner.dragging .sheet-tuner-grip { opacity: 0.8; }
 .tuner-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }
 .face-info { margin-top: 6px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ===== Metronom auf dem Blatt (metronome.js startSheetMetronome, Knopf in der Stift-Leiste) =====
+ * − / Tempo / + und ein Knopf für Start und Stopp. Alles in em: die Ecke, zwei Finger oder das Mausrad ändern die Größe. */
+.sheet-metronome {
+  --metro-bg: rgba(255, 255, 255, 0.92);
+  position: absolute;
+  z-index: 56;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12em;
+  padding: 0.12em 0.5em 0.12em 0.12em; /* room on the right for the size corner */
+  border-radius: 0.7em;
+  background: var(--metro-bg);
+  box-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+:root[data-theme="dark"] .sheet-metronome { --metro-bg: rgba(31, 31, 34, 0.92); }
+.sheet-metronome.dragging { cursor: grabbing; }
+.sheet-metronome button {
+  display: inline-grid;
+  place-items: center;
+  width: 1.3em;
+  height: 1.3em;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5em;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+}
+.sheet-metronome button:hover { background: var(--hover); }
+.sheet-metronome button:active { background: var(--accent-soft); }
+.sheet-metronome .ic { width: 0.72em; height: 0.72em; }
+.sheet-metronome .metro-play { margin-left: 0.08em; background: var(--accent-metal, var(--accent)); color: var(--accent-fg); box-shadow: var(--metal-edge, none); }
+.sheet-metronome .metro-play:hover { background: var(--accent-metal, var(--accent)); filter: brightness(1.07); }
+.sheet-metronome .metro-play .ic { width: 0.6em; height: 0.6em; }
+.sheet-metronome.running .metro-play { background: var(--text); color: var(--metro-bg); box-shadow: none; }
+.metro-tempo { display: inline-flex; align-items: baseline; gap: 0.08em; }
+.metro-bpm {
+  width: 1.85em;
+  padding: 0.04em 0;
+  border: 0;
+  border-radius: 0.25em;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: text;
+  outline: none;
+  transition: color 0.08s;
+}
+.metro-bpm:focus { background: var(--accent-soft); box-shadow: inset 0 0 0 0.06em var(--accent); }
+.metro-unit { font-size: 0.32em; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+.sheet-metronome.beat .metro-bpm { color: var(--accent-text); }
+.sheet-metronome .metro-grip { color: var(--muted); }
+.metronome-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }
+.sheet-metronome:hover .metro-grip, .sheet-metronome.dragging .metro-grip { opacity: 0.8; }

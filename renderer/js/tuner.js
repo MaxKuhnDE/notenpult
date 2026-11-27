@@ -3,7 +3,8 @@
 // detectPitch/noteFor are plain functions (test/tuner.js feeds them generated tones).
 // Two faces: the dialog (openTuner) and just the cents on the sheet (startSheetTuner, viewer toolbar).
 
-import { db, commit, persist } from './store.js';
+import { db, commit } from './store.js';
+import { makeFloating } from './floating.js';
 import {
   h, fill, btn, modal,
 } from './ui.js';
@@ -288,7 +289,6 @@ export function openTuner({ stream = null } = {}) {
 export const SHEET_TOLERANCE = 10;
 export const SHEET_SIZE_MIN = 14;
 export const SHEET_SIZE_MAX = 200;
-const clampSize = (v) => Math.max(SHEET_SIZE_MIN, Math.min(SHEET_SIZE_MAX, Math.round(Number(v) || 40)));
 
 /** "+12¢", "−8¢" (a real minus), "±0¢". */
 export function centsLabel(cents) {
@@ -311,90 +311,10 @@ export function startSheetTuner({
     'aria-label': 'Stimmgerät auf dem Blatt',
     title: 'Stimmgerät – ziehen zum Verschieben; Ecke, zwei Finger oder Mausrad für die Größe',
   }, value, grip);
-  let size = clampSize(db.settings.sheetTunerSize);
+  const float = makeFloating({
+    el, parent, grip, left, top, sizeKey: 'sheetTunerSize', min: SHEET_SIZE_MIN, max: SHEET_SIZE_MAX, fallback: 40,
+  });
   let shown = null; // { midi, cents }: a calm number, starts fresh when the note changes
-
-  const place = (x, y) => {
-    const maxX = Math.max(0, parent.clientWidth - el.offsetWidth);
-    const maxY = Math.max(0, parent.clientHeight - el.offsetHeight);
-    el.style.left = `${Math.round(Math.max(0, Math.min(maxX, x)))}px`;
-    el.style.top = `${Math.round(Math.max(0, Math.min(maxY, y)))}px`;
-  };
-  const resize = (s) => {
-    size = clampSize(s);
-    el.style.fontSize = `${size}px`;
-    place(el.offsetLeft, el.offsetTop);
-  };
-  const save = () => {
-    if (db.settings.sheetTunerSize === size) return;
-    db.settings.sheetTunerSize = size;
-    persist(); // no re-render of the pages
-  };
-  el.style.fontSize = `${size}px`;
-  parent.append(el);
-  place(left, top);
-
-  // one pointer: move (or resize on the corner); two pointers: pinch
-  const pts = new Map();
-  let mode = null;
-  let from = null;
-  const spread = () => {
-    const [a, b] = [...pts.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
-  };
-  el.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    try {
-      el.setPointerCapture(e.pointerId);
-    } catch { /* synthetic pointers in tests */ }
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 2) {
-      mode = 'pinch';
-      from = { size, d: spread() };
-    } else if (pts.size === 1) {
-      mode = e.target === grip ? 'size' : 'move';
-      from = {
-        x: e.clientX, y: e.clientY, left: el.offsetLeft, top: el.offsetTop, size, h: el.offsetHeight || size,
-      };
-    }
-    el.classList.add('dragging');
-  });
-  el.addEventListener('pointermove', (e) => {
-    if (!pts.has(e.pointerId)) return;
-    e.stopPropagation();
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (mode === 'pinch') {
-      if (pts.size >= 2) resize(from.size * (spread() / from.d));
-    } else if (mode === 'move') {
-      place(from.left + e.clientX - from.x, from.top + e.clientY - from.y);
-    } else if (mode === 'size') {
-      resize(from.size * (1 + (e.clientX - from.x + e.clientY - from.y) / 2 / from.h));
-    }
-  });
-  const up = (e) => {
-    if (!pts.delete(e.pointerId)) return;
-    e.stopPropagation();
-    if (pts.size) return; // two fingers → one: wait for the last one
-    if (mode === 'size' || mode === 'pinch') save();
-    mode = null;
-    el.classList.remove('dragging');
-  };
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
-  el.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resize(size * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
-    save();
-  }, { passive: false });
-  // a tap on it never turns the page
-  for (const type of ['click', 'dblclick', 'contextmenu']) {
-    el.addEventListener(type, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    });
-  }
 
   const listener = listenPitch({
     stream,
@@ -430,12 +350,8 @@ export function startSheetTuner({
       listener.stop();
       el.remove();
     },
-    /** The toolbar came back: stay below it. */
-    keepBelow(minTop) {
-      if (el.offsetTop < minTop) place(el.offsetLeft, minTop);
-    },
-    clamp() {
-      place(el.offsetLeft, el.offsetTop);
-    },
+    place: float.place,
+    keepBelow: float.keepBelow,
+    clamp: float.clamp,
   };
 }
