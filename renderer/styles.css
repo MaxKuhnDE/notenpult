@@ -1504,3 +1504,19 @@ button.genre-chip:hover { background: var(--hover); }
 [data-style="v2"] .v-part { border-color: var(--border-strong); background: transparent; color: var(--text); }
 [data-style="v2"] .v-part:hover { background: var(--hover); }
 [data-style="v2"] .v-sub-next { color: var(--text); }
+
+/* Akzentfarbe (settings.js accentRow) */
+.accent-control { display: flex; align-items: center; gap: 8px; }
+.accent-picker {
+  width: 44px;
+  height: 40px;
+  padding: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.accent-picker::-webkit-color-swatch-wrapper { padding: 0; }
+.accent-picker::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.hex-input { width: 112px; height: 40px; font-family: Consolas, "Cascadia Mono", monospace; text-transform: lowercase; }
+.hex-input.invalid { border-color: var(--danger); color: var(--danger); }

@@ -7,6 +7,7 @@ import { updateSection } from './updates.js';
 import { presetsAvailable, exportAll, importAll } from './presets.js';
 import { lanAvailable, openShare, openReceive } from './lan.js';
 import { openRemoteDialog } from './remote.js';
+import { applyTheme, validHex, defaultAccent } from './theme.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -59,6 +60,51 @@ function layoutRow(label, key) {
   const control = segmented(key, LAYOUTS);
   control.classList.add('wrap');
   return h('div.setting.stacked', null, h('div.setting-label', null, label), control);
+}
+
+/** Own accent colour: colour field plus hex input; "Standard" goes back to graphite/silver. */
+function accentRow() {
+  const picker = h('input.accent-picker', { type: 'color', 'aria-label': 'Akzentfarbe wählen' });
+  const hex = h('input.text-input.hex-input', {
+    type: 'text', maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Akzentfarbe als Hex-Wert', 'data-select-all': 'false',
+  });
+  const reset = btn('Standard', () => set(null), { kind: 'ghost' });
+  const show = () => {
+    const own = validHex(db.settings.accentColor);
+    const std = defaultAccent();
+    picker.value = own || std;
+    hex.value = own || '';
+    hex.placeholder = std;
+    hex.classList.remove('invalid');
+    reset.disabled = !own;
+  };
+  function set(value, save = true) {
+    db.settings.accentColor = value;
+    if (save) commit('settings');
+    else applyTheme(); // preview while choosing
+    show();
+  }
+  picker.addEventListener('input', () => set(picker.value, false));
+  picker.addEventListener('change', () => set(picker.value));
+  hex.addEventListener('input', () => {
+    const v = validHex(hex.value);
+    hex.classList.toggle('invalid', !!hex.value.trim() && !v);
+    if (v) {
+      db.settings.accentColor = v;
+      applyTheme();
+      picker.value = v;
+      reset.disabled = false;
+    }
+  });
+  hex.addEventListener('change', () => {
+    const v = validHex(hex.value);
+    if (v) set(v);
+    else if (!hex.value.trim()) set(null);
+    else hex.classList.add('invalid');
+  });
+  show();
+  return row('Akzentfarbe', h('div.accent-control', null, picker, hex, reset),
+    'Farbe für Knöpfe, Schalter und Auswahl – im Farbfeld wählen oder als Hex-Wert (z. B. #2f6fd0) eintippen. Standard: Graphit (hell) bzw. Silber (dunkel).');
 }
 
 function row(label, control, hint) {
@@ -131,6 +177,7 @@ export function openSettings() {
     row('Design', segmented('theme', [['system', 'System'], ['light', 'Hell', 'sun'], ['dark', 'Dunkel', 'moon']])),
     row('Oberfläche', segmented('uiStyle', [['v2', 'Notenpult 2'], ['classic', 'Klassisch']]),
       'Notenpult 2: ruhiges Graphit mit Silber. Klassisch: die Farben bis Version 1.6.'),
+    accentRow(),
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
 
     h('h3.settings-section', null, 'Notenansicht'),

@@ -43,6 +43,8 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
   gefundenes Stück eingeschoben (z. B. für Zugaben).
 - **Darstellung**: Hell/Dunkel, Noten optional invertiert, Hoch- und Querformat, Vollbild, Bildschirm bleibt an.
   Oberfläche „Notenpult 2“ in ruhigem Graphit und Silber (Standard) oder „Klassisch“ wie bis Version 1.6.
+  Die **Akzentfarbe** ist frei wählbar (*Einstellungen → Darstellung*: Farbfeld oder Hex-Wert wie `#2f6fd0`) –
+  Notenpult passt Schrift auf Knöpfen und Textfarbe so an, dass alles lesbar bleibt; „Standard“ geht zurück.
 - **Im WLAN teilen**: Ein Gerät zeigt einen 4-stelligen Code, ein anderes im selben WLAN (oder Handy-Hotspot)
   holt sich damit die Noten – verschlüsselt, ohne ZIP-Datei, nur fehlende Dateien. Windows und Android in jeder
   Richtung.

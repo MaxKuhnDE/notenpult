@@ -71,6 +71,11 @@ Zwei Stile in `styles.css`, gewählt über `<html data-style>` (`theme.js`, Eins
 Silber im Dunkelmodus) und ein paar Regeln für ruhigere Listen und kleinere Radien. Komponenten verwenden nur
 Tokens (`--accent`, `--surface` …); ein neuer Stil braucht also keine Änderung im JavaScript.
 
+Eine eigene Akzentfarbe (`settings.accentColor`) setzt `theme.js` als Inline-Variablen auf `<html>` – sie
+gelten vor beiden Stilen. `accentTokens()` leitet aus der einen Farbe Hover-Ton, Schrift auf Knöpfen
+(schwarz oder weiß, je nach Kontrast), Tönung und eine Textfarbe mit mindestens 4,5 : 1 gegen die Fläche ab,
+getrennt für hell und dunkel; bei `null` werden die Variablen entfernt.
+
 ## Fußpedal & Fernbedienung
 
 - Tasten kommen auf drei Wegen an: als `keydown` (Pedale melden sich als Tastatur), als Systemtaste

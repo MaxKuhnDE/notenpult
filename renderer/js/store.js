@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   tensBlocks: true,
   autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
   uiStyle: 'v2', // 'v2' (Notenpult 2: Graphit/Silber) | 'classic' (bis 1.6: Bernstein)
+  accentColor: null, // eigene Akzentfarbe '#rrggbb' – null: die der Oberfläche (Graphit/Silber bzw. Bernstein)
   remoteKeys: null, // { next: [key, …], prev, nextPiece, prevPiece, nextPart } – null: Standard (remote.js)
   volumeKeys: true, // Lautstärke- und Medientasten blättern im Notenmodus (Selfie-Auslöser, Ringe)
   wheelTurns: true, // Mausrad / Scroll-Ring blättert

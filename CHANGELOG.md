@@ -24,7 +24,10 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - **Notenpult 2 – neue Oberfläche:** ruhiges Graphit mit Silber statt Bernstein, Listen mit feinen Trennlinien
   statt einzelner Karten, schlichtere Symbole in der A–Z-Liste, weniger Farbakzente. Aufbau und Schrift bleiben.
   *Einstellungen → Darstellung → Oberfläche* schaltet auf „Klassisch“ zurück.
-- Tests: `remote.js` (Pedale, Selfie-Auslöser, Ringe, Mausrad, Tasten lernen), Lautstärketasten in der
+- **Eigene Akzentfarbe:** *Einstellungen → Darstellung → Akzentfarbe* – Farbfeld oder Hex-Wert (z. B. `#2f6fd0`).
+  Schrift auf Knöpfen, Hover- und Textfarbe werden daraus so berechnet, dass sie hell wie dunkel lesbar bleiben
+  (Kontrast ≥ 4,5 : 1). „Standard“ ist Graphit (hell) bzw. Silber (dunkel).
+- Tests: `style.js` (Stil, Akzentfarbe, Lesbarkeit), `remote.js` (Pedale, Selfie-Auslöser, Ringe, Mausrad, Tasten lernen), Lautstärketasten in der
   Android-Prüfung, JUnit `HardwareKeysTest`; `look.js` macht Screenshots aller Ansichten.
 
 ### Schneller

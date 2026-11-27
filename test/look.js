@@ -50,9 +50,10 @@
     store.createSetlist('Marschbuch');
     check('sample library', db.pieces.length === 7, db.pieces.map((x) => x.title).join(', '));
 
-    const setTheme = async (theme, style) => {
+    const setTheme = async (theme, style, accent = null) => {
       db.settings.theme = theme;
       db.settings.uiStyle = style;
+      db.settings.accentColor = accent;
       store.commit('settings');
       await sleep(250);
     };
@@ -63,9 +64,9 @@
       await sleep(250);
     };
 
-    for (const [theme, style] of [['dark', 'v2'], ['light', 'v2'], ['dark', 'classic']]) {
-      const tag = `${style}-${theme}`;
-      await setTheme(theme, style);
+    for (const [theme, style, accent] of [['dark', 'v2'], ['light', 'v2'], ['dark', 'classic'], ['dark', 'v2', '#2f6fd0'], ['light', 'v2', '#2f6fd0']]) {
+      const tag = `${style}-${theme}${accent ? '-eigene-farbe' : ''}`;
+      await setTheme(theme, style, accent);
       check(`${tag}: style applied`, document.documentElement.dataset.style === style && document.documentElement.dataset.theme === theme);
       await show('library');
       await shot(`${tag}-1-a-z`);
@@ -75,7 +76,7 @@
       byText('.genre-bar .genre-chip', 'Alle')?.click();
       await show('setlists');
       await shot(`${tag}-3-setlist`);
-      if (style === 'classic') continue;
+      if (style === 'classic' || accent) continue;
 
       window.__np.openViewer({ queue: [{ pieceId: p('Florentiner Marsch').id, number: '47' }], start: 0, context: { kind: 'setlist', name: s.name } });
       await waitFor(() => !$('.viewer.loading') && $('.viewer .page canvas.sheet'), 10000, 'viewer');
