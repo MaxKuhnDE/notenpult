@@ -209,7 +209,12 @@
     const el2 = await waitFor(() => $('.sheet-metronome'), 3000, 'metronome again');
     check('with the tuner on: top left, just below the tuner', el2.offsetLeft === 12 && el2.offsetTop >= st.offsetTop + st.offsetHeight
       && el2.offsetTop <= st.offsetTop + st.offsetHeight + 12 && parseFloat(el2.style.fontSize) === db.settings.sheetMetronomeSize,
-    `${el2.offsetTop} tuner ${st.offsetTop}+${st.offsetHeight}`);
+    `${el2.offsetLeft},${el2.offsetTop} ${el2.offsetWidth}x${el2.offsetHeight} · tuner ${st.offsetLeft},${st.offsetTop} ${st.offsetWidth}x${st.offsetHeight}`
+    + ` connected ${st.isConnected} · tuners ${document.querySelectorAll('.sheet-tuner').length} · metronomes ${document.querySelectorAll('.sheet-metronome').length}`
+    + ` · tuner-tool ${$('.tuner-tool').classList.contains('active')} · viewer ${$('.viewer').clientWidth}x${$('.viewer').clientHeight}`
+    + ` · bar ${$('.v-bar').offsetHeight} ${$('.viewer').classList.contains('bar-hidden') ? 'hidden' : 'shown'}`);
+    await sleep(400);
+    console.log(`PASS diag later: metronome ${el2.offsetLeft},${el2.offsetTop} · tuner ${st.isConnected} ${st.offsetTop}+${st.offsetHeight} · tuners ${document.querySelectorAll('.sheet-tuner').length}`);
     $('.tuner-tool').click();
     await sleep(80);
     el2.querySelector('.metro-play').click();
