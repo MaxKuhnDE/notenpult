@@ -5,6 +5,15 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.3.0] – 2026-11-27
+
+### Hinzugefügt
+- **Mehrseitige Stücke scrollen:** neuer Schalter in *Einstellungen → Notenansicht* (auch im ⋯-Menü). Alle Seiten
+  eines Stücks stehen untereinander in voller Breite und lassen sich stufenlos scrollen (Finger, Mausrad,
+  Scroll-Ring); Tippen/Pedal scrollt weiter, am Ende ins nächste Stück. Die Seitenzahl oben läuft mit,
+  „Letzte Seite“ kommt erst am Ende. Einseitige Stücke und für ein Stück gemerkte Ansichten bleiben, wie sie
+  sind. Je Gerät.
+
 ## [2.2.0] – 2026-11-27
 
 ### Hinzugefügt
