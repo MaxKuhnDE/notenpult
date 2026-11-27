@@ -312,6 +312,9 @@ Die Erkennung (MediaPipe von Google) läuft vollständig auf dem Gerät; es wird
 Die Kamera ist nur an, solange die Notenansicht offen ist. Beim ersten Mal fragen Windows bzw. Android nach dem
 Kamerazugriff. Gilt nur für dieses Gerät.
 
+Der Testdialog zeigt unten, womit erkannt wird (GPU oder CPU) und wie lange ein Bild dauert – auf älteren Tablets
+rechnet meist die CPU. Für eine gute Erkennung sollte das ganze Gesicht im Bild sein, nicht nur der obere Rand.
+
 ## Stimmgerät
 
 Die **Stimmgabel** oben (oder ⋯ → „Stimmgerät“ im Notenmodus) öffnet das Stimmgerät: Ton spielen – es zeigt den

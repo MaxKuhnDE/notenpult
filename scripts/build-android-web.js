@@ -92,9 +92,13 @@ async function main() {
   fs.copyFileSync(path.join(__dirname, 'android', 'boot.js'), path.join(out, 'boot.js'));
 
   let html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  // WebAssembly (MediaPipe for page turns by face) needs a CSP that allows compiling it. Chrome 97+
+  // knows 'wasm-unsafe-eval' (Windows uses that); the tablet's WebView (Android 5 → Chrome ≤ 95) only
+  // accepts 'unsafe-eval' – without it: "Wasm code generation disallowed by embedder". Scripts still
+  // come only from the app itself, and pdf.js runs with isEvalSupported: false (render.js).
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self' blob: data:",

@@ -5,6 +5,18 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.1.2] – 2026-11-27
+
+### Behoben
+- **Android: Blättern per Gesicht startete nicht** („Wasm code generation disallowed by embedder“). Das WebView
+  älterer Tablets (Chrome bis 96) übersetzt WebAssembly nur mit `'unsafe-eval'` in der Sicherheitsregel der Seite;
+  die Android-Version erlaubt das jetzt (Skripte kommen weiterhin nur aus der App, pdf.js ohne eval).
+- Ein Problem der Gesichtserkennung heißt nicht mehr „Kamera nicht verfügbar“; die Kamera geht dann aus.
+
+### Hinzugefügt
+- Gesichtserkennung wechselt von der GPU auf die CPU, wenn die GPU beim Erkennen wiederholt scheitert.
+- Der Testdialog zeigt, womit erkannt wird (GPU/CPU) und wie viele Millisekunden ein Bild braucht.
+
 ## [2.1.1] – 2026-11-27
 
 ### Geändert

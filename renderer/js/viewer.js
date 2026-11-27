@@ -1193,7 +1193,7 @@ function startFace(key) {
       pill.classList.toggle('error', !ok);
       pill.classList.toggle('loading', ok && text !== 'Aktiv');
       pill.title = ok ? 'Blättern per Gesicht – antippen zum Pausieren' : text;
-      if (!ok) label.textContent = 'Kamera aus';
+      if (!ok) label.textContent = 'Gesicht aus';
       if (!ok && !warned) {
         warned = true;
         toast(text, { ms: 4500 });

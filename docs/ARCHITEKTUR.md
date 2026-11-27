@@ -137,7 +137,11 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
 - `face.js`: MediaPipe Face Landmarker (`@mediapipe/tasks-vision`, Bündel + wasm + Modell aus `assets/mediapipe`,
   kopiert von `scripts/mediapipe.js`), GPU mit Rückfall auf CPU. Aus Blendshapes (`jawOpen`, `eyeBlink…`) und der
   Kopfdrehung (Transformationsmatrix) macht `createGestureDetector` mit Haltezeit, Rückkehr zur Ausgangshaltung
-  und Pause „weiter“/„zurück“. MediaPipes Startmeldungen werden aus der Konsole gefiltert.
+  und Pause „weiter“/„zurück“. MediaPipes Startmeldungen werden aus der Konsole gefiltert. Scheitert die GPU beim
+  Erkennen dreimal hintereinander, lädt `face.js` neu auf der CPU.
+- CSP und WebAssembly: Windows erlaubt es mit `'wasm-unsafe-eval'`. Das Android-WebView (Chrome ≤ 95) kennt das
+  nicht und braucht `'unsafe-eval'` (scripts/build-android-web.js). Electron 14 im Android-Test setzt die CSP für
+  WebAssembly nicht durch – `test/android.js` prüft deshalb die Regel selbst.
 - Rechte: Electron erteilt sie selbst; Android gibt sie in `onPermissionRequest` nur der eigenen Seite und fragt ab
   Android 6 einmal nach. Tests laufen mit Chromiums künstlicher Kamera und künstlichem Mikrofon
   (`use-fake-device-for-media-stream`).

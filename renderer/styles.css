@@ -1761,3 +1761,4 @@ button.genre-chip:hover { background: var(--hover); }
 .sheet-tuner:hover .sheet-tuner-grip,
 .sheet-tuner.dragging .sheet-tuner-grip { opacity: 0.8; }
 .tuner-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }
+.face-info { margin-top: 6px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }

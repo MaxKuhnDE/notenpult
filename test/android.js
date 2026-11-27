@@ -228,6 +228,11 @@
       check('its sheet opens', ink($('.viewer .page canvas.sheet')) > 0.01);
 
       // ---------- 2.1 in the tablet's Chromium: face control (MediaPipe) and tuner ----------
+      // Electron 14 does not apply the CSP to WebAssembly, the real WebView (Chrome ≤ 95) does: without
+      // 'unsafe-eval' MediaPipe fails there with "Wasm code generation disallowed by embedder" (2.1.0).
+      const csp = (document.querySelector('meta[http-equiv="Content-Security-Policy"]') || {}).content || '';
+      check('the WebView may compile WebAssembly (\'unsafe-eval\', Chrome < 97 knows nothing else)',
+        /script-src[^;]*'unsafe-eval'/.test(csp) && !/wasm-unsafe-eval/.test(csp), csp);
       db.settings.faceTurns = true;
       store.commit('settings');
       await waitFor(() => $('.face-pill') && !$('.face-pill').classList.contains('loading'), 30000, 'face control').catch(() => {});

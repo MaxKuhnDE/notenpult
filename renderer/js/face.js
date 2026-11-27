@@ -83,6 +83,8 @@ export function featuresOf(result) {
 
 const BASE = new URL('../vendor/mediapipe/', document.baseURI).href;
 let landmarker = null;
+let forceCpu = false; // set when the GPU path failed while detecting
+let delegateInUse = null; // 'GPU' | 'CPU' – shown in the test dialog
 
 /** MediaPipe writes its start-up notes as console errors; they are no errors. */
 let quiet = false;
@@ -112,15 +114,41 @@ export function loadLandmarker() {
         outputFaceBlendshapes: true,
         outputFacialTransformationMatrixes: true,
       });
-      try {
-        return await vision.FaceLandmarker.createFromOptions(fileset, options('GPU'));
-      } catch {
-        return vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
+      if (!forceCpu) {
+        try {
+          const lm = await vision.FaceLandmarker.createFromOptions(fileset, options('GPU'));
+          delegateInUse = 'GPU';
+          return lm;
+        } catch (err) {
+          console.warn('Gesichtserkennung: GPU nicht nutzbar, nehme CPU', err);
+        }
       }
+      const lm = await vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
+      delegateInUse = 'CPU';
+      return lm;
     })();
     landmarker.catch(() => { landmarker = null; });
   }
   return landmarker;
+}
+
+/** The GPU detector keeps failing (old graphics drivers): start over on the CPU. */
+function switchToCpu() {
+  if (forceCpu) return false;
+  forceCpu = true;
+  const old = landmarker;
+  landmarker = null;
+  if (old) old.then((lm) => lm.close && lm.close()).catch(() => {});
+  return true;
+}
+
+/** Error text for the person, not for the developer. */
+function detectorMessage(err) {
+  const msg = String((err && err.message) || err || '');
+  if (/disallowed|unsafe-eval|CompileError|WebAssembly/i.test(msg)) {
+    return 'Gesichtserkennung kann auf diesem Gerät nicht starten (WebAssembly ist blockiert).';
+  }
+  return `Gesichtserkennung kann nicht starten (${msg || 'unbekannter Fehler'}).`;
 }
 
 const controllers = new Set();
@@ -139,7 +167,9 @@ export function feedFrame(f, now = performance.now()) {
  * Starts the camera and calls onAction('next' | 'prev'). onFrame(features) and onStatus(text, ok)
  * are for the test dialog. Returns { stop(), video }.
  */
-export function startFaceControl({ onAction, onFrame = () => {}, onStatus = () => {} } = {}) {
+export function startFaceControl({
+  onAction, onFrame = () => {}, onStatus = () => {}, onInfo = () => {},
+} = {}) {
   const detector = createGestureDetector({
     gesture: db.settings.faceGesture, sensitivity: db.settings.faceSensitivity, swap: db.settings.faceSwap,
   });
@@ -158,14 +188,40 @@ export function startFaceControl({ onAction, onFrame = () => {}, onStatus = () =
   };
   controllers.add(control);
 
+  let failures = 0;
+  let spent = 0;
+  let frames = 0;
+  let lastInfo = 0;
   async function loop() {
     if (stopped) return;
     const t0 = performance.now();
     try {
       const lm = await loadLandmarker();
-      if (!stopped && video.readyState >= 2 && !(control.manualUntil > t0)) feed(featuresOf(lm.detectForVideo(video, t0)), t0);
+      if (!stopped && video.readyState >= 2 && !(control.manualUntil > t0)) {
+        const t1 = performance.now();
+        const result = lm.detectForVideo(video, t1);
+        spent += performance.now() - t1;
+        frames += 1;
+        failures = 0;
+        feed(featuresOf(result), t1);
+        if (t1 - lastInfo > 1000) {
+          lastInfo = t1;
+          onInfo(`${delegateInUse || '–'} · ${Math.round(spent / frames)} ms pro Bild`);
+          spent = 0;
+          frames = 0;
+        }
+      }
     } catch (err) {
+      failures += 1;
       console.warn('Gesichtserkennung', err);
+      if (failures >= 3 && delegateInUse === 'GPU' && switchToCpu()) {
+        failures = 0;
+        onStatus('Gesichtserkennung wechselt auf die CPU …', true);
+      } else if (failures >= 10) {
+        onStatus(detectorMessage(err), false);
+        stop();
+        return;
+      }
     }
     if (!stopped) timer = setTimeout(loop, Math.max(10, FRAME_MS - (performance.now() - t0)));
   }
@@ -180,17 +236,28 @@ export function startFaceControl({ onAction, onFrame = () => {}, onStatus = () =
       }
       video.srcObject = stream;
       await video.play().catch(() => {});
-      onStatus('Gesichtserkennung wird geladen …', true);
-      await loadLandmarker();
-      if (stopped) return;
-      onStatus('Aktiv', true);
-      loop();
     } catch (err) {
       console.warn('Kamera', err);
+      if (stopped) return;
       onStatus(err && err.name === 'NotAllowedError'
         ? 'Kein Zugriff auf die Kamera – bitte in den Einstellungen des Geräts für Notenpult erlauben.'
         : err && err.name === 'NotFoundError' ? 'Keine Kamera gefunden.' : `Kamera nicht verfügbar (${err && err.message ? err.message : err}).`, false);
+      return;
     }
+    // the camera runs; now the face detection (a problem here is not the camera's)
+    onStatus('Gesichtserkennung wird geladen …', true);
+    try {
+      await loadLandmarker();
+    } catch (err) {
+      console.warn('Gesichtserkennung', err);
+      if (stopped) return;
+      onStatus(detectorMessage(err), false);
+      stop(); // no use for the picture without detection
+      return;
+    }
+    if (stopped) return;
+    onStatus('Aktiv', true);
+    loop();
   })();
 
   function stop() {
@@ -206,6 +273,7 @@ export function startFaceControl({ onAction, onFrame = () => {}, onStatus = () =
 export function openFaceTest() {
   const status = h('div.face-status', null, 'Kamera wird gestartet …');
   const values = h('div.face-values');
+  const info = h('div.face-info');
   const action = h('div.face-action', null, ' ');
   let flash = 0;
   const control = startFaceControl({
@@ -213,6 +281,7 @@ export function openFaceTest() {
       status.textContent = text;
       status.classList.toggle('error', !ok);
     },
+    onInfo: (text) => { info.textContent = `Erkennung: ${text}`; },
     onFrame: (f) => {
       if (!f) {
         fill(values, h('span.muted', null, 'Kein Gesicht im Bild'));
@@ -240,7 +309,8 @@ export function openFaceTest() {
         + 'Zeigt „Zurück“ statt „Weiter“, schalte „Richtung tauschen“ ein. Das Bild bleibt auf diesem Gerät.'),
       h('div.face-preview', null, control.video, action),
       status,
-      values),
+      values,
+      info),
     actions: [{ label: 'Fertig', kind: 'primary', value: true }],
     onClose: () => control.stop(),
   });
