@@ -1,12 +1,29 @@
 // Pen annotations. Strokes are stored per piece and page in page-relative
 // coordinates, so they stay in place at any zoom level or orientation.
 //
-// Stroke: { c: 'red' | 'black', w: width relative to page width, p: [x, y, pressure, ...] }
+// Stroke: { c: colour (COLORS), w: width relative to page width, p: [x, y, pressure, ...], m?: 1 (highlighter) }
+// Text:   { t: 'text', text, x, y, s: size relative to page width, c, p: [], w: 0 }
+// Stamp:  { t: 'stamp', k: kind (STAMPS), x, y, s, c, p: [], w: 0 }
+// Text and stamps carry an empty p so that versions before 2.1 skip them instead of failing.
 
 import { backend, isSavingSuspended } from './store.js';
 
-export const COLORS = { red: '#d3221b', black: '#141414' };
+export const COLORS = {
+  red: '#d3221b', black: '#141414', blue: '#1d5fc7', green: '#1e8a3c', yellow: '#ffd21f',
+};
 export const WIDTHS = { fine: 0.0021, medium: 0.0033, bold: 0.0056 };
+export const MARKER_WIDTH = 0.016;
+
+/** Stamps: [kind, label in the palette, size relative to page width]. */
+export const STAMPS = [
+  ['pp', 'pp', 0.03], ['p', 'p', 0.03], ['mp', 'mp', 0.03], ['mf', 'mf', 0.03], ['f', 'f', 0.03], ['ff', 'ff', 0.03],
+  ['fp', 'fp', 0.03], ['sfz', 'sfz', 0.03],
+  ['cresc', 'Crescendo', 0.05], ['dim', 'Decrescendo', 0.05], ['accent', 'Akzent', 0.022], ['breath', 'Atemzeichen', 0.03],
+  ['fermata', 'Fermate', 0.032], ['glasses', 'Brille (Achtung)', 0.05], ['coda', 'Coda', 0.034], ['circle', 'Kreis', 0.034],
+];
+const STAMP_SIZE = Object.fromEntries(STAMPS.map(([k, , size]) => [k, size]));
+export const stampSize = (kind) => STAMP_SIZE[kind] || 0.03;
+const DYNAMICS = new Set(['pp', 'p', 'mp', 'mf', 'f', 'ff', 'fp', 'sfz']);
 
 const cache = new Map(); // pieceId -> Promise<{ pages: { [pageId]: Stroke[] } }>
 const saveTimers = new Map();
@@ -88,6 +105,102 @@ function setStyle(ctx, s) {
   ctx.lineJoin = 'round';
 }
 
+/** Highlighter: one translucent path, so overlapping segments don't get darker. */
+export function drawMarker(ctx, s, W, H) {
+  const p = s.p;
+  const n = p.length / 3;
+  if (!n) return;
+  ctx.save();
+  setStyle(ctx, s);
+  ctx.globalAlpha = 0.38;
+  ctx.lineWidth = s.w * W;
+  ctx.beginPath();
+  ctx.moveTo(p[0] * W, p[1] * H);
+  for (let i = 1; i < n; i++) ctx.lineTo(p[i * 3] * W, p[i * 3 + 1] * H);
+  if (n === 1) ctx.lineTo(p[0] * W + 0.1, p[1] * H);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawText(ctx, s, W, H) {
+  ctx.save();
+  setStyle(ctx, s);
+  ctx.font = `600 ${s.s * W}px "Segoe UI", Roboto, Arial, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(s.text || ''), s.x * W, s.y * H);
+  ctx.restore();
+}
+
+function drawStamp(ctx, s, W, H) {
+  const size = s.s * W;
+  const x = s.x * W;
+  const y = s.y * H;
+  ctx.save();
+  setStyle(ctx, s);
+  ctx.lineWidth = Math.max(1, size * 0.09);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.beginPath();
+  const k = s.k;
+  if (DYNAMICS.has(k)) {
+    ctx.font = `italic bold ${size * 1.25}px "Times New Roman", Georgia, "Noto Serif", serif`;
+    ctx.fillText(k, x, y);
+  } else if (k === 'breath') {
+    ctx.font = `bold ${size * 1.6}px "Times New Roman", Georgia, serif`;
+    ctx.fillText('\u2019', x, y + size * 0.2);
+  } else if (k === 'cresc' || k === 'dim') {
+    const w = size * 0.8;
+    const hgt = size * 0.28;
+    const [open, tip] = k === 'cresc' ? [x + w, x - w] : [x - w, x + w];
+    ctx.moveTo(open, y - hgt);
+    ctx.lineTo(tip, y);
+    ctx.lineTo(open, y + hgt);
+    ctx.stroke();
+  } else if (k === 'accent') {
+    ctx.moveTo(x - size * 0.5, y - size * 0.3);
+    ctx.lineTo(x + size * 0.5, y);
+    ctx.lineTo(x - size * 0.5, y + size * 0.3);
+    ctx.stroke();
+  } else if (k === 'fermata') {
+    ctx.arc(x, y + size * 0.15, size * 0.5, Math.PI, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y + size * 0.05, size * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (k === 'glasses') {
+    const r = size * 0.24;
+    ctx.arc(x - size * 0.32, y, r, 0, Math.PI * 2);
+    ctx.moveTo(x + size * 0.32 + r, y);
+    ctx.arc(x + size * 0.32, y, r, 0, Math.PI * 2);
+    ctx.moveTo(x - size * 0.08, y - r * 0.2);
+    ctx.quadraticCurveTo(x, y - r * 0.7, x + size * 0.08, y - r * 0.2);
+    ctx.moveTo(x - size * 0.56, y - r * 0.3);
+    ctx.lineTo(x - size * 0.68, y - r);
+    ctx.moveTo(x + size * 0.56, y - r * 0.3);
+    ctx.lineTo(x + size * 0.68, y - r);
+    ctx.stroke();
+  } else if (k === 'coda') {
+    ctx.ellipse(x, y, size * 0.32, size * 0.42, 0, 0, Math.PI * 2);
+    ctx.moveTo(x - size * 0.55, y);
+    ctx.lineTo(x + size * 0.55, y);
+    ctx.moveTo(x, y - size * 0.65);
+    ctx.lineTo(x, y + size * 0.65);
+    ctx.stroke();
+  } else {
+    ctx.arc(x, y, size * 0.75, 0, Math.PI * 2); // circle around a note
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Any annotation item: stroke, highlighter, text or stamp. */
+export function drawItem(ctx, s, W, H) {
+  if (s.t === 'text') drawText(ctx, s, W, H);
+  else if (s.t === 'stamp') drawStamp(ctx, s, W, H);
+  else if (s.m) drawMarker(ctx, s, W, H);
+  else drawStroke(ctx, s, W, H);
+}
+
 /**
  * Draws stroke segments [from, n) with midpoint smoothing. With `tail`, also
  * draws the final half segment to the last point (done when the stroke ends).
@@ -147,7 +260,9 @@ export function redraw(canvas, strokes, geom, dpr) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const [a, b, c, d, e, f] = geom.m;
   ctx.setTransform(a * dpr, b * dpr, c * dpr, d * dpr, e * dpr, f * dpr);
-  for (const s of strokes) drawStroke(ctx, s, geom.Wo, geom.Ho);
+  // Highlighter below everything else, like on paper.
+  for (const s of strokes) if (s.m) drawMarker(ctx, s, geom.Wo, geom.Ho);
+  for (const s of strokes) if (!s.m) drawItem(ctx, s, geom.Wo, geom.Ho);
 }
 
 function distToSegment(px, py, ax, ay, bx, by) {
@@ -165,6 +280,17 @@ function distToSegment(px, py, ax, ay, bx, by) {
 export function hitStrokes(strokes, x, y, W, H, r) {
   const hits = [];
   strokes.forEach((s, idx) => {
+    if (s.t === 'text') {
+      // Text starts at (x, y) and runs to the right (about 0.55 × size per character).
+      const half = (s.s * W) / 2;
+      const width = String(s.text || '').length * s.s * W * 0.55;
+      if (x >= s.x * W - r && x <= s.x * W + width + r && Math.abs(y - s.y * H) <= half + r) hits.push(idx);
+      return;
+    }
+    if (s.t) {
+      if (Math.hypot(s.x * W - x, s.y * H - y) <= r + s.s * W * 0.8) hits.push(idx);
+      return;
+    }
     const p = s.p;
     const n = p.length / 3;
     const reach = r + (s.w * W) / 2;

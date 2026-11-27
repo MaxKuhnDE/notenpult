@@ -26,6 +26,8 @@ renderer/
   js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
   js/remote.js     Fußpedal & Fernbedienung: Tastenbelegung, Tasten lernen, MIDI
+  js/tuner.js      Stimmgerät: Tonerkennung (YIN), Notennamen, Dialog
+  js/face.js       Blättern per Gesicht: Kamera, MediaPipe Face Landmarker, Gesten
   js/lan.js        Dialoge „Im WLAN teilen“ / „Aus dem WLAN holen“
   js/lan-plan.js   was beim Holen entsteht: spiegelgleich oder hinzufügen, welche Dateien fehlen
   js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
@@ -108,6 +110,31 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
   den Hintergrund, Windows: beim Schließen).
 - `render.js` lädt pdf.js per `import()` erst mit dem ersten PDF; unter Android lädt `boot.js` die App vor
   pdf.js, und die Weiche (`pdfjs-shim.js`) wartet auf pdf.js.
+
+## Notenmodus 2.1
+
+- **Halbe Seite**: `screensOf()` setzt zwischen zwei Einzelseiten einen Bildschirm `{ idx: [nächste, aktuelle],
+  dir: 'half' }`. Beide Seiten liegen in voller Größe übereinander (`.spread.half`, `clip-path` zeigt je eine Hälfte),
+  so stimmen Anmerkungen und Treffer (`slotAt` wählt nach der Mitte). Positionen tragen `half` mit (`step`,
+  `screenIndex`).
+- **Sprung-Links** stehen an der Stimme: `part.links = [{ id, from: { pageId, x, y }, to: { … } }]` (Seitenanteile
+  der ungedrehten Seite). `boxPoint()` bildet sie über die Seitentransformation auf den Bildschirm ab.
+- **Anmerkungen**: Neben Strichen gibt es Textmarker (`m: 1`, eine durchscheinende Linie, unter allem anderen),
+  Text (`t: 'text'`) und Stempel (`t: 'stamp'`, `k` aus `ink.STAMPS`, als Vektor gezeichnet). Text und Stempel
+  haben ein leeres `p`, damit ältere Versionen sie überspringen.
+
+## Stimmgerät und Gesicht
+
+- `tuner.js`: Mikrofon (`getUserMedia`, ohne Echo-/Rauschunterdrückung) → `AnalyserNode` (4096 Werte) →
+  `detectPitch` (YIN: grob bei halber Abtastrate, fein bei voller, Parabel ins Minimum) etwa 15-mal pro Sekunde,
+  Median der letzten fünf. `noteFor` rechnet mit dem Kammerton und der Stimmung des Instruments.
+- `face.js`: MediaPipe Face Landmarker (`@mediapipe/tasks-vision`, Bündel + wasm + Modell aus `assets/mediapipe`,
+  kopiert von `scripts/mediapipe.js`), GPU mit Rückfall auf CPU. Aus Blendshapes (`jawOpen`, `eyeBlink…`) und der
+  Kopfdrehung (Transformationsmatrix) macht `createGestureDetector` mit Haltezeit, Rückkehr zur Ausgangshaltung
+  und Pause „weiter“/„zurück“. MediaPipes Startmeldungen werden aus der Konsole gefiltert.
+- Rechte: Electron erteilt sie selbst; Android gibt sie in `onPermissionRequest` nur der eigenen Seite und fragt ab
+  Android 6 einmal nach. Tests laufen mit Chromiums künstlicher Kamera und künstlichem Mikrofon
+  (`use-fake-device-for-media-stream`).
 
 ## Notenmodus
 

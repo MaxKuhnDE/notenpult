@@ -18,6 +18,7 @@ import {
   autoCheck as autoUpdateCheck, onUpdateState, updateAvailable, announceUpdateResult,
 } from './updates.js';
 import { announceImport } from './presets.js';
+import { openTuner } from './tuner.js';
 import { announceReceived } from './lan.js';
 import {
   openViewer, closeViewer, isViewerOpen, onViewerClosed, next, prev,
@@ -100,6 +101,7 @@ function buildShell() {
     h('div.spacer'),
     h('button.btn.ghost.search-btn', { type: 'button', title: 'Suchen (Strg+F)', onclick: openGlobalSearch }, icon('search'), h('span', null, 'Suchen')),
     cloudBtn,
+    iconBtn('tuner', 'Stimmgerät', () => openTuner(), { class: 'tuner-btn' }),
     themeBtn,
     settingsBtn = iconBtn('settings', 'Einstellungen', () => openSettings()));
   viewEl = h('main.view');

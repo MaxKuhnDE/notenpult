@@ -226,6 +226,20 @@
       window.__np.openViewer({ queue: [{ pieceId: abend.id, number: '' }], start: 0, context: { kind: 'library' } });
       await pagesReady();
       check('its sheet opens', ink($('.viewer .page canvas.sheet')) > 0.01);
+
+      // ---------- 2.1 in the tablet's Chromium: face control (MediaPipe) and tuner ----------
+      db.settings.faceTurns = true;
+      store.commit('settings');
+      await waitFor(() => $('.face-pill') && !$('.face-pill').classList.contains('loading'), 30000, 'face control').catch(() => {});
+      check('face control runs (MediaPipe, camera)', !!$('.face-pill') && !$('.face-pill').classList.contains('error')
+        && !$('.face-pill').classList.contains('loading'), ($('.face-pill') || {}).title);
+      db.settings.faceTurns = false;
+      store.commit('settings');
+      window.__npBack();
+      $('.topbar .tuner-btn').click();
+      await waitFor(() => $('.tuner-status') && $('.tuner-status').textContent !== 'Mikrofon wird gestartet …', 8000, 'tuner').catch(() => {});
+      check('tuner gets the microphone', !!$('.tuner-status') && !$('.tuner-status').classList.contains('error'), ($('.tuner-status') || {}).textContent);
+      window.__npBack();
       await T.done();
       return;
     }

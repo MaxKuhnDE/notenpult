@@ -1,5 +1,6 @@
 package io.github.maxkuhnde.notenpult;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
@@ -57,7 +58,6 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -191,13 +191,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                // MIDI pedals (remote.js) on our own page; nothing else.
-                boolean ours = HOST.equals(request.getOrigin().getHost());
-                if (ours && Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_MIDI_SYSEX)) {
-                    request.grant(new String[]{PermissionRequest.RESOURCE_MIDI_SYSEX});
-                } else {
-                    request.deny();
-                }
+                answerPermissionRequest(request);
             }
         });
         setContentView(web);
@@ -217,6 +211,62 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && fullscreen) applyFullscreen();
+    }
+
+    // ---------- camera (face.js), microphone (tuner.js), MIDI (remote.js) for our own page ----------
+
+    private static final int REQ_MEDIA = 7;
+    private PermissionRequest pendingMedia;
+    private String[] pendingGrant;
+
+    private void answerPermissionRequest(PermissionRequest request) {
+        if (!HOST.equals(request.getOrigin().getHost())) {
+            request.deny();
+            return;
+        }
+        List<String> grant = new ArrayList<>();
+        List<String> needed = new ArrayList<>();
+        for (String r : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) {
+                grant.add(r);
+                needed.add(Manifest.permission.CAMERA);
+            } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
+                grant.add(r);
+                needed.add(Manifest.permission.RECORD_AUDIO);
+            } else if (PermissionRequest.RESOURCE_MIDI_SYSEX.equals(r)) {
+                grant.add(r);
+            }
+        }
+        if (grant.isEmpty()) {
+            request.deny();
+            return;
+        }
+        String[] resources = grant.toArray(new String[0]);
+        if (Build.VERSION.SDK_INT >= 23) {
+            // From Android 6 the user is asked once; Android 5 grants these on installation.
+            List<String> missing = new ArrayList<>();
+            for (String p : needed) if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) missing.add(p);
+            if (!missing.isEmpty()) {
+                if (pendingMedia != null) pendingMedia.deny();
+                pendingMedia = request;
+                pendingGrant = resources;
+                requestPermissions(missing.toArray(new String[0]), REQ_MEDIA);
+                return;
+            }
+        }
+        request.grant(resources);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != REQ_MEDIA || pendingMedia == null) return;
+        boolean all = results.length > 0;
+        for (int r : results) all &= r == PackageManager.PERMISSION_GRANTED;
+        if (all) pendingMedia.grant(pendingGrant);
+        else pendingMedia.deny();
+        pendingMedia = null;
+        pendingGrant = null;
     }
 
     /** Remotes: volume, media and camera keys turn pages while the viewer wants them (HardwareKeys). */

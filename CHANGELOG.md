@@ -5,6 +5,32 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.1.0] – 2026-11-27
+
+### Hinzugefügt
+- **Halbe Seite umblättern:** erst die obere Hälfte der nächsten Seite über der unteren Hälfte der aktuellen,
+  dann die ganze Seite. Schalter in *Einstellungen → Blättern* und im ⋯-Menü, je Gerät.
+- **Sprung-Links** für Wiederholungen, D.S. und Coda: im ⋯-Menü setzen (Sprungstelle antippen, zum Ziel blättern,
+  Ziel antippen). Der Knopf an der Sprungstelle springt, die Zielstelle leuchtet auf, „Zurück zu Seite …“ führt
+  zurück. Pedal-Aktion „Sprung-Link folgen“. Links gehören zur Stimme und lassen sich auflisten und löschen.
+- **Anmerkungen:** Blau und Grün, Textmarker, Text und Stempel (pp, p, mp, mf, f, ff, fp, sfz, Crescendo,
+  Decrescendo, Akzent, Atemzeichen, Fermate, Brille, Coda, Kreis). Ältere Versionen zeigen Text und Stempel nicht,
+  stürzen aber auch nicht ab.
+- **Blättern per Gesicht:** Kopf drehen, Mund öffnen oder zwinkern – mit Empfindlichkeit, „Richtung tauschen“ und
+  einem Test mit Kamerabild. Die Erkennung (MediaPipe Face Landmarker) läuft auf dem Gerät, die Kamera nur bei
+  offener Notenansicht. Je Gerät.
+- **Stimmgerät (Test):** Ton, Oktave, Cent-Nadel und Frequenz, Kammerton (415–466 Hz, wird gespeichert),
+  Anzeige für B-, Es- und F-Instrumente. Erkennt Töne von der Kontrabass-Tuba bis zum hohen Flügelhorn auf
+  besser als 1 Cent.
+- **Schnellfarben** für die Akzentfarbe: Messing, Silber, Kupfer, Blau, Grün, Bordeaux.
+- Android: Kamera- und Mikrofonrechte (ab Android 6 wird einmal gefragt).
+- Tests: `viewer21.js`, `tuner.js`, `face.js`; Gesichtserkennung und Stimmgerät auch in der Android-Prüfung.
+
+### Geändert
+- **Notenpult 2 bekommt Farbe:** Standard-Akzent ist jetzt **Messing** wie die Instrumente. Stücke und
+  Setlist-Einträge sind wieder klar umrandete Kacheln, Buchstaben, Symbole und Genres neben den Stücken tragen den
+  Akzent (Genres mit Rahmen und Tönung).
+
 ## [2.0.0] – 2026-11-27
 
 ### Hinzugefügt

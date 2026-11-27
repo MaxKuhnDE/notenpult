@@ -1,7 +1,7 @@
 {
   "name": "notenpult",
   "productName": "Notenpult",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Notenpult – Noten, Setlists, Stimmen und Stift-Anmerkungen für Blasmusik (Windows und Android)",
   "main": "main.js",
   "private": true,
@@ -17,15 +17,13 @@
     "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-icon.ps1",
     "samples": "node test/make-samples.js",
     "android:web": "node scripts/build-android-web.js",
-    "package": "node scripts/copy-vendor.js && electron-packager . Notenpult --platform=win32 --arch=x64 --out=dist --overwrite --asar --icon=build/icon.ico --ignore=^/dist --ignore=^/android --ignore=^/node_modules/\\.cache --ignore=^/scripts --ignore=^/test --ignore=^/docs --ignore=^/\\.github --ignore=\\.md$ --app-copyright=Notenpult --win32metadata.ProductName=Notenpult --win32metadata.FileDescription=Notenpult --win32metadata.CompanyName=Notenpult"
+    "package": "node scripts/copy-vendor.js && electron-packager . Notenpult --platform=win32 --arch=x64 --out=dist --overwrite --asar --icon=build/icon.ico --ignore=^/dist --ignore=^/android --ignore=^/assets --ignore=^/node_modules/\\.cache --ignore=^/scripts --ignore=^/test --ignore=^/docs --ignore=^/\\.github --ignore=\\.md$ --app-copyright=Notenpult --win32metadata.ProductName=Notenpult --win32metadata.FileDescription=Notenpult --win32metadata.CompanyName=Notenpult"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
+    "@mediapipe/tasks-vision": "1.2.3",
     "electron": "^44.5.1",
     "esbuild": "^0.28.2",
     "pdfjs-dist": "^6.3.289"
-  },
-  "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.3"
   }
 }

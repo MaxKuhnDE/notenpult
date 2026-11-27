@@ -32,10 +32,10 @@
 
     // ---------- defaults ----------
     await setTheme('light');
-    check('Notenpult 2: graphite accent on light', document.documentElement.dataset.style === 'v2' && token('--accent') === '#3f454e', token('--accent'));
+    check('Notenpult 2: brass accent on light', document.documentElement.dataset.style === 'v2' && token('--accent') === '#c9a046', token('--accent'));
     await setTheme('dark');
-    check('… silver on dark', token('--accent') === '#c9ced5' && db.settings.accentColor === null, token('--accent'));
-    check('"Standard" means the style\'s own colour', theme.defaultAccent() === '#c9ced5');
+    check('… polished brass on dark', token('--accent') === '#d9b45c' && db.settings.accentColor === null, token('--accent'));
+    check('"Standard" means the style\'s own colour', theme.defaultAccent() === '#d9b45c');
 
     // ---------- building blocks ----------
     check('hex values: with or without #, short form, case; nonsense rejected',
@@ -62,7 +62,7 @@
     const hex = row.querySelector('.hex-input');
     const reset = byText('.settings-modal .setting .btn', 'Standard');
     check('colour field and hex field, "Standard" is the default',
-      !!picker && !!hex && picker.value === '#c9ced5' && hex.value === '' && hex.placeholder === '#c9ced5' && reset.disabled,
+      !!picker && !!hex && picker.value === '#d9b45c' && hex.value === '' && hex.placeholder === '#d9b45c' && reset.disabled,
       `${picker?.value} ${hex?.placeholder}`);
     hex.value = '#2F6FD0';
     hex.dispatchEvent(new Event('input', { bubbles: true }));
@@ -112,8 +112,13 @@
     await waitFor(() => byText('.settings-modal .setting', 'Akzentfarbe'), 5000, 'settings');
     byText('.settings-modal .setting .btn', 'Standard').click();
     await sleep(80);
-    check('"Standard" goes back to silver', db.settings.accentColor === null && token('--accent') === '#c9ced5'
+    check('"Standard" goes back to brass', db.settings.accentColor === null && token('--accent') === '#d9b45c'
       && !document.documentElement.style.getPropertyValue('--accent'));
+    const silver = [...document.querySelectorAll('.accent-preset')].find((x) => x.title === 'Silber');
+    silver.click();
+    await sleep(50);
+    check('quick colours: Silber, and "Messing" is the default again', db.settings.accentColor === '#b8bec7'
+      && ([...document.querySelectorAll('.accent-preset')].find((x) => x.title.startsWith('Messing')).click(), db.settings.accentColor === null));
     window.__npBack();
   } catch (err) {
     console.error('SMOKE FAIL', err && err.stack ? err.stack : err);

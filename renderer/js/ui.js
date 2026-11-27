@@ -45,6 +45,14 @@ const ICONS = {
   up: '<path d="M6 15l6-6 6 6"/>',
   down: '<path d="M6 9l6 6 6-6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  jump: '<path d="M5 18V9a4 4 0 0 1 4-4h9"/><path d="M14 1.5 18 5l-4 3.5"/><circle cx="5" cy="19.5" r="1.5" fill="currentColor" stroke="none"/>',
+  halfPage: '<rect x="5" y="2.5" width="14" height="19" rx="1.5"/><path d="M5 12h14" stroke-dasharray="2.2 2.2"/>',
+  stamp: '<path d="M9 3h6l-1 7h3a2 2 0 0 1 2 2v2H5v-2a2 2 0 0 1 2-2h3z"/><path d="M5 18h14M7 21h10"/>',
+  marker: '<path d="m15 4 5 5-9 9H6v-5z"/><path d="M4 21h8" stroke-width="3" opacity="0.55"/>',
+  text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
+  tuner: '<path d="M9 2v8a3 3 0 0 0 6 0V2"/><path d="M12 13v9"/><path d="M8 22h8"/>',
+  face: '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M8.5 15a4.5 4.5 0 0 0 7 0"/>',
+  camera: '<path d="M4 7h3l2-2.5h6L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
   remote: '<rect x="7" y="2.5" width="10" height="19" rx="3"/><circle cx="12" cy="8.5" r="1.7"/><path d="M10 14.5h4M10 17.5h4"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
@@ -294,6 +302,17 @@ export function popMenu(anchor, items, { align = 'end' } = {}) {
     h('span.menu-label', null, it.label),
     it.checked !== undefined ? h('span.menu-check', null, it.checked ? icon('check') : null) : null);
   }));
+  return placeMenu(menu, anchor, align);
+}
+
+/** A free-form panel (e.g. the stamp palette) that opens and closes like a menu. */
+export function popPanel(anchor, content, { align = 'end', className = '' } = {}) {
+  closeMenu();
+  const menu = h(`div.menu.panel${className ? `.${className}` : ''}`, { role: 'dialog' }, content);
+  return placeMenu(menu, anchor, align);
+}
+
+function placeMenu(menu, anchor, align) {
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();
   const mw = menu.offsetWidth;

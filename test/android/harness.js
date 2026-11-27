@@ -32,6 +32,8 @@ const MIME = {
 app.commandLine.appendSwitch('force-device-scale-factor', '2');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('use-fake-device-for-media-stream'); // never a real camera or microphone
+app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 // Chromium 93's GPU process crashes on current Windows runners ("GPU process isn't usable");
 // the check is about JavaScript and layout, software rendering is enough.
 app.disableHardwareAcceleration();

@@ -19,7 +19,14 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Genres**: eigene Hashtags wie `#Marsch`, `#Polka`, `#Kirche` – mehrere pro Stück, als Filter-Chips in der
   Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
-  Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste.
+  Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste. Auf Wunsch **halbe Seiten**:
+  oben schon die nächste Seite, unten noch die aktuelle ([mehr](#halbe-seite-umblättern)).
+- **Sprung-Links** für Wiederholungen, D.S. und Coda: antippen (oder Pedal) springt zur Zielstelle, ein Knopf
+  bringt dich zurück ([mehr](#sprung-links-wiederholungen-ds-coda)).
+- **Blättern per Gesicht**: Kopf drehen, Mund öffnen oder zwinkern – die Kamera vorne erkennt es, alles bleibt auf
+  dem Gerät ([mehr](#blättern-per-gesicht)).
+- **Stimmgerät** mit einstellbarem Kammerton (z. B. 442 Hz, wird gespeichert) und Anzeige für B-, Es- und
+  F-Instrumente ([mehr](#stimmgerät)).
 - **Fußpedal & Fernbedienung**: Bluetooth-Pedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
   Scroll-Ringe („TikTok-Ringe“), Mausrad und MIDI-Pedale blättern – unter Windows und Android. Jede Taste lässt
   sich zuweisen, auch „Nächstes Stück“ oder „Nächste Stimme“ ([mehr](#fußpedal--fernbedienung)).
@@ -27,7 +34,9 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Stimmen**: beliebig viele PDFs pro Stück (1., 2., 3. Stimme …), oben per Knopf umschaltbar.
   `Stück - 2. Stimme.pdf` wird beim Import automatisch verknüpft.
 - **Stift**: Der Stift schreibt sofort, Finger und Trackpad blättern. Radieren mit dem Radierer-Ende oder der
-  Stifttaste. Handballen-Erkennung, Rückgängig. Anmerkungen gelten je Stimme und Seite.
+  Stifttaste. Handballen-Erkennung, Rückgängig. Anmerkungen gelten je Stimme und Seite. Dazu Blau, Grün,
+  Textmarker, Text und **Stempel** (pp … ff, fp, sfz, Crescendo, Decrescendo, Akzent, Atemzeichen, Fermate, Brille,
+  Coda, Kreis) – [mehr](#stempel-text-und-textmarker).
 - **A4 / A5**: Die Ansicht „Automatisch“ füllt den Bildschirm: A4 im Querformat zwei Seiten nebeneinander,
   A5-Querformat im Hochformat zwei Seiten untereinander. Weiße Ränder werden automatisch abgeschnitten.
 - **Zwei-Seiten-Ansicht**: „Zwei Seiten“ zeigt immer zwei Seiten zusammen; „Erste einzeln“ zeigt die erste Seite
@@ -42,9 +51,10 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Suche**: über Titel, Stimmen, Setlist-Nummern und den Noten-Pool. Während des Spielens wird ein
   gefundenes Stück eingeschoben (z. B. für Zugaben).
 - **Darstellung**: Hell/Dunkel, Noten optional invertiert, Hoch- und Querformat, Vollbild, Bildschirm bleibt an.
-  Oberfläche „Notenpult 2“ in ruhigem Graphit und Silber (Standard) oder „Klassisch“ wie bis Version 1.6.
-  Die **Akzentfarbe** ist frei wählbar (*Einstellungen → Darstellung*: Farbfeld oder Hex-Wert wie `#2f6fd0`) –
-  Notenpult passt Schrift auf Knöpfen und Textfarbe so an, dass alles lesbar bleibt; „Standard“ geht zurück.
+  Oberfläche „Notenpult 2“ in Graphit mit **Messing** wie die Instrumente (Standard) oder „Klassisch“ wie bis
+  Version 1.6. Die **Akzentfarbe** ist frei wählbar (*Einstellungen → Darstellung*: Schnellfarben Messing, Silber,
+  Kupfer, Blau, Grün, Bordeaux, Farbfeld oder Hex-Wert wie `#2f6fd0`) – Notenpult passt Schrift auf Knöpfen und
+  Textfarbe so an, dass alles lesbar bleibt; „Standard“ geht zurück zu Messing.
 - **Im WLAN teilen**: Ein Gerät zeigt einen 4-stelligen Code, ein anderes im selben WLAN (oder Handy-Hotspot)
   holt sich damit die Noten – verschlüsselt, ohne ZIP-Datei, nur fehlende Dateien. Windows und Android in jeder
   Richtung.
@@ -194,6 +204,41 @@ Gut zu wissen:
 | Lupe / Strg+F | Suche, auch im Noten-Pool |
 | F11 / Esc | Vollbild / zurück zur Übersicht |
 | ⋯ → Ansicht | Ansicht für dieses Stück und diese Stimme (siehe unten) |
+| ⋯ → Halbe Seite umblättern | erst die obere Hälfte der nächsten Seite, dann die ganze |
+| ⋯ → Sprung-Link setzen | Wiederholung, D.S., Coda: antippen springt, „Zurück zu Seite …“ zurück |
+| Stempel-Knopf in der Leiste | Blau, Grün, Textmarker, Text, Stempel |
+| Stimmgabel oben / ⋯ → Stimmgerät | Stimmgerät |
+
+### Halbe Seite umblättern
+
+*Einstellungen → Blättern → „Halbe Seite umblättern“* (oder ⋯ im Notenmodus). Beim Weiterblättern zeigt die obere
+Hälfte schon den Anfang der nächsten Seite, während du unten die aktuelle zu Ende spielst – eine gestrichelte
+Linie trennt beide. Beim nächsten Blättern kommt die ganze Seite. Gilt für Ansichten mit einer Seite (z. B. das
+Tablet im Hochformat) und nur für dieses Gerät. Anmerkungen schreibst du auch dabei auf die richtige Seite.
+
+![Halbe Seite](docs/screenshots/halbe-seite.png)
+
+### Sprung-Links (Wiederholungen, D.S., Coda)
+
+1. Im Notenmodus ⋯ → **„Sprung-Link setzen …“**.
+2. Auf das Sprungzeichen tippen (Wiederholungszeichen, D.S., „To Coda“).
+3. Zum Ziel blättern (wischen, ◀ ▶ oder Pedal) und auf die Zielstelle tippen (Segno, Coda, Anfang der Wiederholung).
+
+An der Sprungstelle erscheint ein Knopf **„↪ S. 1“**. Antippen springt hin, die Zielstelle leuchtet kurz auf, und
+unten links steht **„Zurück zu Seite …“**. Beim normalen Weiterblättern verschwindet er wieder. Mit einem Pedal:
+in *Pedal & Fernbedienung* einer Taste **„Sprung-Link folgen“** zuweisen. Die Links gehören zur Stimme;
+⋯ → „Sprung-Links …“ listet und löscht sie.
+
+![Sprung-Link](docs/screenshots/sprung-link.png)
+
+### Stempel, Text und Textmarker
+
+Der **Stempel-Knopf** in der Leiste (neben Rot und Schwarz) öffnet Farben (Rot, Schwarz, Blau, Grün), den
+**Textmarker**, **Text** und die **Stempel**. Nach der Wahl auf die Noten tippen – mit dem Stift oder, weil
+der Zeichenmodus dabei angeht, mit dem Finger. Ein Stempel bleibt gewählt, bis du Rot oder Schwarz antippst;
+so setzt du schnell mehrere. Radierer und Rückgängig gelten für alles.
+
+![Anmerkungen](docs/screenshots/anmerkungen.png)
 
 ### Ansicht je Stück und Stimme
 
@@ -246,6 +291,39 @@ und bleiben beim Übertragen von einem anderen Gerät erhalten – das Pedal am 
 stören sich nicht.
 
 ![Pedal & Fernbedienung](docs/screenshots/pedal.png)
+
+## Blättern per Gesicht
+
+*Einstellungen → Blättern per Gesicht*. Im Notenmodus beobachtet die Kamera vorne dein Gesicht und blättert bei
+einer Geste:
+
+- **Kopf drehen** – rechts = weiter, links = zurück,
+- **Mund öffnen** – weiter,
+- **Zwinkern** – rechtes Auge = weiter, linkes = zurück (normales Blinzeln mit beiden Augen zählt nicht).
+
+Eine Geste muss kurz gehalten werden und danach wieder in die Ausgangshaltung zurück – ein Blick zur Seite blättert
+nicht. **Empfindlichkeit** stellt ein, wie deutlich die Bewegung sein muss; **„Richtung tauschen“** dreht weiter und
+zurück um. **„Testen …“** zeigt das Kamerabild und die erkannten Werte. Im Notenmodus steht unten rechts
+„Gesicht“ – antippen pausiert.
+
+Die Erkennung (MediaPipe von Google) läuft vollständig auf dem Gerät; es wird kein Bild gespeichert oder gesendet.
+Die Kamera ist nur an, solange die Notenansicht offen ist. Beim ersten Mal fragen Windows bzw. Android nach dem
+Kamerazugriff. Gilt nur für dieses Gerät.
+
+## Stimmgerät
+
+Die **Stimmgabel** oben (oder ⋯ → „Stimmgerät“ im Notenmodus) öffnet das Stimmgerät: Ton spielen – es zeigt den
+Ton (deutsche Namen: B = B♭, H = B), die Oktave, die Abweichung in Cent auf der Nadel und die Frequenz. Nadel und
+Ton in der Akzentfarbe und „Stimmt.“ heißt: auf ± 5 Cent genau; eine rote Nadel zeigt, ob du zu tief oder zu hoch
+bist.
+
+- **Kammerton a¹**: − / + oder 440, 441, 442, 443 Hz – wird gespeichert.
+- **Anzeige für**: C (klingend), B, Es oder F – dann steht da der Ton, wie er in deinen Noten steht (B-Trompete:
+  klingend B = notiert C).
+
+Beim ersten Mal fragen Windows bzw. Android nach dem Mikrofon. Das Stimmgerät ist neu – Rückmeldungen willkommen.
+
+![Stimmgerät](docs/screenshots/stimmgeraet.png)
 
 ## Google Drive (Noten-Pool)
 
