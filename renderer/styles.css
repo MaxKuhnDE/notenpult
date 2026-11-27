@@ -1722,14 +1722,14 @@ button.genre-chip:hover { background: var(--hover); }
 .range { width: min(260px, 100%); accent-color: var(--accent); }
 
 /* ===== Stimmgerät auf dem Blatt (tuner.js startSheetTuner, Knopf in der Stift-Leiste) =====
- * Nur die Cent in Rot, ohne Rahmen. Ziehen verschiebt, die Ecke / zwei Finger / Mausrad ändern die Größe. */
+ * Nur die Cent, ohne Rahmen: grün bis ±10 Cent, rot darüber, grau ohne Ton. Ziehen verschiebt, die Ecke / zwei Finger / Mausrad ändern die Größe. */
 .sheet-tuner {
   position: absolute;
   z-index: 56;
   display: inline-flex;
   align-items: flex-end;
   padding: 0.04em 0.2em 0.08em 0.06em;
-  color: #e0201a;
+  color: #8b8d91;
   font-family: var(--font-display);
   font-weight: 800;
   line-height: 1;
@@ -1742,7 +1742,9 @@ button.genre-chip:hover { background: var(--hover); }
 }
 .sheet-tuner.dragging { cursor: grabbing; }
 .sheet-tuner-value { min-width: 2.3em; text-align: center; }
-.sheet-tuner.idle .sheet-tuner-value { opacity: 0.45; }
+.sheet-tuner.off { color: #e0201a; }
+.sheet-tuner.in-tune { color: #17a03a; }
+.sheet-tuner.idle { color: #8b8d91; }
 .sheet-tuner-grip {
   position: absolute;
   right: 0;

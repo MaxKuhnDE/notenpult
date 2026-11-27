@@ -26,7 +26,7 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Blättern per Gesicht**: Kopf drehen, Mund öffnen oder zwinkern – die Kamera vorne erkennt es, alles bleibt auf
   dem Gerät ([mehr](#blättern-per-gesicht)).
 - **Stimmgerät** mit einstellbarem Kammerton (z. B. 442 Hz, wird gespeichert) und Anzeige für B-, Es- und
-  F-Instrumente – auch klein **auf dem Blatt**: nur „+12¢“ in Rot, verschieb- und vergrößerbar
+  F-Instrumente – auch klein **auf dem Blatt**: nur „+12¢“, grün bis ±10 Cent, sonst rot, verschieb- und vergrößerbar
   ([mehr](#stimmgerät)).
 - **Fußpedal & Fernbedienung**: Bluetooth-Pedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
   Scroll-Ringe („TikTok-Ringe“), Mausrad und MIDI-Pedale blättern – unter Windows und Android. Jede Taste lässt
@@ -331,8 +331,9 @@ Beim ersten Mal fragen Windows bzw. Android nach dem Mikrofon. Das Stimmgerät i
 
 Im Notenmodus sitzt in der Stift-Leiste (neben Farben, Radierer, Rückgängig) eine **Stimmgabel**. Ein Klick schaltet
 das kleine Stimmgerät an, ein zweiter wieder aus. Es erscheint immer **oben links** und zeigt nur die Abweichung –
-**„+12¢“** zu hoch, **„−8¢“** zu tief, „±0¢“ genau – in Rot, ohne Rahmen, direkt über den Noten. Ohne Ton steht
-blass „—¢“.
+**„+12¢“** zu hoch, **„−8¢“** zu tief, „±0¢“ genau – ohne Rahmen, direkt über den Noten. Die Farbe zeigt, ob es
+passt: **grün** von −10 bis +10 Cent (Toleranz), **rot** darüber hinaus, **grau** „—¢“ ohne Ton. (Das große
+Stimmgerät oben bleibt wie es ist.)
 
 - **Verschieben**: anfassen und ziehen. Antippen blättert nicht um.
 - **Größe**: an der kleinen Ecke unten rechts ziehen, mit zwei Fingern auseinander/zusammen oder mit dem Mausrad.

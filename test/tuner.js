@@ -150,19 +150,40 @@
     const barH = $('.v-bar').offsetHeight;
     check('one click: pops up top left, below the bar', toolBtn.classList.contains('active') && st.offsetLeft === 12 && st.offsetTop === barH + 10,
       `${st.offsetLeft},${st.offsetTop} bar ${barH}`);
-    await waitFor(() => /^\+(19|20)¢$/.test(st.textContent), 5000, '445 Hz').catch(() => {});
+    // Text and colour together: on CI (no sound card, no visible screen) the tone arrives late and the
+    // computed colour can trail the class change by a frame.
+    const RED = 'rgb(224, 32, 26)';
+    const GREEN = 'rgb(23, 160, 58)';
+    const GREY = 'rgb(139, 141, 145)';
+    const colour = () => getComputedStyle(st).color;
+    const state = () => `${st.className} · ${st.textContent} · ${colour()}`;
+    await waitFor(() => /^\+(19|20)¢$/.test(st.textContent) && colour() === RED, 10000, '445 Hz').catch(() => {});
     const cs = getComputedStyle(st);
-    check('445 Hz at 440: "+20¢" and nothing else', /^\+(19|20)¢$/.test(st.textContent), st.textContent);
-    check('red, no frame, no background', cs.color === 'rgb(224, 32, 26)' && cs.borderTopStyle === 'none' && cs.backgroundColor === 'rgba(0, 0, 0, 0)'
-      && cs.boxShadow === 'none', `${cs.color} ${cs.borderTopStyle} ${cs.backgroundColor}`);
-    await T.capture('101-stimmgeraet-blatt');
+    check('445 Hz at 440: "+20¢" and nothing else', /^\+(19|20)¢$/.test(st.textContent), state());
+    check('more than 10 cent off: red, no frame, no background', cs.color === RED && cs.borderTopStyle === 'none'
+      && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.boxShadow === 'none', `${state()} ${cs.borderTopStyle} ${cs.backgroundColor}`);
+    await T.capture('102-stimmgeraet-blatt-rot');
     osc2.frequency.value = 432;
-    await waitFor(() => Number(st.dataset.cents) <= -31, 4000, '432 Hz').catch(() => {});
+    await waitFor(() => Number(st.dataset.cents) <= -31, 8000, '432 Hz').catch(() => {});
     check('432 Hz: "−32¢"', /^−3[12]¢$/.test(st.textContent), st.textContent);
     db.settings.tunerA4 = 432;
     store.commit('settings');
-    await waitFor(() => Math.abs(Number(st.dataset.cents)) <= 1, 4000, 'Kammerton 432').catch(() => {});
-    check('Kammerton comes from the tuner: 432 Hz at 432 = ±0¢', Math.abs(Number(st.dataset.cents)) <= 1, st.textContent);
+    await waitFor(() => Math.abs(Number(st.dataset.cents)) <= 1 && colour() === GREEN, 8000, 'Kammerton 432').catch(() => {});
+    check('Kammerton comes from the tuner: 432 Hz at 432 = ±0¢', Math.abs(Number(st.dataset.cents)) <= 1, state());
+    check('… in tune: green', colour() === GREEN, state());
+    await T.capture('101-stimmgeraet-blatt');
+    // the edges of the tolerance: 10 cent is still green, 11 is red (432 Hz · 2^(c/1200))
+    osc2.frequency.value = 432 * 2 ** (10 / 1200);
+    await waitFor(() => Number(st.dataset.cents) === 10 && colour() === GREEN, 8000, '+10').catch(() => {});
+    check('+10¢: still green', Number(st.dataset.cents) === 10 && colour() === GREEN, state());
+    osc2.frequency.value = 432 * 2 ** (-11.5 / 1200);
+    await waitFor(() => Number(st.dataset.cents) <= -11 && colour() === RED, 8000, '-11').catch(() => {});
+    check('−11¢ or more: red', Number(st.dataset.cents) <= -11 && colour() === RED, state());
+    osc2.disconnect(); // real silence
+    await waitFor(() => st.classList.contains('idle') && colour() === GREY, 10000, 'silence').catch(() => {});
+    check('no tone: grey "—¢"', st.textContent === '—¢' && colour() === GREY, state());
+    osc2.connect(dest2);
+    osc2.frequency.value = 432;
 
     // move, resize (corner, mouse wheel, two fingers) – none of it turns the page
     const st2 = $('.sheet-tuner');

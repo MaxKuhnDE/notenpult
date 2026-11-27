@@ -5,6 +5,12 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.1.1] – 2026-11-27
+
+### Geändert
+- **Stimmgerät auf dem Blatt** zeigt mit der Farbe, ob es passt: grün von −10 bis +10 Cent (Toleranz), rot darüber
+  hinaus, grau ohne Ton. Das große Stimmgerät bleibt unverändert.
+
 ## [2.1.0] – 2026-11-27
 
 ### Hinzugefügt

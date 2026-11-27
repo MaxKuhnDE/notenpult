@@ -284,6 +284,8 @@ export function openTuner({ stream = null } = {}) {
 
 // ---------- the tuner on the sheet (viewer toolbar) ----------
 
+/** On the sheet: within ± this many cents counts as in tune (green), beyond it red. */
+export const SHEET_TOLERANCE = 10;
 export const SHEET_SIZE_MIN = 14;
 export const SHEET_SIZE_MAX = 200;
 const clampSize = (v) => Math.max(SHEET_SIZE_MIN, Math.min(SHEET_SIZE_MAX, Math.round(Number(v) || 40)));
@@ -295,7 +297,7 @@ export function centsLabel(cents) {
 }
 
 /**
- * Just the cents in red on the sheet – no frame, no dialog. Drag to move; the corner, two fingers or
+ * Just the cents on the sheet – green within ±SHEET_TOLERANCE, red beyond, grey without a tone; no frame, no dialog. Drag to move; the corner, two fingers or
  * the mouse wheel change the size (remembered per device). Kammerton from the tuner (settings.tunerA4).
  * Appears at (left, top) in `parent`. Returns { el, stop, keepBelow(top), clamp() }.
  */
@@ -404,14 +406,19 @@ export function startSheetTuner({
       shown = shown && shown.midi === nearest
         ? { midi: nearest, cents: shown.cents + (cents - shown.cents) * 0.5 }
         : { midi: nearest, cents };
-      value.textContent = centsLabel(shown.cents);
-      el.dataset.cents = String(Math.round(shown.cents));
+      const c = Math.round(shown.cents);
+      value.textContent = centsLabel(c);
+      el.dataset.cents = String(c);
+      const ok = Math.abs(c) <= SHEET_TOLERANCE; // the colour always matches the number shown
+      el.classList.toggle('in-tune', ok);
+      el.classList.toggle('off', !ok);
       el.classList.remove('idle');
     },
     onSilence: () => {
       shown = null;
       value.textContent = '—¢';
       delete el.dataset.cents;
+      el.classList.remove('in-tune', 'off');
       el.classList.add('idle');
     },
     onError,
