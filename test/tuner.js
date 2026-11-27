@@ -150,7 +150,8 @@
     const barH = $('.v-bar').offsetHeight;
     check('one click: pops up top left, below the bar', toolBtn.classList.contains('active') && st.offsetLeft === 12 && st.offsetTop === barH + 10,
       `${st.offsetLeft},${st.offsetTop} bar ${barH}`);
-    // Text and colour together: on CI (no sound card) the generated tone arrives late and unevenly.
+    // Text and colour together: on CI (no sound card, no visible screen) the tone arrives late and the
+    // computed colour can trail the class change by a frame.
     const RED = 'rgb(224, 32, 26)';
     const GREEN = 'rgb(23, 160, 58)';
     const GREY = 'rgb(139, 141, 145)';
@@ -173,13 +174,13 @@
     await T.capture('101-stimmgeraet-blatt');
     // the edges of the tolerance: 10 cent is still green, 11 is red (432 Hz · 2^(c/1200))
     osc2.frequency.value = 432 * 2 ** (10 / 1200);
-    await waitFor(() => Number(st.dataset.cents) === 10, 8000, '+10').catch(() => {});
+    await waitFor(() => Number(st.dataset.cents) === 10 && colour() === GREEN, 8000, '+10').catch(() => {});
     check('+10¢: still green', Number(st.dataset.cents) === 10 && colour() === GREEN, state());
     osc2.frequency.value = 432 * 2 ** (-11.5 / 1200);
-    await waitFor(() => Number(st.dataset.cents) <= -11, 8000, '-11').catch(() => {});
+    await waitFor(() => Number(st.dataset.cents) <= -11 && colour() === RED, 8000, '-11').catch(() => {});
     check('−11¢ or more: red', Number(st.dataset.cents) <= -11 && colour() === RED, state());
     osc2.disconnect(); // real silence
-    await waitFor(() => st.classList.contains('idle'), 10000, 'silence').catch(() => {});
+    await waitFor(() => st.classList.contains('idle') && colour() === GREY, 10000, 'silence').catch(() => {});
     check('no tone: grey "—¢"', st.textContent === '—¢' && colour() === GREY, state());
     osc2.connect(dest2);
     osc2.frequency.value = 432;
