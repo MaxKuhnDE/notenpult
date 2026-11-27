@@ -23,6 +23,12 @@ export const DEFAULT_SETTINGS = {
   showNextHint: true,
   tensBlocks: true,
   autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
+  uiStyle: 'v2', // 'v2' (Notenpult 2: Graphit/Silber) | 'classic' (bis 1.6: Bernstein)
+  accentColor: null, // eigene Akzentfarbe '#rrggbb' – null: die der Oberfläche (Graphit/Silber bzw. Bernstein)
+  remoteKeys: null, // { next: [key, …], prev, nextPiece, prevPiece, nextPart } – null: Standard (remote.js)
+  volumeKeys: true, // Lautstärke- und Medientasten blättern im Notenmodus (Selfie-Auslöser, Ringe)
+  wheelTurns: true, // Mausrad / Scroll-Ring blättert
+  swipeTurns: true, // nach oben/unten wischen blättert
 };
 
 /**
@@ -35,7 +41,7 @@ export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'
  * Settings that belong to the screen, not to the library: they stay on this device when the
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
-export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets'];
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
 export const DEFAULT_SYNC = {
@@ -109,6 +115,8 @@ const electronBackend = {
   onFullscreenChange: (cb) => native.onFullscreenChange(cb),
   keepAwake: (on) => native.keepAwake(on),
   setTheme: (mode) => native.setTheme(mode),
+  setHardwareCapture: (on) => native.setHardwareCapture(!!on),
+  onHardwareKey: (cb) => native.onHardwareKey(cb),
   exportPreset: () => native.exportPreset(),
   importPreset: () => native.importPreset(),
   lanHostStart: () => native.lanHostStart(),
@@ -128,6 +136,7 @@ const ANDROID_ORIGIN = 'https://notenpult.local';
 const androidPending = new Map();
 const androidUpdateListeners = new Set();
 const androidLanListeners = new Set();
+const androidKeyListeners = new Set();
 let androidSeq = 0;
 let androidApk = null; // { url, digest } from the last update check
 let androidFullscreen = false;
@@ -142,6 +151,8 @@ if (android) {
   };
   window.__npUpdateProgress = (p) => androidUpdateListeners.forEach((fn) => fn(p));
   window.__npLanEvent = (e) => androidLanListeners.forEach((fn) => fn(e));
+  // Volume and media keys taken by MainActivity while setHardwareCapture(true) (remote.js).
+  window.__npHardwareKey = (key) => androidKeyListeners.forEach((fn) => fn(key));
 }
 
 function androidCall(method, ...args) {
@@ -249,6 +260,11 @@ const androidBackend = {
   onFullscreenChange: () => {},
   keepAwake: async (on) => { android.keepAwake(!!on); },
   setTheme: async () => {},
+  setHardwareCapture: async (on) => { android.setHardwareCapture(!!on); },
+  onHardwareKey(cb) {
+    androidKeyListeners.add(cb);
+    return () => androidKeyListeners.delete(cb);
+  },
   exportPreset: () => androidCall('exportPreset'),
   importPreset: () => androidCall('importPreset'),
   // "Im WLAN teilen" – the network part runs in Java (LanHost/LanClient.java).
@@ -358,6 +374,8 @@ const webBackend = {
     } catch { /* not supported */ }
   },
   setTheme: async () => {},
+  setHardwareCapture: async () => {},
+  onHardwareKey: () => () => {},
   exportPreset: async () => ({ ok: false, error: 'Export gibt es nur in der Windows- und Android-App.' }),
   importPreset: async () => ({ ok: false, error: 'Import gibt es nur in der Windows- und Android-App.' }),
 };
@@ -372,8 +390,10 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-let saveQueued = false;
-let saveChain = Promise.resolve();
+const SAVE_DELAY = 40; // ms – quick changes in a row (typing numbers, dragging) become one save
+let saveTimer = null;
+let saving = null; // running save (writes again at the end if something changed meanwhile)
+let saveAgain = false;
 let savingSuspended = false;
 
 /** While a preset import replaces the data folder, nothing old may be written back. */
@@ -385,25 +405,44 @@ export function resumeSaving() {
   savingSuspended = false;
 }
 
+const snapshot = () => ({
+  version: 2,
+  pieces: db.pieces,
+  setlists: db.setlists,
+  genres: db.genres,
+  settings: db.settings,
+  sync: db.sync,
+  ui: db.ui,
+});
+
 function queueSave() {
-  if (saveQueued) return;
-  saveQueued = true;
-  queueMicrotask(() => {
-    saveQueued = false;
-    if (savingSuspended) return;
-    const snapshot = {
-      version: 2,
-      pieces: db.pieces,
-      setlists: db.setlists,
-      genres: db.genres,
-      settings: db.settings,
-      sync: db.sync,
-      ui: db.ui,
-    };
-    saveChain = saveChain
-      .then(() => backend.saveDb(snapshot))
-      .catch((err) => console.error('Speichern fehlgeschlagen', err));
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    runSave();
+  }, SAVE_DELAY);
+}
+
+/** Writes the library; never two writes at once, and at most one more for changes made meanwhile. */
+function runSave() {
+  if (savingSuspended) return Promise.resolve();
+  if (saving) {
+    saveAgain = true;
+    return saving;
+  }
+  saving = (async () => {
+    do {
+      saveAgain = false;
+      try {
+        await backend.saveDb(snapshot());
+      } catch (err) {
+        console.error('Speichern fehlgeschlagen', err);
+      }
+    } while (saveAgain && !savingSuspended);
+  })().finally(() => {
+    saving = null;
   });
+  return saving;
 }
 
 /** Call after every mutation: persists and re-renders subscribers. */
@@ -429,8 +468,12 @@ export async function flushSaves() {
     persistTimer = null;
     queueSave();
   }
-  await new Promise((r) => setTimeout(r, 0)); // let a queued save start
-  await saveChain;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    runSave();
+  }
+  while (saving) await saving;
 }
 
 /** Version 1 stored pages directly on the piece; now every piece has parts (Stimmen). */

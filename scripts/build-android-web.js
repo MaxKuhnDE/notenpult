@@ -71,6 +71,9 @@ async function main() {
     format: 'iife',
     target: TARGET,
     charset: 'utf8',
+    // Less to read for the tablet at every start; names stay readable in error messages.
+    minifyWhitespace: true,
+    minifySyntax: true,
     // render.js resolves pdf.js files relative to its own URL.
     define: { 'import.meta.url': 'document.baseURI' },
     plugins: [shim],
@@ -82,6 +85,7 @@ async function main() {
     bundle: true,
     target: TARGET,
     charset: 'utf8',
+    minify: true,
     logLevel: 'warning',
   });
   fs.copyFileSync(path.join(__dirname, 'android', 'boot.js'), path.join(out, 'boot.js'));

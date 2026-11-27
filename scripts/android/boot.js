@@ -1,6 +1,6 @@
 // First script in the Android WebView. Deliberately old JavaScript (ES5), so it also runs
 // where the app cannot: checks the WebView version, shows errors during start, then loads
-// pdf.js and the app bundle.
+// the app bundle and – alongside, it is only needed for the first PDF – pdf.js.
 (function () {
   'use strict';
 
@@ -68,7 +68,9 @@
     document.head.appendChild(s);
   }
 
+  // The library appears without waiting for pdf.js (scripts/android/pdfjs-shim.js waits for it).
+  load('js/app.js', function () {});
   load('vendor/pdfjs/pdf.min.js', function () {
-    load('js/app.js', function () {});
+    if (window.__npPdfjsLoaded) window.__npPdfjsLoaded();
   });
 })();

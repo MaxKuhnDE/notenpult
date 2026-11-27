@@ -5,6 +5,44 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.0.0] – 2026-11-27
+
+### Hinzugefügt
+- **Fußpedal & Fernbedienung:** Bluetooth-Fußpedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
+  Scroll-Ringe („TikTok-Ringe“) und MIDI-Pedale blättern im Notenmodus – unter Windows und Android.
+  - Standardbelegung: Bild ↓/↑, Pfeiltasten, Leertaste, Enter/Rücktaste, Lauter/Leiser, Nächster/Voriger Titel,
+    Play/Pause und Kamera.
+  - **„Tasten testen & zuweisen“**: zeigt, was ein Gerät sendet, und weist jeder Taste eine Aktion zu – Weiter,
+    Zurück, Nächstes Stück, Voriges Stück, Nächste Stimme (auch MIDI-Noten und -Controller unter Windows).
+  - **Lautstärke- und Medientasten** blättern, solange die Notenansicht offen ist (Windows: auch wenn das System
+    sie sonst selbst nimmt; Android: auch die Tasten am Tablet). Abschaltbar.
+  - **Scroll-Ringe und Maus:** nach oben/unten wischen und das Mausrad blättern (je eine Seite pro Bewegung),
+    beides abschaltbar.
+  - Ein gehaltenes Pedal blättert nur einmal; Selfie-Auslöser, die Enter und „Lauter“ zugleich senden, blättern
+    nur eine Seite.
+  - Belegung und Schalter gelten je Gerät und bleiben beim Übertragen von einem anderen Gerät erhalten.
+- **Notenpult 2 – neue Oberfläche:** ruhiges Graphit mit Silber statt Bernstein, Listen mit feinen Trennlinien
+  statt einzelner Karten, schlichtere Symbole in der A–Z-Liste, weniger Farbakzente. Aufbau und Schrift bleiben.
+  *Einstellungen → Darstellung → Oberfläche* schaltet auf „Klassisch“ zurück.
+- **Eigene Akzentfarbe:** *Einstellungen → Darstellung → Akzentfarbe* – Farbfeld oder Hex-Wert (z. B. `#2f6fd0`).
+  Schrift auf Knöpfen, Hover- und Textfarbe werden daraus so berechnet, dass sie hell wie dunkel lesbar bleiben
+  (Kontrast ≥ 4,5 : 1). „Standard“ ist Graphit (hell) bzw. Silber (dunkel).
+- Tests: `style.js` (Stil, Akzentfarbe, Lesbarkeit), `remote.js` (Pedale, Selfie-Auslöser, Ringe, Mausrad, Tasten lernen), Lautstärketasten in der
+  Android-Prüfung, JUnit `HardwareKeysTest`; `look.js` macht Screenshots aller Ansichten.
+
+### Schneller
+Gemessen mit 600 Stücken, 25 Setlists und 2000 Pool-Dateien (`test/perf.js`, am PC – das Tablet ist mehrfach
+langsamer, profitiert also entsprechend mehr):
+- **Während des Spielens** baut ein Stimmwechsel, Drehen oder Ändern der Ansicht nicht mehr die verdeckte
+  Bibliothek neu auf (vorher 164 ms je Änderung, jetzt 0) – erst beim Schließen der Notenansicht.
+- **A–Z-Liste** erscheint in 26 statt 170 ms: der Rest wird in den nächsten Frames ergänzt, Setlist-Zähler und
+  Pool-Markierung werden einmal statt je Zeile berechnet, Symbole nicht mehr je Zeile neu eingelesen. Suchen pro
+  Tastendruck 5 statt 37 ms.
+- **Speichern:** Schnelle Änderungen hintereinander werden zusammen gespeichert – bei langsamem Speicher 5 statt
+  20 komplette Schreibvorgänge.
+- **Start:** pdf.js (und unter Android sein 1 MB großer Worker) wird erst mit dem ersten PDF geladen, das
+  Android-Bündel ist kleiner (166 statt 228 KB). App bereit unter Android 34 % schneller, unter Windows ~12 %.
+
 ## [1.6.1] – 2026-10-24
 
 ### Geändert

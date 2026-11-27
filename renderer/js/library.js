@@ -47,10 +47,15 @@ export function showGenre(name) {
   search = '';
 }
 
+// A long list is built in steps: the first rows at once, the rest in the following frames, so the
+// library appears without delay on the tablet. Scrolled lists are built completely (position stays).
+const FIRST_ROWS = 100;
+const STEP_ROWS = 150;
+
 export function renderLibrary(container) {
   const prevList = container.querySelector('.lib-list');
   const scrollTop = prevList ? prevList.scrollTop : 0;
-  preserveFocus(container, () => container.replaceChildren(build()));
+  preserveFocus(container, () => container.replaceChildren(build({ full: scrollTop > 0 })));
   const list = container.querySelector('.lib-list');
   if (list) list.scrollTop = scrollTop;
 }
@@ -77,7 +82,7 @@ function emptyState() {
       : onAndroid ? 'Einzelne PDFs oder Bilder gehen auch über „Noten importieren“.' : 'Tipp: Du kannst Dateien auch einfach in dieses Fenster ziehen.'));
 }
 
-function build() {
+function build({ full = false } = {}) {
   if (!db.pieces.length) return h('div.lib', null, emptyState());
 
   const list = h('div.lib-list');
@@ -90,8 +95,8 @@ function build() {
     'data-select-all': 'false',
     oninput: () => {
       search = searchInput.value;
-      update();
       list.scrollTop = 0;
+      update();
     },
   });
 
@@ -107,6 +112,8 @@ function build() {
     btn('Noten importieren', () => importFromPicker(), { icon: 'import', kind: 'primary' }));
 
   let shown = []; // pieces in the list, in display order
+  let finishRows = null; // builds the rows still to come right away (set while some are missing)
+  let firstFull = full; // the list was scrolled before: build it completely once, position stays
 
   const pick = (piece, range) => {
     selecting = true;
@@ -132,7 +139,7 @@ function build() {
     update();
   };
 
-  function fill() {
+  function fill(complete = false) {
     const q = search.trim();
     const hits = q ? new Set(searchPieces(q)) : null;
     const pieces = sortedPieces().filter((p) => (!hits || hits.has(p)) && matchesGenres(p, genreFilter));
@@ -144,6 +151,7 @@ function build() {
       if (!groups.has(L)) groups.set(L, []);
       groups.get(L).push(p);
     }
+    const info = rowInfo();
     const queue = pieces.map((p) => ({ pieceId: p.id, number: '' }));
     const play = (piece) => openViewer({
       queue,
@@ -151,25 +159,25 @@ function build() {
       context: { kind: 'library', name: 'A–Z' },
     });
 
-    const sections = [];
-    for (const L of LETTERS) {
+    const section = (L) => {
       const items = groups.get(L);
-      if (!items) continue;
       const allIn = items.every((p) => selected.has(p.id));
-      sections.push(h('section.letter-group', { dataset: { letter: L } },
+      return h('section.letter-group', { dataset: { letter: L } },
         h('h3.letter-head', null, L, selecting
           ? h('button.letter-pick', { type: 'button', onclick: () => pickAll(items) },
             allIn ? `${L} abwählen` : `Alle mit ${L} (${items.length})`)
           : null),
-        items.map((p) => pieceRow(p, play, pick))));
-    }
+        items.map((p) => pieceRow(p, play, pick, info)));
+    };
+    const letters = LETTERS.filter((L) => groups.has(L));
     const poolHits = q && sync.isLinked() ? searchPool(q, 40) : [];
-    if (!sections.length && !poolHits.length) {
+    const tail = [];
+    if (!letters.length && !poolHits.length) {
       const what = [q && `„${q}“`, genreFilter.size && [...genreFilter].map((g) => `#${g}`).join(' oder ')].filter(Boolean).join(' mit ');
-      sections.push(h('div.no-results', null, `Keine Treffer für ${what}.`));
+      tail.push(h('div.no-results', null, `Keine Treffer für ${what}.`));
     }
     if (poolHits.length) {
-      sections.push(h('section.letter-group.pool-group', null,
+      tail.push(h('section.letter-group.pool-group', null,
         h('h3.letter-head', null, `Im Noten-Pool – noch nicht geladen (${poolHits.length})`),
         poolHits.map((f) => poolRow(f, (id) => {
           toast(`„${pieceById(id)?.title}“ geladen und offline gespeichert`, { kind: 'success' });
@@ -178,7 +186,35 @@ function build() {
     const foot = pieces.length < db.pieces.length
       ? `${pieces.length} von ${db.pieces.length} Stücken angezeigt`
       : `${plural(db.pieces.length, 'Stück', 'Stücke')} in der Bibliothek`;
-    list.replaceChildren(...sections, h('div.list-foot', null, foot));
+    tail.push(h('div.list-foot', null, foot));
+
+    // Letter groups up to `limit` rows (Infinity: all that are left).
+    let next = 0;
+    const take = (limit) => {
+      const out = [];
+      for (let rows = 0; next < letters.length && rows < limit; next++) {
+        out.push(section(letters[next]));
+        rows += groups.get(letters[next]).length;
+      }
+      return next < letters.length ? out : out.concat(tail);
+    };
+    const all = complete || firstFull || list.scrollTop > 0;
+    firstFull = false;
+    list.replaceChildren(...take(all ? Infinity : FIRST_ROWS));
+    finishRows = null;
+    if (next < letters.length) {
+      let timer = null;
+      const more = (limit) => {
+        clearTimeout(timer);
+        if (finishRows !== finish || (!list.isConnected && limit !== Infinity)) return; // replaced meanwhile
+        list.append(...take(limit));
+        if (next < letters.length) timer = setTimeout(() => more(STEP_ROWS), 0);
+        else finishRows = null;
+      };
+      const finish = () => more(Infinity);
+      finishRows = finish;
+      timer = setTimeout(() => more(STEP_ROWS), 0);
+    }
 
     rail.replaceChildren(...LETTERS.map((L) => h(`button.rail-letter${groups.has(L) ? '' : '.off'}`, {
       type: 'button', tabindex: '-1', dataset: { letter: L },
@@ -189,6 +225,7 @@ function build() {
   const jump = (x, y) => {
     const el = document.elementFromPoint(x, y)?.closest?.('.rail-letter');
     if (!el) return;
+    finishRows?.(); // the letter may not be built yet
     let idx = LETTERS.indexOf(el.dataset.letter);
     // Jump to the nearest letter that exists (forward first).
     let target = null;
@@ -272,12 +309,23 @@ async function deleteSelected(ids) {
   toast(`${plural(count, 'Stück', 'Stücke')} gelöscht`, { kind: 'success' });
 }
 
-function pieceRow(piece, play, pick) {
-  const inSets = setlistsContaining(piece.id).length;
+/** What every row shows about setlists and the pool, counted once for the whole list. */
+function rowInfo() {
+  const sets = new Map();
+  for (const s of db.setlists) {
+    for (const id of new Set(s.entries.map((e) => e.pieceId))) sets.set(id, (sets.get(id) || 0) + 1);
+  }
+  const pool = new Set();
+  for (const t of Object.values(db.sync.files)) if (!t.ignored) pool.add(t.pieceId);
+  return { sets, pool };
+}
+
+function pieceRow(piece, play, pick, info) {
+  const inSets = info.sets.get(piece.id) || 0;
   const meta = [plural(pagesOf(piece).length, 'Seite', 'Seiten')];
   if (piece.parts.length > 1) meta.push(plural(piece.parts.length, 'Stimme', 'Stimmen'));
   if (inSets) meta.push(`in ${plural(inSets, 'Setlist', 'Setlists')}`);
-  if (Object.values(db.sync.files).some((t) => t.pieceId === piece.id && !t.ignored)) meta.push('Noten-Pool');
+  if (info.pool.has(piece.id)) meta.push('Noten-Pool');
   const isSel = selected.has(piece.id);
   const kind = piece.parts.length > 1 ? 'layers' : pagesOf(piece).length > 1 ? 'pages' : 'single';
   return h(`div.piece-row${isSel ? '.selected' : ''}`, { dataset: { id: piece.id } },

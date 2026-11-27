@@ -46,6 +46,8 @@
   try {
     await waitFor(() => (window.__np && document.body.classList.contains('ready')) || $('#boot-panel'), 15000, 'app');
     check('app starts without error panel', !$('#boot-panel'), $('#boot-panel') ? $('#boot-panel').textContent : '');
+    const ready = performance.getEntriesByName('notenpult-ready')[0];
+    console.log(`PERF android-ready ${ready ? Math.round(ready.startTime) : -1}`);
     const { store } = window.__np;
     const { db } = store;
     check('Android backend in use', store.backend.kind === 'android');
@@ -110,6 +112,19 @@
       await waitFor(() => $('.v-title').textContent.includes('Böhmischer Traum'), 8000, 'next piece').catch(() => {});
       await pagesReady();
       check('tap turns to the next piece', $('.v-title').textContent.includes('Böhmischer Traum'), $('.v-title').textContent);
+
+      // ---------- remotes: volume keys from MainActivity (selfie shutter, scroll ring) ----------
+      check('viewer takes the volume keys from Android', window.__npHwCapture === true);
+      await sleep(200);
+      window.__npHardwareKey('AudioVolumeDown');
+      await waitFor(() => $('.v-title').textContent.includes('Florentiner'), 5000, 'volume down').catch(() => {});
+      check('"Leiser" turns back', $('.v-title').textContent.includes('Florentiner Marsch'), $('.v-title').textContent);
+      await pagesReady();
+      await sleep(200);
+      window.__npHardwareKey('AudioVolumeUp');
+      await waitFor(() => $('.v-title').textContent.includes('Böhmischer Traum'), 5000, 'volume up').catch(() => {});
+      check('"Lauter" turns the page', $('.v-title').textContent.includes('Böhmischer Traum'), $('.v-title').textContent);
+      await pagesReady();
       $('.v-fs').click();
       await sleep(100);
       check('fullscreen button switches to immersive mode', window.__npFullscreen === true);
@@ -130,6 +145,7 @@
 
       // ---------- back button ----------
       check('back button closes the viewer', window.__npBack() === true && !$('.viewer'));
+      check('volume keys belong to Android again', window.__npHwCapture === false);
       await sleep(1500); // debounced annotation save happens on close as well
       const saved = JSON.parse(window.NotenpultAndroid.loadAnnotations(bt.id) || '{"pages":{}}');
       check('annotation saved through the bridge', Object.values(saved.pages).some((list) => list.length === 1));
@@ -168,7 +184,8 @@
       const ownFiles = Object.keys(JSON.parse(window.NotenpultAndroid.lanLocalFiles())).length;
       check('the laptop gets all pieces and sheet files unchanged', pulled.pieces === 3 && pulled.files === ownFiles && pulled.same
         && pulled.hostName === 'Test-Tablet', JSON.stringify(pulled));
-      await waitFor(() => /Fertig: „Laptop eines Freundes“ hat die Noten geholt/.test($('.lan-status').textContent), 5000, 'done').catch(() => {});
+      await waitFor(() => /Fertig: „Laptop eines Freundes“ hat die Noten geholt/.test($('.lan-status').textContent) && $('.lan-code').textContent !== code,
+        5000, 'done').catch(() => {});
       check('tablet shows the finished transfer and a new code', /Fertig: „Laptop eines Freundes“/.test($('.lan-status').textContent)
         && $('.lan-code').textContent !== code, $('.lan-status').textContent);
       await shot('android-05-wlan-teilen');

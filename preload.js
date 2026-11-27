@@ -59,11 +59,19 @@ contextBridge.exposeInMainWorld('notenpult', {
   onFullscreenChange: (cb) => ipcRenderer.on('win:fullscreen', (_e, on) => cb(on)),
   keepAwake: (on) => ipcRenderer.invoke('power:keepAwake', on),
   setTheme: (mode) => ipcRenderer.invoke('theme:set', mode),
+  setHardwareCapture: (on) => ipcRenderer.invoke('hw:capture', on),
+  onHardwareKey: (cb) => {
+    const listener = (_e, key) => cb(key);
+    ipcRenderer.on('hw:key', listener);
+    return () => ipcRenderer.removeListener('hw:key', listener);
+  },
 
   test: {
     capture: (name) => ipcRenderer.invoke('test:capture', name),
     resize: (w, h) => ipcRenderer.invoke('test:resize', w, h),
     copyFile: (src, dst) => ipcRenderer.invoke('test:copyFile', src, dst),
     done: () => ipcRenderer.invoke('test:done'),
+    hwKey: (key) => ipcRenderer.invoke('test:hwKey', key),
+    hwCapture: () => ipcRenderer.invoke('test:hwCapture'),
   },
 });

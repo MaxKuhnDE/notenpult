@@ -20,7 +20,7 @@ import {
 import { announceImport } from './presets.js';
 import { announceReceived } from './lan.js';
 import {
-  openViewer, closeViewer, isViewerOpen, next, prev,
+  openViewer, closeViewer, isViewerOpen, onViewerClosed, next, prev,
 } from './viewer.js';
 
 const appEl = document.getElementById('app');
@@ -178,11 +178,24 @@ async function start() {
   setCropListener(persist);
   buildShell();
   render();
+  // Behind the sheets the library stays as it is (a part switch or rotation must not rebuild
+  // hundreds of rows on the tablet); it is brought up to date once the viewer closes.
+  let stale = false;
+  const renderVisible = () => {
+    if (isViewerOpen()) stale = true;
+    else render();
+  };
+  onViewerClosed(() => {
+    if (stale) {
+      stale = false;
+      render();
+    }
+  });
   subscribe((what) => {
     if (what === 'settings') applyTheme();
-    render();
+    renderVisible();
   });
-  onThemeChange(() => render());
+  onThemeChange(renderVisible);
   sync.onSyncChange(updateCloud);
   setupDragAndDrop();
   setupShortcuts();
@@ -190,7 +203,10 @@ async function start() {
     if (!e.target.closest('input, textarea')) e.preventDefault();
   });
   // Pending annotation saves are debounced; write them out when the window closes.
-  window.addEventListener('beforeunload', () => { ink.flushAll(); });
+  window.addEventListener('beforeunload', () => {
+    ink.flushAll();
+    store.flushSaves();
+  });
   // Android may end the app any time it is in the background (MainActivity calls this in onPause).
   window.__npFlush = () => {
     ink.flushAll();
@@ -228,6 +244,7 @@ async function start() {
     store, sync, processRecords, openViewer, closeViewer, next, prev,
   };
   document.body.classList.add('ready');
+  performance.mark('notenpult-ready'); // start time (test/perf.js)
 }
 
 start().catch((err) => {

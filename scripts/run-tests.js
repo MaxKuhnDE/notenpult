@@ -19,7 +19,7 @@ const electron = require('electron');
 const root = path.join(__dirname, '..');
 const suites = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'layout.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js',
+  : ['smoke.js', 'smoke2.js', 'smoke3.js', 'select.js', 'layout.js', 'remote.js', 'style.js', 'perf.js', 'migrate.js', 'update.js', 'apply-update.node.js', 'preset.js',
     'lan.node.js', 'lan.js', 'android.js'];
 const TIMEOUT_MS = 240000;
 
