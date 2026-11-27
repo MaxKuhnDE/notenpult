@@ -141,11 +141,13 @@
       await sleep(100);
       return realSave(obj);
     };
+    const t0 = performance.now();
     for (let i = 0; i < 20; i++) {
       db.setlists[0].entries[0].number = String(100 + i);
       store.commit('data');
       await sleep(15);
     }
+    const elapsed = performance.now() - t0;
     await store.flushSaves();
     await sleep(300);
     store.backend.saveDb = realSave;
@@ -160,7 +162,11 @@
     check('changes while playing cost (almost) nothing', inViewer < 20, `${inViewer.toFixed(1)} ms`);
     check('page turn', turn < 1500, `${turn.toFixed(0)} ms`);
     const saved = await store.backend.loadDb();
-    check('quick changes are saved together, not one by one', saves <= 5, `${saves} saves`);
+    // Each save takes 100 ms here: one save per 100 ms of changes (plus the last) is the most there may be –
+    // independent of how fast the machine is. Before, every change queued its own save.
+    const maxSaves = Math.ceil(elapsed / 100) + 2;
+    check('quick changes are saved together, not one by one', saves <= maxSaves && saves < 20,
+      `${saves} saves for 20 changes in ${Math.round(elapsed)} ms, at most ${maxSaves}`);
     check('… and the last change is in the file', (typeof saved === 'string' ? JSON.parse(saved) : saved).setlists[0].entries[0].number === '119');
   } catch (err) {
     console.error('SMOKE FAIL', err && err.stack ? err.stack : err);
