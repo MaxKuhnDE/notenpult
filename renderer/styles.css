@@ -669,6 +669,7 @@ body.viewer-open #app { visibility: hidden; }
 .setting-hint.block { padding: 8px 0 2px; }
 .toggle-row { cursor: pointer; flex-wrap: nowrap; }
 .setting.stacked { flex-direction: column; align-items: stretch; gap: 8px; }
+.setting.stacked .setting-text { flex: 0 0 auto; } /* the 240px basis is a width in a row, not a height */
 .segmented.wrap { display: flex; flex-wrap: wrap; }
 .segmented.wrap .seg { flex: 1 1 auto; justify-content: center; }
 .switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
@@ -892,6 +893,12 @@ body.viewer-open #app { visibility: hidden; }
 .stage.scroll { display: block; overflow-y: auto; overflow-x: hidden; }
 .spread { display: flex; align-items: center; justify-content: center; gap: 14px; }
 .spread.column { flex-direction: column; }
+/* Half-page turn: both pages full size on top of each other, the next one shows its top half */
+.spread.half { display: grid; place-items: center; }
+.spread.half > * { grid-area: 1 / 1; }
+.spread.half > .page:nth-child(1) { clip-path: inset(0 0 50% 0); }
+.spread.half > .page:nth-child(2) { clip-path: inset(50% 0 0 0); }
+.half-line { align-self: center; justify-self: stretch; height: 0; border-top: 2px dashed var(--accent); z-index: 2; pointer-events: none; }
 .stage.scroll .spread { flex-direction: column; padding: 10px; }
 .page { position: relative; flex-shrink: 0; background: #fff; box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2); }
 .page canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -1399,111 +1406,120 @@ button.genre-chip:hover { background: var(--hover); }
 .key-remove:hover { background: var(--hover); color: var(--text); }
 .key-remove .ic { width: 14px; height: 14px; }
 
-/* ===== Notenpult 2 (settings.uiStyle 'v2', the default): graphite and silver, fewer boxes =====
- * Same layout and font as before; one quiet accent – polished silver on dark, graphite on light –
- * plain lists with hairlines instead of a card per row, smaller radii, no gradients or glow. */
+/* ===== Notenpult 2 (settings.uiStyle 'v2', the default): graphite with brass =====
+ * Same layout and font as before. Neutral graphite surfaces, one warm accent – brass like the
+ * lacquer of the instruments (settings.accentColor replaces it) – on the things that matter:
+ * buttons, letters, tags, the active setlist. Pieces and entries are tiles with a clear edge. */
 :root[data-style="v2"] {
-  --bg: #f2f3f4;
+  --bg: #f1f1ef;
   --surface: #ffffff;
-  --surface-2: #f6f7f8;
-  --hover: rgba(20, 24, 30, 0.05);
-  --border: #e1e3e6;
-  --border-strong: #c8ccd1;
-  --text: #1a1c1f;
-  --muted: #676c74;
-  --accent: #3f454e;
-  --accent-hover: #2d3238;
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(63, 69, 78, 0.09);
-  --accent-text: #2d3238;
-  --viewer-bg: #e3e5e8;
-  --shadow: 0 8px 28px rgba(15, 20, 30, 0.12), 0 1px 3px rgba(15, 20, 30, 0.06);
-  --radius: 8px;
+  --surface-2: #f6f6f4;
+  --hover: rgba(30, 26, 15, 0.05);
+  --border: #dedcd6;
+  --border-strong: #c5c2b9;
+  --text: #1b1b19;
+  --muted: #68665f;
+  --accent: #c9a046;
+  --accent-hover: #b88d33;
+  --accent-fg: #1c1606;
+  --accent-soft: rgba(201, 160, 70, 0.16);
+  --accent-text: #7d5d12;
+  --accent-metal: linear-gradient(165deg, #f8e8ab 0%, #e6c672 18%, #cc9d40 45%, #a9792b 68%, #dcb65e 86%, #b98832 100%);
+  --metal-edge: inset 0 1px 0 rgba(255, 250, 228, 0.65), inset 0 -1px 0 rgba(84, 54, 8, 0.38), 0 1px 2px rgba(60, 40, 5, 0.22);
+  --viewer-bg: #e3e2de;
+  --shadow: 0 8px 28px rgba(25, 20, 10, 0.13), 0 1px 3px rgba(25, 20, 10, 0.07);
+  --radius: 10px;
 }
 :root[data-style="v2"][data-theme="dark"] {
   --bg: #131416;
-  --surface: #1b1c1f;
-  --surface-2: #222327;
-  --hover: rgba(255, 255, 255, 0.05);
-  --border: #2b2d31;
-  --border-strong: #3b3e43;
-  --text: #e7e8ea;
-  --muted: #9a9ea5;
-  --accent: #c9ced5;
-  --accent-hover: #dde0e5;
-  --accent-fg: #131416;
-  --accent-soft: rgba(201, 206, 213, 0.12);
-  --accent-text: #d6d9de;
+  --surface: #1c1d20;
+  --surface-2: #232428;
+  --hover: rgba(255, 255, 255, 0.055);
+  --border: #2e3034;
+  --border-strong: #41444a;
+  --text: #ecebe8;
+  --muted: #a09d96;
+  --accent: #d9b45c;
+  --accent-hover: #e6c574;
+  --accent-fg: #1a1405;
+  --accent-soft: rgba(217, 180, 92, 0.15);
+  --accent-text: #e2c06e;
+  --accent-metal: linear-gradient(165deg, #f8e8ab 0%, #e6c672 18%, #cc9d40 45%, #a9792b 68%, #dcb65e 86%, #b98832 100%);
+  --metal-edge: inset 0 1px 0 rgba(255, 250, 228, 0.6), inset 0 -1px 0 rgba(60, 38, 4, 0.5), 0 1px 3px rgba(0, 0, 0, 0.45);
   --viewer-bg: #0d0d0e;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-[data-style="v2"] .brand-mark { width: 30px; height: 30px; border-radius: 7px; background: var(--text); color: var(--bg); }
-[data-style="v2"] .brand-mark .ic { width: 18px; height: 18px; }
+[data-style="v2"] .brand-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-metal); color: var(--accent-fg); box-shadow: var(--metal-edge); }
+
+/* Everything filled with the accent looks like polished instrument metal (--accent-metal, theme.js
+ * metalSheen for an own colour): a light edge, the colour, a darker bend, a second reflection. */
+[data-style="v2"] .btn.primary,
+[data-style="v2"] .lib .piece-row.selected .piece-select,
+[data-style="v2"] .genre-chip.active,
+[data-style="v2"] .v-nr,
+[data-style="v2"] .link-mark,
+[data-style="v2"] .face-action,
+[data-style="v2"] .tuner-needle.in-tune {
+  background: var(--accent-metal);
+  box-shadow: var(--metal-edge);
+}
+[data-style="v2"] .btn.primary { border-color: transparent; text-shadow: 0 1px 0 rgba(255, 244, 210, 0.35); }
+[data-style="v2"] .btn.primary:hover { background: var(--accent-metal); border-color: transparent; filter: brightness(1.07) saturate(1.05); }
+[data-style="v2"] .genre-chip.active { border-color: transparent; }
+[data-style="v2"] .link-mark { box-shadow: var(--metal-edge), 0 2px 8px rgba(0, 0, 0, 0.35); }
+[data-style="v2"] .switch input:checked + .switch-track { background: var(--accent-metal); box-shadow: inset 0 1px 0 rgba(255, 250, 228, 0.5), inset 0 -1px 0 rgba(60, 38, 4, 0.35); }
+[data-style="v2"] .brand-mark .ic { width: 19px; height: 19px; }
 [data-style="v2"] .btn { height: 40px; border-radius: 8px; }
 [data-style="v2"] .btn:active { transform: none; }
 [data-style="v2"] .icon-btn { border-radius: 8px; }
-[data-style="v2"] .icon-btn.active { background: var(--hover); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
 [data-style="v2"] .segmented { border-radius: 9px; }
 [data-style="v2"] .seg { border-radius: 6px; }
 [data-style="v2"] .text-input,
 [data-style="v2"] .nr-input { border-radius: 6px; }
-[data-style="v2"] .search { border-radius: 8px; border-color: var(--border); background: var(--surface-2); }
-[data-style="v2"] .text-input:focus,
-[data-style="v2"] .nr-input:focus,
-[data-style="v2"] .search:focus-within { border-color: var(--muted); box-shadow: none; }
-[data-style="v2"] :focus-visible { outline-color: var(--muted); }
+[data-style="v2"] .search { border-radius: 8px; }
 
-/* A–Z: one list, hairlines between pieces; letters and tags in grey */
-[data-style="v2"] .letter-head { color: var(--muted); font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); padding-bottom: 7px; }
-[data-style="v2"] .piece-row { margin: 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
-[data-style="v2"] .piece-main { min-height: 56px; }
-[data-style="v2"] .piece-main:active { background: var(--hover); }
-[data-style="v2"] .piece-icon { width: 32px; height: 32px; border-radius: 6px; background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
-[data-style="v2"] .piece-row.selected { background: var(--accent-soft); border-color: var(--border); }
-[data-style="v2"] .lib .piece-row.selected .piece-select { box-shadow: none; }
-[data-style="v2"] .letter-pick { border-radius: 6px; color: var(--muted); background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
-[data-style="v2"] .rail-letter { color: var(--text); font-weight: 600; }
-[data-style="v2"] .rail-letter:hover { background: var(--hover); }
-[data-style="v2"] .rail-letter.off { opacity: 0.28; }
-[data-style="v2"] .genre-chip.small { height: auto; padding: 0; background: transparent; color: var(--muted); font-weight: 600; }
-[data-style="v2"] .genre-hash { color: var(--muted); font-weight: 700; }
+/* A–Z: tiles with a clear edge, letters and tags in the accent */
+[data-style="v2"] .letter-head { color: var(--accent-text); font-size: 13.5px; font-weight: 800; letter-spacing: 0.06em; }
+[data-style="v2"] .piece-row { margin-bottom: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+[data-style="v2"] .piece-row:hover { border-color: var(--border-strong); }
+[data-style="v2"] .piece-main { min-height: 58px; }
+[data-style="v2"] .piece-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); }
+[data-style="v2"] .piece-row.selected { border-color: var(--accent); background: var(--accent-soft); }
+[data-style="v2"] .letter-pick { border-radius: 6px; box-shadow: inset 0 0 0 1px var(--accent); background: transparent; }
+[data-style="v2"] .rail-letter { font-weight: 700; }
+[data-style="v2"] .rail-letter.off { opacity: 0.3; }
+[data-style="v2"] .genre-chip.small {
+  height: 21px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+[data-style="v2"] .genre-chip.small .genre-hash { color: inherit; opacity: 0.75; }
 [data-style="v2"] .genre-chip.active .genre-hash { color: inherit; }
-[data-style="v2"] .genre-chip.active .genre-count { background: rgba(127, 127, 127, 0.22); }
-[data-style="v2"] .search-tags { color: var(--muted); }
-[data-style="v2"] .empty-icon { width: 64px; height: 64px; border-radius: 14px; background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+[data-style="v2"] .genre-chip.active .genre-count { background: rgba(0, 0, 0, 0.14); }
 
-/* Setlists: the same quiet list */
-[data-style="v2"] .sl-item { border-radius: 6px; }
-[data-style="v2"] .sl-item.active { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); }
-[data-style="v2"] .sl-item.active .sl-item-name { color: var(--text); }
-[data-style="v2"] .entries { gap: 0; }
-[data-style="v2"] .entry { min-height: 56px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
-[data-style="v2"] .entry.dragging { border-radius: 8px; background: var(--surface); }
-[data-style="v2"] .block-divider { color: var(--muted); font-weight: 700; padding: 18px 4px 6px; border-bottom: 1px solid var(--border); }
-[data-style="v2"] .block-divider::after { display: none; }
-[data-style="v2"] .jump-nr { color: var(--text); }
+/* Setlists: tiles like A–Z */
+[data-style="v2"] .sl-item { border-radius: 8px; }
+[data-style="v2"] .sl-item.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+[data-style="v2"] .entry { border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+[data-style="v2"] .entry:hover { border-color: var(--border-strong); }
+[data-style="v2"] .block-divider { font-weight: 800; }
 
 /* Dialogs, menus, settings */
 [data-style="v2"] .modal { border-radius: 12px; }
 [data-style="v2"] .menu { border-radius: 10px; }
 [data-style="v2"] .menu-item { border-radius: 6px; }
-[data-style="v2"] .menu-check,
-[data-style="v2"] .menu-check .ic { color: var(--text); }
-[data-style="v2"] .settings-section { color: var(--muted); font-weight: 700; letter-spacing: 0.08em; }
-[data-style="v2"] .switch-track { border-radius: 14px; }
 [data-style="v2"] .switch input:checked + .switch-track::after { background: var(--accent-fg); }
-[data-style="v2"] .toast { background: #26282c; border-radius: 8px; }
-[data-style="v2"] .toast.success { border-left-color: #9aa1aa; }
-[data-style="v2"] .choice.active .choice-dot { border-color: var(--accent); }
-[data-style="v2"] .pick-badge { color: var(--muted); background: var(--hover); }
-[data-style="v2"] .lan-code { color: var(--text); }
-[data-style="v2"] .update-msg.ok { color: var(--text); }
+[data-style="v2"] .toast { background: #26272b; border-radius: 8px; }
+[data-style="v2"] .toast.success { border-left-color: var(--accent); }
 
 /* Viewer */
-[data-style="v2"] .v-part { border-color: var(--border-strong); background: transparent; color: var(--text); }
-[data-style="v2"] .v-part:hover { background: var(--hover); }
-[data-style="v2"] .v-sub-next { color: var(--text); }
+[data-style="v2"] .v-part:hover { background: var(--accent-soft); }
 
 /* Akzentfarbe (settings.js accentRow) */
 .accent-control { display: flex; align-items: center; gap: 8px; }
@@ -1520,3 +1536,226 @@ button.genre-chip:hover { background: var(--hover); }
 .accent-picker::-webkit-color-swatch { border: 0; border-radius: 5px; }
 .hex-input { width: 112px; height: 40px; font-family: Consolas, "Cascadia Mono", monospace; text-transform: lowercase; }
 .hex-input.invalid { border-color: var(--danger); color: var(--danger); }
+.accent-control { flex-wrap: wrap; }
+.accent-presets { display: flex; gap: 6px; margin-right: 6px; }
+.accent-preset {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border-strong);
+  cursor: pointer;
+}
+.accent-preset:hover { box-shadow: 0 0 0 2px var(--text); }
+
+/* ===== Notenmodus 2.1: Sprung-Links, Werkzeuge ===== */
+.dot.blue { background: #1d5fc7; }
+.dot.green { background: #1e8a3c; }
+.link-mark {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 8px 0 5px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+.link-mark .ic { width: 16px; height: 16px; }
+.viewer.invert .link-mark { filter: invert(0.92) hue-rotate(180deg); } /* stays upright when the page is inverted */
+.link-pulse {
+  position: absolute;
+  z-index: 3;
+  width: 64px;
+  height: 64px;
+  border: 4px solid var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: link-pulse 1.5s ease-out forwards;
+}
+@keyframes link-pulse {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+  70% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
+}
+.link-banner {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 24px);
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  transform: translateX(-50%);
+}
+.link-return {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.link-list { display: flex; flex-direction: column; gap: 4px; }
+.link-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.link-row span { flex: 1; font-weight: 600; }
+.menu.panel { padding: 8px 10px 10px; }
+.tool-panel { display: flex; flex-direction: column; gap: 6px; width: 300px; }
+.tool-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.tool-swatch, .tool-wide, .stamp-btn {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.tool-swatch { width: 44px; height: 40px; }
+.tool-swatch .dot { width: 20px; height: 20px; }
+.tool-wide { display: inline-flex; gap: 8px; height: 40px; padding: 0 12px; font-weight: 600; }
+.tool-wide .ic { width: 18px; height: 18px; }
+.stamp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.stamp-btn { height: 48px; background: #fff; }
+.stamp-preview { width: 40px; height: 40px; }
+.tool-swatch.active, .tool-wide.active, .stamp-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.more-tool .dot { width: 18px; height: 18px; }
+
+/* ===== Stimmgerät (tuner.js) ===== */
+.tuner-modal { width: min(520px, 100%); }
+.tuner { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.tuner-note { text-align: center; font-size: 84px; font-weight: 800; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.tuner-note.in-tune { color: var(--accent-text); }
+.tuner-octave { font-size: 30px; font-weight: 700; color: var(--muted); margin-left: 4px; }
+.tuner-hz { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+.tuner-meter { position: relative; height: 56px; margin: 8px 12px 4px; border-bottom: 2px solid var(--border-strong); }
+.tuner-zone { position: absolute; left: 45%; width: 10%; top: 0; bottom: 0; background: var(--accent-soft); border-radius: 4px; }
+.tuner-tick { position: absolute; bottom: -22px; transform: translateX(-50%); font-size: 11.5px; color: var(--muted); }
+.tuner-tick::before { content: ""; position: absolute; left: 50%; bottom: 20px; width: 1px; height: 10px; background: var(--border-strong); }
+.tuner-needle { position: absolute; left: 50%; top: 2px; bottom: -2px; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--danger); transition: left 0.08s linear; }
+.tuner-needle.in-tune { background: var(--accent); }
+.tuner-status { text-align: center; font-weight: 700; margin-top: 20px; min-height: 1.4em; }
+.tuner-status.error { color: var(--danger); }
+.tuner-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.tuner-label { font-weight: 600; min-width: 110px; }
+.tuner-a4 { display: inline-flex; align-items: center; gap: 6px; }
+.tuner-a4 .btn { width: 42px; padding: 0; font-size: 20px; }
+.tuner-a4-value { min-width: 70px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tuner-quick { display: inline-flex; gap: 2px; }
+.tuner-quick .btn { height: 34px; padding: 0 9px; }
+
+/* ===== Blättern per Gesicht (face.js) ===== */
+.face-pill {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.face-pill .ic { width: 18px; height: 18px; }
+.face-pill.loading { opacity: 0.55; }
+.face-pill.paused { border-color: var(--border-strong); color: var(--muted); }
+.face-pill.error { border-color: var(--danger); color: var(--danger); }
+.face-modal { width: min(520px, 100%); }
+.face-preview { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: #000; }
+.face-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.face-action {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 22px;
+  font-weight: 800;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.face-action.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.face-status { margin-top: 10px; font-weight: 700; }
+.face-status.error { color: var(--danger); }
+.face-values { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.range { width: min(260px, 100%); accent-color: var(--accent); }
+
+/* ===== Stimmgerät auf dem Blatt (tuner.js startSheetTuner, Knopf in der Stift-Leiste) =====
+ * Nur die Cent in Rot, ohne Rahmen. Ziehen verschiebt, die Ecke / zwei Finger / Mausrad ändern die Größe. */
+.sheet-tuner {
+  position: absolute;
+  z-index: 56;
+  display: inline-flex;
+  align-items: flex-end;
+  padding: 0.04em 0.2em 0.08em 0.06em;
+  color: #e0201a;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.sheet-tuner.dragging { cursor: grabbing; }
+.sheet-tuner-value { min-width: 2.3em; text-align: center; }
+.sheet-tuner.idle .sheet-tuner-value { opacity: 0.45; }
+.sheet-tuner-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border-right: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  border-bottom-right-radius: 3px;
+  opacity: 0.35;
+  cursor: nwse-resize;
+}
+.sheet-tuner-grip::before { content: ""; position: absolute; inset: -12px; } /* easier to hit with a finger */
+.sheet-tuner:hover .sheet-tuner-grip,
+.sheet-tuner.dragging .sheet-tuner-grip { opacity: 0.8; }
+.tuner-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }

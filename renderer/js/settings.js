@@ -7,7 +7,10 @@ import { updateSection } from './updates.js';
 import { presetsAvailable, exportAll, importAll } from './presets.js';
 import { lanAvailable, openShare, openReceive } from './lan.js';
 import { openRemoteDialog } from './remote.js';
-import { applyTheme, validHex, defaultAccent } from './theme.js';
+import {
+  applyTheme, validHex, defaultAccent, metalSheen, BRASS_METAL,
+} from './theme.js';
+import { GESTURES, openFaceTest } from './face.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -62,7 +65,16 @@ function layoutRow(label, key) {
   return h('div.setting.stacked', null, h('div.setting-label', null, label), control);
 }
 
-/** Own accent colour: colour field plus hex input; "Standard" goes back to graphite/silver. */
+/** Own accent colour: quick colours, colour field and hex input; "Standard" goes back to brass. */
+const ACCENT_PRESETS = [
+  [null, 'Messing (Standard)'],
+  ['#b8bec7', 'Silber'],
+  ['#c27a4a', 'Kupfer'],
+  ['#2f6fd0', 'Blau'],
+  ['#2e8b57', 'Grün'],
+  ['#9b2c43', 'Bordeaux'],
+];
+
 function accentRow() {
   const picker = h('input.accent-picker', { type: 'color', 'aria-label': 'Akzentfarbe wählen' });
   const hex = h('input.text-input.hex-input', {
@@ -102,9 +114,27 @@ function accentRow() {
     else if (!hex.value.trim()) set(null);
     else hex.classList.add('invalid');
   });
+  const presets = h('div.accent-presets', null, ACCENT_PRESETS.map(([value, label]) => h('button.accent-preset', {
+    type: 'button', title: label, 'aria-label': label, style: { background: value ? metalSheen(value) : BRASS_METAL }, onclick: () => set(value),
+  })));
   show();
-  return row('Akzentfarbe', h('div.accent-control', null, picker, hex, reset),
-    'Farbe für Knöpfe, Schalter und Auswahl – im Farbfeld wählen oder als Hex-Wert (z. B. #2f6fd0) eintippen. Standard: Graphit (hell) bzw. Silber (dunkel).');
+  return h('div.setting.stacked', null,
+    h('div.setting-text', null, h('div.setting-label', null, 'Akzentfarbe'),
+      h('div.setting-hint', null, 'Farbe für Knöpfe, Schalter, Buchstaben und Genres – antippen, im Farbfeld wählen oder als Hex-Wert '
+        + '(z. B. #2f6fd0) eintippen. Standard: Messing.')),
+    h('div.accent-control', null, presets, picker, hex, reset));
+}
+
+/** 0 … 1 slider bound to a setting. */
+function sliderRow(key, label, hint) {
+  const input = h('input.range', {
+    type: 'range', min: '0', max: '1', step: '0.1', value: String(db.settings[key] ?? 0.5), 'aria-label': label,
+  });
+  input.addEventListener('change', () => {
+    db.settings[key] = Number(input.value);
+    commit('settings');
+  });
+  return row(label, input, hint);
 }
 
 function row(label, control, hint) {
@@ -176,7 +206,7 @@ export function openSettings() {
     h('h3.settings-section', null, 'Darstellung'),
     row('Design', segmented('theme', [['system', 'System'], ['light', 'Hell', 'sun'], ['dark', 'Dunkel', 'moon']])),
     row('Oberfläche', segmented('uiStyle', [['v2', 'Notenpult 2'], ['classic', 'Klassisch']]),
-      'Notenpult 2: ruhiges Graphit mit Silber. Klassisch: die Farben bis Version 1.6.'),
+      'Notenpult 2: Graphit mit Messing. Klassisch: die Farben bis Version 1.6.'),
     accentRow(),
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
 
@@ -198,10 +228,24 @@ export function openSettings() {
 
     h('h3.settings-section', null, 'Blättern'),
     toggle('leftZoneBack', 'Linker Rand blättert zurück', 'Tippen ins linke Viertel geht eine Seite zurück. Sonst blättert jedes Tippen vorwärts.'),
+    toggle('halfTurn', 'Halbe Seite umblättern',
+      'Beim Weiterblättern erscheint erst die obere Hälfte der nächsten Seite, während unten die aktuelle noch zu lesen ist – '
+      + 'dann die ganze Seite. Gilt für Ansichten mit einer Seite.'),
     toggle('swipeTurns', 'Nach oben/unten wischen blättert',
       'Nach oben = weiter, nach unten = zurück. So blättern auch Scroll-Ringe („TikTok-Ringe“), die wie ein Finger wischen.'),
     toggle('wheelTurns', 'Mausrad blättert', 'Eine Drehung am Mausrad oder Scroll-Ring blättert eine Seite.'),
     h('div.setting-hint.block', null, 'Zurück geht immer: nach rechts wischen, Rechtsklick (Trackpad: zwei Finger), Pfeil links oder ◀ in der Leiste.'),
+
+    h('h3.settings-section', null, 'Blättern per Gesicht'),
+    toggle('faceTurns', 'Blättern per Gesicht',
+      'Die Kamera vorne erkennt im Notenmodus eine Geste und blättert. Die Erkennung läuft auf diesem Gerät – '
+      + 'es wird nichts aufgenommen oder gesendet. Gilt nur für dieses Gerät.'),
+    row('Geste', segmented('faceGesture', GESTURES),
+      'Kopf drehen: rechts = weiter, links = zurück. Zwinkern: rechtes Auge = weiter, linkes = zurück (normales Blinzeln zählt nicht). '
+      + 'Mund öffnen: weiter.'),
+    sliderRow('faceSensitivity', 'Empfindlichkeit', 'Höher: kleinere Bewegungen reichen. Niedriger: weniger Fehlauslöser.'),
+    toggle('faceSwap', 'Richtung tauschen', 'Falls „weiter“ und „zurück“ bei dir vertauscht sind.'),
+    row('Ausprobieren', btn('Testen …', () => openFaceTest(), { icon: 'face' }), 'Zeigt das Kamerabild und was erkannt wird.'),
 
     h('h3.settings-section', null, 'Pedal & Fernbedienung'),
     row('Tasten testen & zuweisen', btn('Öffnen …', () => openRemoteDialog(), { icon: 'remote' }),

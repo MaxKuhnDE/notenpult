@@ -10,7 +10,10 @@ export function isDark() {
 
 // ---------- accent colour (settings.accentColor, null = the style's own) ----------
 
-const ACCENT_VARS = ['--accent', '--accent-hover', '--accent-fg', '--accent-soft', '--accent-text'];
+const ACCENT_VARS = ['--accent', '--accent-hover', '--accent-fg', '--accent-soft', '--accent-text', '--accent-metal'];
+
+/** Polished, lacquered brass: highlight, body, the dark bend and a second reflection (as in styles.css). */
+export const BRASS_METAL = 'linear-gradient(165deg, #f8e8ab 0%, #e6c672 18%, #cc9d40 45%, #a9792b 68%, #dcb65e 86%, #b98832 100%)';
 
 /** "#abc", "aabbcc", "#AABBCC" → "#aabbcc"; anything else → null. */
 export function validHex(value) {
@@ -35,6 +38,21 @@ export const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
+/**
+ * The accent as polished metal: a light edge, the colour itself, a darker bend and a second
+ * reflection – Messing, Silber and Kupfer look like the instruments, other colours like anodised metal.
+ * Dark colours (white label) get a softer highlight so the label stays readable.
+ */
+export function metalSheen(hex) {
+  const c = toRgb(validHex(hex) || '#c9a046');
+  const white = [255, 255, 255];
+  const black = [0, 0, 0];
+  const hi = contrast(c, white) >= contrast(c, black) ? 0.3 : 0.55;
+  const L = (t) => toHex(mix(c, white, t));
+  const D = (t) => toHex(mix(c, black, t));
+  return `linear-gradient(165deg, ${L(hi)} 0%, ${L(hi * 0.45)} 18%, ${toHex(c)} 45%, ${D(0.18)} 68%, ${L(hi * 0.3)} 86%, ${D(0.08)} 100%)`;
+}
+
 /** All accent tokens from one colour: readable label on it, hover shade, tint, and a text shade with 4.5:1. */
 export function accentTokens(hex, dark) {
   const c = toRgb(hex);
@@ -49,6 +67,7 @@ export function accentTokens(hex, dark) {
     '--accent-fg': contrast(c, white) >= contrast(c, black) ? '#ffffff' : '#131416',
     '--accent-soft': `rgba(${c.join(', ')}, ${dark ? 0.16 : 0.12})`,
     '--accent-text': toHex(text),
+    '--accent-metal': metalSheen(hex),
   };
 }
 

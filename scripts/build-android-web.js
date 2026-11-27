@@ -56,6 +56,7 @@ async function main() {
   for (const f of ['pdf.min.js', 'pdf.worker.min.js']) fs.copyFileSync(path.join(pdfjs, 'legacy', 'build', f), path.join(vendor, f));
   fs.copyFileSync(path.join(pdfjs, 'LICENSE'), path.join(vendor, 'LICENSE'));
   fs.cpSync(path.join(pdfjs, 'cmaps'), path.join(vendor, 'cmaps'), { recursive: true });
+  require('./mediapipe').copyMediapipe(path.join(out, 'vendor', 'mediapipe'));
   fs.cpSync(path.join(pdfjs, 'standard_fonts'), path.join(vendor, 'standard_fonts'), { recursive: true });
 
   const shim = {

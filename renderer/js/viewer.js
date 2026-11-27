@@ -15,19 +15,21 @@
 // settings hold the layout for all other pieces.
 
 import {
-  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, setPartLayout,
+  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, setPartLayout, uid,
 } from './store.js';
 import {
   pageView, renderView, viewTransform, toPagePixels, harmonizeViews, FULL,
 } from './render.js';
 import * as ink from './ink.js';
 import {
-  h, icon, iconBtn, popMenu, closeMenu, modal, toast, confirmDialog, hasOpenModal,
+  h, fill, icon, iconBtn, popMenu, popPanel, closeMenu, modal, toast, confirmDialog, promptDialog, hasOpenModal, btn,
 } from './ui.js';
 import { isDark, toggleDark, onThemeChange } from './theme.js';
 import { openSettings } from './settings.js';
 import { openSearch } from './search.js';
 import * as remote from './remote.js';
+import { openTuner, startSheetTuner, micMessage } from './tuner.js';
+import { startFaceControl } from './face.js';
 
 const PAD = 10;
 const GAP = 14;
@@ -84,12 +86,19 @@ export function openViewer({ queue, start = 0, context = {} }) {
     queue: items,
     qi: Math.max(0, items.indexOf(startItem)),
     pi: 0,
+    half: false,
     screen: null,
     screens: new Map(),
     nav: Promise.resolve(),
     context,
     color: 'red',
+    tool: 'pen', // 'pen' | 'marker' | 'text' | 'stamp'
+    stamp: 'p',
     eraser: false,
+    linkMode: null, // setting a jump link: { from?: { pageId, x, y } }
+    linkReturn: null, // where the last jump came from: { qi, pi, half, page }
+    linkUsed: new Set(), // links followed on the current screen (pedal: the next one)
+    linkPulse: null, // target to highlight after the jump
     drawMode: false,
     undo: [],
     slots: [],
@@ -140,8 +149,18 @@ function build() {
     draw: iconBtn('pen', 'Zeichenmodus – Finger/Maus schreiben statt blättern', toggleDrawMode, { class: 'tool' }),
     red: h('button.icon-btn.tool.swatch', { type: 'button', title: 'Rot', 'aria-label': 'Stiftfarbe Rot', onclick: () => setColor('red') }, h('span.dot.red')),
     black: h('button.icon-btn.tool.swatch', { type: 'button', title: 'Schwarz', 'aria-label': 'Stiftfarbe Schwarz', onclick: () => setColor('black') }, h('span.dot.black')),
+    more: h('button.icon-btn.tool.more-tool', {
+      type: 'button', title: 'Weitere Farben, Textmarker, Text und Stempel', 'aria-label': 'Weitere Werkzeuge', onclick: (e) => openToolPanel(e.currentTarget),
+    }, icon('stamp')),
     eraser: iconBtn('eraser', 'Radierer', toggleEraser, { class: 'tool' }),
     undo: iconBtn('undo', 'Rückgängig (Strg+Z)', undo, { class: 'tool' }),
+    tuner: h('button.icon-btn.tool.tuner-tool', {
+      type: 'button',
+      title: 'Stimmgerät auf dem Blatt an/aus (nur die Cent, Kammerton aus dem Stimmgerät)',
+      'aria-label': 'Stimmgerät auf dem Blatt',
+      'aria-pressed': 'false',
+      onclick: () => toggleSheetTuner(),
+    }, icon('tuner')),
   };
   const fsBtn = iconBtn('fullscreen', 'Vollbild (F11)', toggleFullscreen, { class: 'v-fs' });
   const isSetlist = V.context.kind === 'setlist';
@@ -156,7 +175,7 @@ function build() {
         iconBtn('next', 'Weiterblättern (→)', next)),
       iconBtn('search', 'Suchen – auch im Noten-Pool (Strg+F)', openViewerSearch),
       isSetlist ? iconBtn('hash', 'Nummer eingeben', () => openJump('')) : null,
-      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.eraser, tools.undo),
+      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.more, tools.eraser, tools.undo, tools.tuner),
       h('div.v-group.rotate-tools', null,
         iconBtn('rotateLeft', 'Seite 90° nach links drehen', () => rotateVisible(-90)),
         iconBtn('rotateRight', 'Seite 90° nach rechts drehen', () => rotateVisible(90))),
@@ -170,9 +189,13 @@ function build() {
   const reveal = iconBtn('down', 'Leiste einblenden', () => setBarHidden(false), { class: 'bar-reveal' });
   const eraserCursor = h('div.eraser-cursor', { style: { width: `${ERASER_RADIUS * 2}px`, height: `${ERASER_RADIUS * 2}px` } });
   const spinner = h('div.v-spinner');
-  const el = h('div.viewer', null, bar, stage, flash, reveal, eraserCursor, spinner);
+  const linkBanner = h('div.link-banner', { hidden: true });
+  const returnBtn = h('button.link-return', { type: 'button', hidden: true, onclick: () => returnFromLink() });
+  const el = h('div.viewer', null, bar, stage, flash, reveal, eraserCursor, spinner, linkBanner, returnBtn);
   document.getElementById('viewer-root').append(el);
-  Object.assign(V, { el, bar, stage, flash, titleEl, subEl, partBtn, tools, fsBtn, eraserCursor });
+  Object.assign(V, {
+    el, bar, stage, flash, titleEl, subEl, partBtn, tools, fsBtn, eraserCursor, linkBanner, returnBtn,
+  });
 
   stage.addEventListener('pointerdown', onPointerDown);
   stage.addEventListener('pointermove', onPointerMove);
@@ -188,6 +211,7 @@ function build() {
   window.addEventListener('keydown', onKey);
   const ro = new ResizeObserver(() => {
     if (!V) return;
+    V.sheetTuner?.clamp();
     clearTimeout(V.resizeTimer);
     V.resizeTimer = setTimeout(() => {
       if (!V) return;
@@ -201,9 +225,12 @@ function build() {
     if (what === 'settings' && V) {
       applyViewerTheme();
       remote.syncCapture();
+      syncFace();
       relayout();
     }
   });
+  syncFace();
+  syncSheetTuner();
   // Pedals and remotes: volume/media keys from the system, MIDI if a MIDI key is assigned.
   const v = V;
   const offSystemKeys = remote.onSystemKey((id) => runRemote(id));
@@ -223,8 +250,10 @@ function build() {
     unTheme,
     offSystemKeys,
     () => remote.capture('viewer', false),
+    () => v.face?.stop(),
+    () => v.sheetTuner?.stop(),
     () => stopMidi(),
-    () => clearTimeout(V?.resizeTimer),
+    () => clearTimeout(v.resizeTimer),
   );
   applyViewerTheme();
   updateTools();
@@ -289,8 +318,9 @@ function screensOf(qi) {
       const pages = pagesOf(piece);
       const mode = layoutMode(piece);
       const singles = () => pages.map((_, i) => ({ idx: [i], dir: 'single' }));
-      if (pages.length < 2 || mode === 'single' || mode === 'width') return singles();
-      if (mode === 'pair2' && pages.length !== 2) return singles();
+      const halves = (list) => (db.settings.halfTurn && mode !== 'width' ? withHalfTurns(list) : list);
+      if (pages.length < 2 || mode === 'single' || mode === 'width') return halves(singles());
+      if (mode === 'pair2' && pages.length !== 2) return halves(singles());
       const views = await viewsFor(pages);
       // 'two', 'pair2' and 'firstSingle' always pair; 'auto' only when the pages stay large enough.
       const minRatio = mode === 'auto' ? PAIR_THRESHOLD : 0;
@@ -311,14 +341,35 @@ function screensOf(qi) {
           i += 1;
         }
       }
-      return out;
+      return halves(out);
     })();
     V.screens.set(key, p);
   }
   return p;
 }
 
-const screenIndex = (screens, pi) => Math.max(0, screens.findIndex((s) => s.idx.includes(pi)));
+/**
+ * Half-page turns: between two single pages a screen that shows the top half of the next page above
+ * the bottom half of the current one – the next lines are there before the page is gone.
+ * Its idx is [next, current].
+ */
+function withHalfTurns(screens) {
+  const out = [];
+  screens.forEach((s, k) => {
+    out.push(s);
+    const n = screens[k + 1];
+    if (n && s.dir === 'single' && n.dir === 'single') out.push({ idx: [n.idx[0], s.idx[0]], dir: 'half' });
+  });
+  return out;
+}
+
+/** The screen for page pi: with `half` the half-turn screen whose top is pi, otherwise the regular one. */
+function screenIndex(screens, pi, half = false) {
+  const i = screens.findIndex((s) => (half ? s.dir === 'half' && s.idx[0] === pi : s.dir !== 'half' && s.idx.includes(pi)));
+  return Math.max(0, i >= 0 ? i : screens.findIndex((s) => s.idx.includes(pi)));
+}
+
+const posOf = (qi, screen) => ({ qi, pi: screen.idx[0], half: screen.dir === 'half' });
 
 function relayout() {
   if (!V) return;
@@ -330,6 +381,7 @@ function layoutBoxes(views, dir, mode) {
   const { aw, ah } = avail();
   const box = (v, s) => ({ w: Math.max(1, Math.floor(v.dw * s)), h: Math.max(1, Math.floor(v.dh * s)) });
   if (mode === 'width') return views.map((v) => box(v, aw / v.dw));
+  if (dir === 'half') return views.map((v) => box(v, fitScale(v, aw, ah))); // both full size, one above the other
   if (views.length === 2) {
     const cw = dir === 'row' ? (aw - GAP) / 2 : aw;
     const ch = dir === 'row' ? ah : (ah - GAP) / 2;
@@ -341,16 +393,16 @@ function layoutBoxes(views, dir, mode) {
 /** Next/previous screen position, or null at the ends of the queue. */
 async function step(pos, dir) {
   const screens = await screensOf(pos.qi);
-  const si = screenIndex(screens, pos.pi);
+  const si = screenIndex(screens, pos.pi, pos.half);
   if (dir > 0) {
-    if (si + 1 < screens.length) return { qi: pos.qi, pi: screens[si + 1].idx[0] };
-    if (pos.qi + 1 < V.queue.length) return { qi: pos.qi + 1, pi: 0 };
+    if (si + 1 < screens.length) return posOf(pos.qi, screens[si + 1]);
+    if (pos.qi + 1 < V.queue.length) return { qi: pos.qi + 1, pi: 0, half: false };
     return null;
   }
-  if (si > 0) return { qi: pos.qi, pi: screens[si - 1].idx[0] };
+  if (si > 0) return posOf(pos.qi, screens[si - 1]);
   if (pos.qi > 0) {
     const before = await screensOf(pos.qi - 1);
-    return { qi: pos.qi - 1, pi: before[before.length - 1].idx[0] };
+    return posOf(pos.qi - 1, before[before.length - 1]);
   }
   return null;
 }
@@ -368,8 +420,9 @@ async function show({ keepScroll = false } = {}) {
   try {
     const screens = await screensOf(v.qi);
     if (!alive()) return;
-    const screen = screens[screenIndex(screens, Math.min(v.pi, pagesOf(piece).length - 1))];
+    const screen = screens[screenIndex(screens, Math.min(v.pi, pagesOf(piece).length - 1), v.half)];
     v.pi = screen.idx[0];
+    v.half = screen.dir === 'half';
     v.screen = screen;
     updateInfo(screens);
     const refs = screen.idx.map((i) => pagesOf(piece)[i]);
@@ -395,7 +448,7 @@ async function show({ keepScroll = false } = {}) {
 }
 
 function mount(piece, refs, views, boxes, canvases, ann, dir, mode, dpr) {
-  const spread = h(`div.spread.${dir === 'column' ? 'column' : 'row'}`);
+  const spread = h(`div.spread.${dir === 'column' || dir === 'half' ? dir : 'row'}`);
   V.slots = refs.map((ref, i) => {
     const box = boxes[i];
     const view = views[i];
@@ -422,13 +475,16 @@ function mount(piece, refs, views, boxes, canvases, ann, dir, mode, dpr) {
       strokes: ink.strokesOf(ann, ref.id),
     };
     redrawSlot(slot);
+    addLinkMarks(piece, slot);
     spread.append(wrap);
     return slot;
   });
+  if (dir === 'half') spread.append(h('div.half-line'));
   V.stage.classList.toggle('scroll', mode === 'width');
   V.stage.replaceChildren(spread);
   const { w, hgt } = stageBox();
   V.lastSize = { w, hgt };
+  pulseLinkTarget(mode);
 }
 
 function redrawSlot(slot) {
@@ -437,7 +493,7 @@ function redrawSlot(slot) {
 
 /** Renders the next two screens and the previous one in the background. */
 async function prefetch(v, token) {
-  const here = { qi: v.qi, pi: v.pi };
+  const here = { qi: v.qi, pi: v.pi, half: v.half };
   const stillCurrent = () => V === v && token === v.showToken;
   try {
     const n1 = await step(here, 1);
@@ -447,7 +503,7 @@ async function prefetch(v, token) {
       if (!pos || !stillCurrent()) return;
       const piece = pieceAt(pos.qi);
       const screens = await screensOf(pos.qi);
-      const screen = screens[screenIndex(screens, pos.pi)];
+      const screen = screens[screenIndex(screens, pos.pi, pos.half)];
       const refs = screen.idx.map((i) => pagesOf(piece)[i]);
       const views = harmonizeViews(await viewsFor(refs));
       if (!stillCurrent()) return;
@@ -472,7 +528,8 @@ function updateInfo(screens) {
   const idx = V.screen.idx;
   const from = idx[0] + 1;
   const to = idx[idx.length - 1] + 1;
-  const pages = n === 1 ? '1 Seite' : to > from ? `Seiten ${from}–${to} von ${n}` : `Seite ${from} von ${n}`;
+  const pages = V.screen.dir === 'half' ? `Seite ${to} unten, ${from} oben von ${n}`
+    : n === 1 ? '1 Seite' : to > from ? `Seiten ${from}–${to} von ${n}` : `Seite ${from} von ${n}`;
   const where = q.inserted ? 'eingeschoben' : `Stück ${V.qi + 1} von ${V.queue.length}`;
   const main = `${pages} · ${where}${V.context.name ? ` · ${V.context.name}` : ''}`;
   const onLast = screens[screens.length - 1] === V.screen;
@@ -508,8 +565,17 @@ function enqueue(fn) {
   v.nav = v.nav.then(() => (V === v ? fn() : null)).catch((err) => console.error(err));
 }
 
+function leaveScreen() {
+  V.linkUsed.clear();
+  if (V.linkReturn) {
+    V.linkReturn = null;
+    updateReturn();
+  }
+}
+
 export function next() {
   if (!V) return;
+  leaveScreen();
   enqueue(async () => {
     if (layoutMode() === 'width') {
       const st = V.stage;
@@ -519,7 +585,7 @@ export function next() {
         return;
       }
     }
-    const pos = await step({ qi: V.qi, pi: V.pi }, 1);
+    const pos = await step({ qi: V.qi, pi: V.pi, half: V.half }, 1);
     if (!V) return;
     if (!pos) {
       flashMessage(V.context.kind === 'setlist' ? 'Ende der Setlist' : 'Letztes Stück');
@@ -527,18 +593,20 @@ export function next() {
     }
     V.qi = pos.qi;
     V.pi = pos.pi;
+    V.half = pos.half;
     show();
   });
 }
 
 export function prev() {
   if (!V) return;
+  leaveScreen();
   enqueue(async () => {
     if (layoutMode() === 'width' && V.stage.scrollTop > 4) {
       V.stage.scrollTop = Math.max(0, V.stage.scrollTop - V.stage.clientHeight * 0.85);
       return;
     }
-    const pos = await step({ qi: V.qi, pi: V.pi }, -1);
+    const pos = await step({ qi: V.qi, pi: V.pi, half: V.half }, -1);
     if (!V) return;
     if (!pos) {
       flashMessage('Anfang');
@@ -546,6 +614,7 @@ export function prev() {
     }
     V.qi = pos.qi;
     V.pi = pos.pi;
+    V.half = pos.half;
     show();
   });
 }
@@ -553,6 +622,7 @@ export function prev() {
 function goTo(qi, pi = 0) {
   V.qi = qi;
   V.pi = pi;
+  V.half = false;
   show();
 }
 
@@ -626,10 +696,12 @@ function runRemote(id) {
   else if (action === 'nextPiece') stepPiece(1);
   else if (action === 'prevPiece') stepPiece(-1);
   else if (action === 'nextPart') cyclePart(1);
+  else if (action === 'link') followNextLink();
   return true;
 }
 
 function stepPiece(dir) {
+  leaveScreen();
   enqueue(async () => {
     const qi = V.qi + dir;
     if (qi < 0) flashMessage('Anfang');
@@ -693,6 +765,13 @@ function rotateVisible(delta) {
 // ---------- pointer input ----------
 
 function slotAt(x, y, tolerance = 0) {
+  if (V.screen?.dir === 'half' && V.slots.length === 2) {
+    // Both pages lie on top of each other: above the middle is the next page, below the current one.
+    const r0 = V.slots[0].inkCanvas.getBoundingClientRect();
+    const slot = y < (r0.top + r0.bottom) / 2 ? V.slots[0] : V.slots[1];
+    const r = slot.inkCanvas.getBoundingClientRect();
+    return x >= r.left - tolerance && x <= r.right + tolerance && y >= r.top - tolerance && y <= r.bottom + tolerance ? slot : null;
+  }
   for (const slot of V.slots) {
     const r = slot.inkCanvas.getBoundingClientRect();
     if (x >= r.left - tolerance && x <= r.right + tolerance && y >= r.top - tolerance && y <= r.bottom + tolerance) {
@@ -710,12 +789,17 @@ function onPointerDown(e) {
 
   const penWrites = e.pointerType === 'pen' && (db.settings.penAlwaysDraws || V.drawMode);
   const otherWrites = V.drawMode && e.pointerType !== 'pen' && e.button === 0;
-  if (penWrites || otherWrites) {
+  if ((penWrites || otherWrites) && !V.linkMode) {
     if (e.pointerType === 'touch' && V.touches.size > 1) return;
     if (V.active) return;
     const slot = slotAt(e.clientX, e.clientY, 24);
     if (!slot) return;
     e.preventDefault();
+    const penEraserTip = e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) || (e.buttons & 2));
+    if (!V.eraser && !penEraserTip && (V.tool === 'text' || V.tool === 'stamp')) {
+      placeItem(slot, e);
+      return;
+    }
     try { V.stage.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     const penEraser = e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) || (e.buttons & 2));
     V.active = {
@@ -730,6 +814,9 @@ function onPointerDown(e) {
     if (V.active.erase) {
       moveEraserCursor(e);
       eraseAt(e);
+    } else if (V.tool === 'marker') {
+      V.active.stroke = { c: 'yellow', w: ink.MARKER_WIDTH, m: 1, p: [] };
+      addPoint(e);
     } else {
       V.active.stroke = { c: V.color, w: ink.WIDTHS[db.settings.penWidth] || ink.WIDTHS.medium, p: [] };
       addPoint(e);
@@ -811,6 +898,10 @@ function onPointerUp(e) {
     return;
   }
   if (Math.hypot(dx, dy) <= (TAP_SLOP[g.type] ?? 10) && dt < 800) {
+    if (V.linkMode) {
+      pickLinkPoint(e);
+      return;
+    }
     const r = V.stage.getBoundingClientRect();
     if (db.settings.leftZoneBack && e.clientX < r.left + r.width * 0.25) prev();
     else next();
@@ -841,7 +932,37 @@ function addPoint(ev) {
   const s = a.stroke;
   s.p.push(Math.round(u * 1e5) / 1e5, Math.round(v * 1e5) / 1e5, Math.round(pressure * 100) / 100);
   const n = s.p.length / 3;
-  if (n >= 2) ink.drawStroke(a.slot.ctx, s, a.slot.geom.Wo, a.slot.geom.Ho, n - 1, false);
+  if (s.m) {
+    // Highlighter: redraw the page with the whole stroke (translucent, drawn as one path).
+    redrawSlot(a.slot);
+    ink.drawMarker(a.slot.ctx, s, a.slot.geom.Wo, a.slot.geom.Ho);
+  } else if (n >= 2) ink.drawStroke(a.slot.ctx, s, a.slot.geom.Wo, a.slot.geom.Ho, n - 1, false);
+}
+
+/** Page fractions (unrotated page) of a pointer position on a slot. */
+function pointOn(slot, ev) {
+  const rect = slot.inkCanvas.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left) * slot.w) / rect.width;
+  const y = ((ev.clientY - rect.top) * slot.h) / rect.height;
+  const { X, Y } = toPagePixels(slot.view, slot.geom.Wo, slot.geom.Ho, x, y);
+  return { u: Math.round((X / slot.geom.Wo) * 1e4) / 1e4, v: Math.round((Y / slot.geom.Ho) * 1e4) / 1e4 };
+}
+
+/** Text or stamp at the tapped place. */
+async function placeItem(slot, ev) {
+  const { u, v } = pointOn(slot, ev);
+  let item;
+  if (V.tool === 'text') {
+    const text = await promptDialog({ title: 'Text auf die Noten', label: 'Text', placeholder: 'z. B. „2. Mal tacet“', okLabel: 'Einfügen' });
+    if (!text || !V) return;
+    item = { t: 'text', text, x: u, y: v, s: 0.022, c: V.color, p: [], w: 0 };
+  } else {
+    item = { t: 'stamp', k: V.stamp, x: u, y: v, s: ink.stampSize(V.stamp), c: V.color, p: [], w: 0 };
+  }
+  slot.strokes.push(item);
+  pushUndo({ type: 'add', pieceId: slot.pieceId, pageId: slot.pageId, stroke: item });
+  ink.save(slot.pieceId);
+  redrawSlot(slot);
 }
 
 function eraseAt(ev) {
@@ -886,8 +1007,51 @@ function moveEraserCursor(e) {
 
 function setColor(color) {
   V.color = color;
+  V.tool = 'pen';
   V.eraser = false;
   updateTools();
+}
+
+/** More colours, highlighter, text and stamps. Choosing one switches drawing on (fingers too). */
+function setTool(tool, extra = {}) {
+  Object.assign(V, { tool, eraser: false }, extra);
+  if (!V.drawMode && !(db.settings.penAlwaysDraws && tool === 'pen')) toggleDrawMode();
+  updateTools();
+}
+
+function openToolPanel(anchor) {
+  const pick = (fn) => () => {
+    closeMenu();
+    fn();
+  };
+  const swatch = (color, label) => h(`button.tool-swatch${V.tool === 'pen' && V.color === color ? '.active' : ''}`, {
+    type: 'button', title: label, 'aria-label': label, onclick: pick(() => setTool('pen', { color })),
+  }, h(`span.dot.${color}`));
+  const stamp = ([kind, label]) => h(`button.stamp-btn${V.tool === 'stamp' && V.stamp === kind ? '.active' : ''}`, {
+    type: 'button', title: label, 'aria-label': label, onclick: pick(() => setTool('stamp', { stamp: kind })),
+  }, stampPreview(kind));
+  popPanel(anchor, h('div.tool-panel', null,
+    h('div.menu-heading', null, 'Farbe'),
+    h('div.tool-row', null, swatch('red', 'Rot'), swatch('black', 'Schwarz'), swatch('blue', 'Blau'), swatch('green', 'Grün')),
+    h('div.tool-row', null,
+      h(`button.tool-wide${V.tool === 'marker' ? '.active' : ''}`, { type: 'button', onclick: pick(() => setTool('marker')) }, icon('marker'), h('span', null, 'Textmarker')),
+      h(`button.tool-wide${V.tool === 'text' ? '.active' : ''}`, { type: 'button', onclick: pick(() => setTool('text')) }, icon('text'), h('span', null, 'Text'))),
+    h('div.menu-heading', null, 'Stempel – antippen, dann auf die Noten tippen'),
+    h('div.stamp-grid', null, ink.STAMPS.map(stamp))));
+}
+
+/** The stamp as it will look, for the palette. */
+function stampPreview(kind) {
+  const c = h('canvas.stamp-preview');
+  const px = 40 * (window.devicePixelRatio || 1);
+  c.width = px;
+  c.height = px;
+  const ctx = c.getContext('2d');
+  const W = px / 0.08; // a page so wide that the stamp fills the button (black on a white "page", as on paper)
+  ink.drawItem(ctx, {
+    t: 'stamp', k: kind, x: 0.04, y: 0.5, s: Math.min(0.05, ink.stampSize(kind)), c: 'black', p: [], w: 0,
+  }, W, px);
+  return c;
 }
 
 function toggleEraser() {
@@ -903,8 +1067,14 @@ function toggleDrawMode() {
 
 function updateTools() {
   const t = V.tools;
-  t.red.classList.toggle('active', !V.eraser && V.color === 'red');
-  t.black.classList.toggle('active', !V.eraser && V.color === 'black');
+  t.red.classList.toggle('active', !V.eraser && V.tool === 'pen' && V.color === 'red');
+  t.black.classList.toggle('active', !V.eraser && V.tool === 'pen' && V.color === 'black');
+  const extra = !V.eraser && (V.tool !== 'pen' || !['red', 'black'].includes(V.color));
+  t.more.classList.toggle('active', extra);
+  t.more.replaceChildren(
+    V.tool === 'marker' ? icon('marker') : V.tool === 'text' ? icon('text') : V.tool === 'pen' && extra ? h(`span.dot.${V.color}`) : icon('stamp'),
+  );
+  t.more.title = V.tool === 'stamp' && !V.eraser ? `Stempel: ${(ink.STAMPS.find(([k]) => k === V.stamp) || [])[1]}` : 'Weitere Farben, Textmarker, Text und Stempel';
   t.eraser.classList.toggle('active', V.eraser);
   t.draw.classList.toggle('active', V.drawMode);
   t.draw.setAttribute('aria-pressed', String(V.drawMode));
@@ -957,6 +1127,267 @@ async function clearVisible() {
   }
 }
 
+// ---------- the tuner on the sheet ----------
+
+/** Stays on for the next pieces until switched off; not saved (no microphone when the app starts). */
+let sheetTunerOn = false;
+
+function toggleSheetTuner() {
+  sheetTunerOn = !sheetTunerOn;
+  syncSheetTuner();
+}
+
+function syncSheetTuner() {
+  if (!V) return;
+  if (sheetTunerOn && !V.sheetTuner) {
+    const v = V;
+    // always pops up top left – below the toolbar while it is shown
+    const top = (V.el.classList.contains('bar-hidden') ? 0 : V.bar.offsetHeight) + 10;
+    V.sheetTuner = startSheetTuner({
+      parent: V.el,
+      left: 12,
+      top,
+      onError: (err) => {
+        toast(micMessage(err), { ms: 4500 });
+        if (V === v && sheetTunerOn) toggleSheetTuner();
+      },
+    });
+  } else if (!sheetTunerOn && V.sheetTuner) {
+    V.sheetTuner.stop();
+    V.sheetTuner = null;
+  }
+  V.tools.tuner.classList.toggle('active', sheetTunerOn);
+  V.tools.tuner.setAttribute('aria-pressed', String(sheetTunerOn));
+}
+
+// ---------- turning pages by face ----------
+
+const faceKey = () => (db.settings.faceTurns ? `${db.settings.faceGesture}|${db.settings.faceSensitivity}|${db.settings.faceSwap}` : '');
+
+/** Camera on while the viewer is open and the setting is on; restarted when the gesture changes. */
+function syncFace() {
+  const key = faceKey();
+  if ((V.face?.key || '') === key) return;
+  V.face?.stop();
+  V.face = key ? startFace(key) : null;
+}
+
+function startFace(key) {
+  const label = h('span', null, 'Gesicht');
+  const pill = h('button.face-pill', { type: 'button', title: 'Blättern per Gesicht – antippen zum Pausieren' }, icon('face'), label);
+  let paused = false;
+  pill.addEventListener('click', () => {
+    paused = !paused;
+    pill.classList.toggle('paused', paused);
+    label.textContent = paused ? 'Pause' : 'Gesicht';
+  });
+  V.el.append(pill);
+  let warned = false;
+  const control = startFaceControl({
+    onAction: (a) => {
+      if (!V || paused || hasOpenModal() || V.active || V.linkMode) return;
+      if (a === 'next') next();
+      else prev();
+    },
+    onStatus: (text, ok) => {
+      pill.classList.toggle('error', !ok);
+      pill.classList.toggle('loading', ok && text !== 'Aktiv');
+      pill.title = ok ? 'Blättern per Gesicht – antippen zum Pausieren' : text;
+      if (!ok) label.textContent = 'Kamera aus';
+      if (!ok && !warned) {
+        warned = true;
+        toast(text, { ms: 4500 });
+      }
+    },
+  });
+  return {
+    key,
+    stop: () => {
+      control.stop();
+      pill.remove();
+    },
+  };
+}
+
+// ---------- jump links (repeats, D.S., Coda) ----------
+// part.links: [{ id, from: { pageId, x, y }, to: { pageId, x, y } }] – positions as page fractions.
+
+const linksOf = (piece) => {
+  const part = activePart(piece);
+  return Array.isArray(part.links) ? part.links : [];
+};
+
+/** Where a page fraction lies in the slot's box (CSS px). */
+function boxPoint(slot, x, y) {
+  const [a, b, c, d, e, f] = slot.geom.m;
+  const X = x * slot.geom.Wo;
+  const Y = y * slot.geom.Ho;
+  return { left: a * X + c * Y + e, top: b * X + d * Y + f };
+}
+
+function addLinkMarks(piece, slot) {
+  const pages = pagesOf(piece);
+  for (const link of linksOf(piece)) {
+    if (link.from.pageId !== slot.pageId) continue;
+    const target = pages.findIndex((p) => p.id === link.to.pageId);
+    if (target < 0) continue; // page removed meanwhile
+    const { left, top } = boxPoint(slot, link.from.x, link.from.y);
+    const stop = (e) => e.stopPropagation(); // not a tap on the page
+    slot.wrap.append(h('button.link-mark', {
+      type: 'button',
+      title: `Sprung zu Seite ${target + 1}`,
+      'aria-label': `Sprung zu Seite ${target + 1}`,
+      dataset: { link: link.id },
+      style: { left: `${left}px`, top: `${top}px` },
+      onpointerdown: stop,
+      onpointerup: stop,
+      onclick: (e) => {
+        e.stopPropagation();
+        followLink(link);
+      },
+    }, icon('jump'), h('span', null, `S. ${target + 1}`)));
+  }
+}
+
+function followLink(link) {
+  if (!V || V.linkMode) return;
+  const piece = pieceAt(V.qi);
+  const target = pagesOf(piece).findIndex((p) => p.id === link.to.pageId);
+  if (target < 0) return;
+  const from = pagesOf(piece).findIndex((p) => p.id === link.from.pageId);
+  // A jump within the same screen keeps it "visited" (the pedal then takes the next link there).
+  if (V.slots.some((sl) => sl.pageId === link.to.pageId)) V.linkUsed.add(link.id);
+  else V.linkUsed.clear();
+  enqueue(async () => {
+    V.linkReturn = { qi: V.qi, pi: V.pi, half: V.half, page: from + 1 };
+    V.linkPulse = link.to;
+    V.pi = target; // same piece and part
+    V.half = false;
+    await show();
+    updateReturn();
+  });
+}
+
+/** Pedal "Sprung-Link folgen": the next link on this screen not followed yet, or back after a jump. */
+function followNextLink() {
+  const ids = new Set(V.slots.map((sl) => sl.pageId));
+  const order = V.slots.map((sl) => sl.pageId);
+  const links = linksOf(pieceAt(V.qi))
+    .filter((l) => ids.has(l.from.pageId) && !V.linkUsed.has(l.id))
+    .sort((a, b) => order.indexOf(a.from.pageId) - order.indexOf(b.from.pageId) || a.from.y - b.from.y);
+  if (links.length) followLink(links[0]);
+  else if (V.linkReturn) returnFromLink();
+  else flashMessage('Kein Sprung-Link hier');
+}
+
+function returnFromLink() {
+  const r = V?.linkReturn;
+  if (!r) return;
+  V.linkUsed.clear();
+  enqueue(async () => {
+    V.linkReturn = null;
+    V.qi = r.qi;
+    V.pi = r.pi;
+    V.half = r.half;
+    await show();
+    updateReturn();
+  });
+}
+
+function updateReturn() {
+  if (!V) return;
+  const r = V.linkReturn;
+  V.returnBtn.hidden = !r;
+  if (r) fill(V.returnBtn, icon('undo'), h('span', null, `Zurück zu Seite ${r.page}`));
+}
+
+/** The place a jump lands on lights up for a moment. */
+function pulseLinkTarget(mode) {
+  const to = V.linkPulse;
+  if (!to) return;
+  V.linkPulse = null;
+  const slot = V.slots.find((sl) => sl.pageId === to.pageId);
+  if (!slot) return;
+  const { left, top } = boxPoint(slot, to.x, to.y);
+  const ring = h('div.link-pulse', { style: { left: `${left}px`, top: `${top}px` } });
+  slot.wrap.append(ring);
+  setTimeout(() => ring.remove(), 1600);
+  if (mode === 'width') V.stage.scrollTop = Math.max(0, slot.wrap.offsetTop + top - 80);
+}
+
+function startLinkMode() {
+  V.linkMode = {};
+  showLinkBanner();
+}
+
+function showLinkBanner() {
+  const m = V.linkMode;
+  V.linkBanner.hidden = !m;
+  if (!m) return;
+  fill(V.linkBanner,
+    h('span', null, m.from
+      ? 'Schritt 2/2: Zum Ziel blättern (wischen, ◀ ▶ oder Pedal) und auf die Zielstelle tippen.'
+      : 'Schritt 1/2: Auf das Sprungzeichen tippen (z. B. Wiederholung, D.S., „To Coda“).'),
+    btn('Abbrechen', () => {
+      V.linkMode = null;
+      showLinkBanner();
+    }, { kind: 'ghost' }));
+}
+
+function pickLinkPoint(ev) {
+  const slot = slotAt(ev.clientX, ev.clientY);
+  if (!slot) return;
+  const { u, v } = pointOn(slot, ev);
+  const m = V.linkMode;
+  if (!m.from) {
+    m.from = { pageId: slot.pageId, x: u, y: v };
+    showLinkBanner();
+    return;
+  }
+  const piece = pieceAt(V.qi);
+  const part = activePart(piece);
+  if (!pagesOf(piece).some((p) => p.id === m.from.pageId)) {
+    toast('Die Sprungstelle gehört zu einer anderen Stimme – bitte neu beginnen.');
+    V.linkMode = null;
+    showLinkBanner();
+    return;
+  }
+  part.links = [...linksOf(piece), { id: uid(), from: m.from, to: { pageId: slot.pageId, x: u, y: v } }];
+  commit('part');
+  V.linkMode = null;
+  showLinkBanner();
+  toast('Sprung-Link gespeichert – auf ↪ tippen (oder Pedal), um zu springen.', { ms: 3200 });
+  show();
+}
+
+function manageLinks() {
+  const piece = pieceAt(V.qi);
+  const part = activePart(piece);
+  const pages = pagesOf(piece);
+  const list = h('div.link-list');
+  const render = () => {
+    const links = linksOf(piece);
+    const page = (id) => pages.findIndex((p) => p.id === id) + 1;
+    fill(list, links.length ? links.map((l) => h('div.link-row', null,
+      icon('jump'),
+      h('span', null, `Seite ${page(l.from.pageId)} → Seite ${page(l.to.pageId)}`),
+      iconBtn('trash', 'Sprung-Link löschen', () => {
+        part.links = linksOf(piece).filter((x) => x.id !== l.id);
+        if (!part.links.length) delete part.links;
+        commit('part');
+        render();
+        show();
+      }))) : h('p.muted', null, 'Für diese Stimme gibt es keine Sprung-Links.'));
+  };
+  render();
+  modal({
+    title: `Sprung-Links · ${piece.parts.length > 1 ? part.name : piece.title}`,
+    className: 'small',
+    body: h('div', null, h('p.dialog-text', null, 'Ein Sprung-Link springt von einer Stelle (Wiederholung, D.S., „To Coda“) zu einer anderen.'), list),
+    actions: [{ label: 'Fertig', kind: 'primary', value: true }],
+  });
+}
+
 // ---------- chrome ----------
 
 async function toggleFullscreen() {
@@ -972,6 +1403,7 @@ function updateFsButton() {
 
 function setBarHidden(hidden) {
   V.el.classList.toggle('bar-hidden', hidden);
+  if (!hidden) V.sheetTuner?.keepBelow(V.bar.offsetHeight + 10);
   if (hidden) toast('Leiste ausgeblendet – oben rechts wieder einblenden.', { ms: 2400 });
 }
 
@@ -1016,9 +1448,24 @@ function openMore(anchor) {
       label: p.name, icon: 'layers', checked: i === (piece.part || 0), onClick: () => setPart(i),
     })), 'sep']
     : [];
+  const links = linksOf(piece).length;
   popMenu(anchor, [
     ...partItems,
     ...layoutItems,
+    {
+      label: 'Halbe Seite umblättern',
+      icon: 'halfPage',
+      checked: !!db.settings.halfTurn,
+      onClick: () => {
+        db.settings.halfTurn = !db.settings.halfTurn;
+        commit('settings');
+      },
+    },
+    'sep',
+    { label: 'Sprung-Link setzen …', icon: 'jump', onClick: startLinkMode },
+    links ? { label: `Sprung-Links (${links}) …`, icon: 'jump', onClick: manageLinks } : null,
+    { label: 'Stimmgerät …', icon: 'tuner', onClick: () => openTuner() },
+    'sep',
     {
       label: 'Weiße Ränder abschneiden',
       icon: 'crop',

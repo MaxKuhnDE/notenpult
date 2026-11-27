@@ -16,6 +16,7 @@ export const ACTIONS = [
   ['nextPiece', 'Nächstes Stück'],
   ['prevPiece', 'Voriges Stück'],
   ['nextPart', 'Nächste Stimme'],
+  ['link', 'Sprung-Link folgen'],
 ];
 
 export const DEFAULT_KEYS = {
@@ -24,6 +25,7 @@ export const DEFAULT_KEYS = {
   nextPiece: [],
   prevPiece: [],
   nextPart: [],
+  link: [],
 };
 
 /** Keys the system sends (only with the setting "volumeKeys"; otherwise they change the volume). */

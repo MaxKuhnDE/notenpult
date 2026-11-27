@@ -23,12 +23,20 @@ export const DEFAULT_SETTINGS = {
   showNextHint: true,
   tensBlocks: true,
   autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
-  uiStyle: 'v2', // 'v2' (Notenpult 2: Graphit/Silber) | 'classic' (bis 1.6: Bernstein)
-  accentColor: null, // eigene Akzentfarbe '#rrggbb' – null: die der Oberfläche (Graphit/Silber bzw. Bernstein)
+  uiStyle: 'v2', // 'v2' (Notenpult 2: Graphit mit Messing) | 'classic' (bis 1.6: Bernstein)
+  accentColor: null, // eigene Akzentfarbe '#rrggbb' – null: die der Oberfläche (Messing bzw. Bernstein)
   remoteKeys: null, // { next: [key, …], prev, nextPiece, prevPiece, nextPart } – null: Standard (remote.js)
   volumeKeys: true, // Lautstärke- und Medientasten blättern im Notenmodus (Selfie-Auslöser, Ringe)
   wheelTurns: true, // Mausrad / Scroll-Ring blättert
   swipeTurns: true, // nach oben/unten wischen blättert
+  halfTurn: false, // halbe Seiten umblättern: oben schon die nächste Seite, unten noch die aktuelle
+  faceTurns: false, // per Gesicht blättern (Kamera, face.js)
+  faceGesture: 'head', // 'head' (Kopf drehen) | 'mouth' (Mund öffnen) | 'wink' (zwinkern)
+  faceSensitivity: 0.5, // 0 … 1
+  faceSwap: false, // Richtung tauschen (Kopf/Zwinkern)
+  tunerA4: 440, // Stimmgerät: Kammerton a¹ in Hz
+  tunerTranspose: 'C', // Stimmgerät: 'C' (klingend) | 'B' | 'Es' | 'F'
+  sheetTunerSize: 40, // Stimmgerät auf dem Blatt: Schriftgröße in px (je Gerät)
 };
 
 /**
@@ -41,7 +49,8 @@ export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'
  * Settings that belong to the screen, not to the library: they stay on this device when the
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
-export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns'];
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
+  'halfTurn', 'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
 export const DEFAULT_SYNC = {
