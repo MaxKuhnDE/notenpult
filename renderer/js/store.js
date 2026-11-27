@@ -389,8 +389,10 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-let saveQueued = false;
-let saveChain = Promise.resolve();
+const SAVE_DELAY = 40; // ms – quick changes in a row (typing numbers, dragging) become one save
+let saveTimer = null;
+let saving = null; // running save (writes again at the end if something changed meanwhile)
+let saveAgain = false;
 let savingSuspended = false;
 
 /** While a preset import replaces the data folder, nothing old may be written back. */
@@ -402,25 +404,44 @@ export function resumeSaving() {
   savingSuspended = false;
 }
 
+const snapshot = () => ({
+  version: 2,
+  pieces: db.pieces,
+  setlists: db.setlists,
+  genres: db.genres,
+  settings: db.settings,
+  sync: db.sync,
+  ui: db.ui,
+});
+
 function queueSave() {
-  if (saveQueued) return;
-  saveQueued = true;
-  queueMicrotask(() => {
-    saveQueued = false;
-    if (savingSuspended) return;
-    const snapshot = {
-      version: 2,
-      pieces: db.pieces,
-      setlists: db.setlists,
-      genres: db.genres,
-      settings: db.settings,
-      sync: db.sync,
-      ui: db.ui,
-    };
-    saveChain = saveChain
-      .then(() => backend.saveDb(snapshot))
-      .catch((err) => console.error('Speichern fehlgeschlagen', err));
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    runSave();
+  }, SAVE_DELAY);
+}
+
+/** Writes the library; never two writes at once, and at most one more for changes made meanwhile. */
+function runSave() {
+  if (savingSuspended) return Promise.resolve();
+  if (saving) {
+    saveAgain = true;
+    return saving;
+  }
+  saving = (async () => {
+    do {
+      saveAgain = false;
+      try {
+        await backend.saveDb(snapshot());
+      } catch (err) {
+        console.error('Speichern fehlgeschlagen', err);
+      }
+    } while (saveAgain && !savingSuspended);
+  })().finally(() => {
+    saving = null;
   });
+  return saving;
 }
 
 /** Call after every mutation: persists and re-renders subscribers. */
@@ -446,8 +467,12 @@ export async function flushSaves() {
     persistTimer = null;
     queueSave();
   }
-  await new Promise((r) => setTimeout(r, 0)); // let a queued save start
-  await saveChain;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    runSave();
+  }
+  while (saving) await saving;
 }
 
 /** Version 1 stored pages directly on the piece; now every piece has parts (Stimmen). */

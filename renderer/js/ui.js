@@ -95,11 +95,17 @@ const ICONS = {
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
 };
 
+const iconTemplates = new Map();
 export function icon(name, cls = '') {
-  const span = document.createElement('span');
+  let tpl = iconTemplates.get(name);
+  if (!tpl) {
+    tpl = document.createElement('span');
+    tpl.setAttribute('aria-hidden', 'true');
+    tpl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
+    iconTemplates.set(name, tpl);
+  }
+  const span = tpl.cloneNode(true); // parsing SVG markup for every row is slow on the tablet
   span.className = `ic ${cls}`.trim();
-  span.setAttribute('aria-hidden', 'true');
-  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
   return span;
 }
 

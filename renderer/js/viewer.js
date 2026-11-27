@@ -109,6 +109,13 @@ export function openViewer({ queue, start = 0, context = {} }) {
   show();
 }
 
+const closedListeners = new Set();
+/** Runs fn after each close of the viewer; returns an unsubscribe function. */
+export function onViewerClosed(fn) {
+  closedListeners.add(fn);
+  return () => closedListeners.delete(fn);
+}
+
 export function closeViewer() {
   if (!V) return;
   const v = V;
@@ -120,6 +127,7 @@ export function closeViewer() {
   backend.keepAwake(false);
   ink.flushAll();
   v.context.onClose?.();
+  for (const fn of closedListeners) fn();
 }
 
 // ---------- DOM ----------

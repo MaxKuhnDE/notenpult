@@ -69,6 +69,8 @@ Test unter `test/` (Muster: `check('beschreibung', bedingung)` → `PASS …`/`F
   (`NOTENPULT_TEST_PROFILE`) – eine geöffnete Notenpult-App und ihre Daten bleiben unberührt.
 - `remote.js` drückt Pedal- und Systemtasten selbst: Das Testfenster hat nie den Fokus, deshalb registriert
   `hwkeys.js` dort keine globalen Kürzel; `test:hwKey` schickt die Taste wie der Hauptprozess.
+- `perf.js` misst mit einer großen Bibliothek (600 Stücke) und prüft großzügige Grenzen; mit `VERBOSE=1` zeigt es
+  die Zeiten (`PERF …`). Wer Listen, Speichern oder den Start anfasst, vergleicht die Zahlen vorher und nachher.
 - `look.js` gehört nicht zu `npm test`: `node scripts/run-tests.js look.js` legt Screenshots aller Ansichten in
   beiden Stilen nach `test/out/look-*.png` (für Reviews und die README).
 - Mit `VERBOSE=1` zeigt der Runner die komplette Ausgabe der App.

@@ -27,6 +27,19 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - Tests: `remote.js` (Pedale, Selfie-Auslöser, Ringe, Mausrad, Tasten lernen), Lautstärketasten in der
   Android-Prüfung, JUnit `HardwareKeysTest`; `look.js` macht Screenshots aller Ansichten.
 
+### Schneller
+Gemessen mit 600 Stücken, 25 Setlists und 2000 Pool-Dateien (`test/perf.js`, am PC – das Tablet ist mehrfach
+langsamer, profitiert also entsprechend mehr):
+- **Während des Spielens** baut ein Stimmwechsel, Drehen oder Ändern der Ansicht nicht mehr die verdeckte
+  Bibliothek neu auf (vorher 164 ms je Änderung, jetzt 0) – erst beim Schließen der Notenansicht.
+- **A–Z-Liste** erscheint in 26 statt 170 ms: der Rest wird in den nächsten Frames ergänzt, Setlist-Zähler und
+  Pool-Markierung werden einmal statt je Zeile berechnet, Symbole nicht mehr je Zeile neu eingelesen. Suchen pro
+  Tastendruck 5 statt 37 ms.
+- **Speichern:** Schnelle Änderungen hintereinander werden zusammen gespeichert – bei langsamem Speicher 5 statt
+  20 komplette Schreibvorgänge.
+- **Start:** pdf.js (und unter Android sein 1 MB großer Worker) wird erst mit dem ersten PDF geladen, das
+  Android-Bündel ist kleiner (166 statt 228 KB). App bereit unter Android 34 % schneller, unter Windows ~12 %.
+
 ## [1.6.1] – 2026-10-24
 
 ### Geändert

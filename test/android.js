@@ -46,6 +46,8 @@
   try {
     await waitFor(() => (window.__np && document.body.classList.contains('ready')) || $('#boot-panel'), 15000, 'app');
     check('app starts without error panel', !$('#boot-panel'), $('#boot-panel') ? $('#boot-panel').textContent : '');
+    const ready = performance.getEntriesByName('notenpult-ready')[0];
+    console.log(`PERF android-ready ${ready ? Math.round(ready.startTime) : -1}`);
     const { store } = window.__np;
     const { db } = store;
     check('Android backend in use', store.backend.kind === 'android');

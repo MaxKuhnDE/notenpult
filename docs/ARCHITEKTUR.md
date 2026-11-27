@@ -88,6 +88,22 @@ Tokens (`--accent`, `--surface` …); ein neuer Stil braucht also keine Änderun
   blättert wie nach links/rechts.
 - Die Belegung und die Schalter stehen in `DEVICE_SETTINGS`: Sie bleiben beim Übertragen auf dem Gerät.
 
+## Geschwindigkeit
+
+`test/perf.js` misst mit 600 Stücken, 25 Setlists und 2000 Pool-Dateien und bricht bei deutlicher
+Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
+
+- `app.js` baut die Ansicht hinter der Notenansicht nicht neu (`onViewerClosed` holt es einmal nach).
+- `library.js` baut lange Listen schrittweise (`FIRST_ROWS`, dann `STEP_ROWS` je Frame); war die Liste gescrollt,
+  sofort komplett, damit die Position stimmt; die Buchstabenleiste baut fehlende Gruppen sofort.
+  `rowInfo()` zählt Setlists und Pool-Dateien einmal pro Liste.
+- `ui.icon()` klont vorbereitete SVGs statt sie je Aufruf zu parsen.
+- `store.js` speichert 40 ms nach der letzten Änderung, nie zweimal gleichzeitig, und höchstens einmal
+  nachträglich für Änderungen während eines Speicherns. `flushSaves()` schreibt sofort (Android: beim Wechsel in
+  den Hintergrund, Windows: beim Schließen).
+- `render.js` lädt pdf.js per `import()` erst mit dem ersten PDF; unter Android lädt `boot.js` die App vor
+  pdf.js, und die Weiche (`pdfjs-shim.js`) wartet auf pdf.js.
+
 ## Notenmodus
 
 - Layout „auto“ teilt die Seiten eines Stücks in Bildschirme: zwei Seiten nebeneinander oder
