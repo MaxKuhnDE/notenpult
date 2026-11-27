@@ -207,14 +207,12 @@
     const st = await waitFor(() => $('.sheet-tuner'), 3000, 'tuner');
     toolBtn.click();
     const el2 = await waitFor(() => $('.sheet-metronome'), 3000, 'metronome again');
-    check('with the tuner on: top left, just below the tuner', el2.offsetLeft === 12 && el2.offsetTop >= st.offsetTop + st.offsetHeight
-      && el2.offsetTop <= st.offsetTop + st.offsetHeight + 12 && parseFloat(el2.style.fontSize) === db.settings.sheetMetronomeSize,
-    `${el2.offsetLeft},${el2.offsetTop} ${el2.offsetWidth}x${el2.offsetHeight} · tuner ${st.offsetLeft},${st.offsetTop} ${st.offsetWidth}x${st.offsetHeight}`
-    + ` connected ${st.isConnected} · tuners ${document.querySelectorAll('.sheet-tuner').length} · metronomes ${document.querySelectorAll('.sheet-metronome').length}`
-    + ` · tuner-tool ${$('.tuner-tool').classList.contains('active')} · viewer ${$('.viewer').clientWidth}x${$('.viewer').clientHeight}`
-    + ` · bar ${$('.v-bar').offsetHeight} ${$('.viewer').classList.contains('bar-hidden') ? 'hidden' : 'shown'}`);
-    await sleep(400);
-    console.log(`PASS diag later: metronome ${el2.offsetLeft},${el2.offsetTop} · tuner ${st.isConnected} ${st.offsetTop}+${st.offsetHeight} · tuners ${document.querySelectorAll('.sheet-tuner').length}`);
+    // On CI (hidden window, no screen) the position read right after the click can trail by a frame – the
+    // metronome is below the tuner a moment later (seen in the log: 71 at once, 124 after 400 ms). So wait for it.
+    const below = () => el2.offsetLeft === 12 && el2.offsetTop >= st.offsetTop + st.offsetHeight && el2.offsetTop <= st.offsetTop + st.offsetHeight + 12;
+    await waitFor(below, 3000, 'below the tuner').catch(() => {});
+    check('with the tuner on: top left, just below the tuner', below() && parseFloat(el2.style.fontSize) === db.settings.sheetMetronomeSize,
+      `${el2.offsetLeft},${el2.offsetTop} · tuner ${st.offsetLeft},${st.offsetTop} ${st.offsetWidth}x${st.offsetHeight} · tuners ${document.querySelectorAll('.sheet-tuner').length}`);
     $('.tuner-tool').click();
     await sleep(80);
     el2.querySelector('.metro-play').click();
