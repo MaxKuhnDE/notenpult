@@ -86,6 +86,9 @@
     await waitFor(() => $('.face-modal .face-status')?.textContent === 'Aktiv', 15000, 'camera').catch(() => {});
     check('test dialog: camera picture and live numbers', $('.face-modal video').srcObject && $('.face-modal .face-status').textContent === 'Aktiv',
       $('.face-modal .face-status').textContent);
+    await waitFor(() => /^Erkennung: (GPU|CPU) · \d+ ms pro Bild$/.test($('.face-modal .face-info').textContent), 5000, 'info').catch(() => {});
+    check('… says what detects (GPU/CPU) and how long a picture takes', /^Erkennung: (GPU|CPU) · \d+ ms pro Bild$/.test($('.face-modal .face-info').textContent),
+      $('.face-modal .face-info').textContent);
     face.feedFrame(yaw(30), 5000);
     face.feedFrame(yaw(30), 5080);
     check('… shows what a gesture does', $('.face-action').classList.contains('show') && $('.face-action').textContent.includes('Weiter'));
