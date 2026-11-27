@@ -7,7 +7,9 @@ import { updateSection } from './updates.js';
 import { presetsAvailable, exportAll, importAll } from './presets.js';
 import { lanAvailable, openShare, openReceive } from './lan.js';
 import { openRemoteDialog } from './remote.js';
-import { applyTheme, validHex, defaultAccent } from './theme.js';
+import {
+  applyTheme, validHex, defaultAccent, metalSheen, BRASS_METAL,
+} from './theme.js';
 import { GESTURES, openFaceTest } from './face.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
@@ -65,7 +67,7 @@ function layoutRow(label, key) {
 
 /** Own accent colour: quick colours, colour field and hex input; "Standard" goes back to brass. */
 const ACCENT_PRESETS = [
-  [null, 'Messing (Standard)', '#d0a852'],
+  [null, 'Messing (Standard)'],
   ['#b8bec7', 'Silber'],
   ['#c27a4a', 'Kupfer'],
   ['#2f6fd0', 'Blau'],
@@ -112,8 +114,8 @@ function accentRow() {
     else if (!hex.value.trim()) set(null);
     else hex.classList.add('invalid');
   });
-  const presets = h('div.accent-presets', null, ACCENT_PRESETS.map(([value, label, look]) => h('button.accent-preset', {
-    type: 'button', title: label, 'aria-label': label, style: { background: look || value }, onclick: () => set(value),
+  const presets = h('div.accent-presets', null, ACCENT_PRESETS.map(([value, label]) => h('button.accent-preset', {
+    type: 'button', title: label, 'aria-label': label, style: { background: value ? metalSheen(value) : BRASS_METAL }, onclick: () => set(value),
   })));
   show();
   return h('div.setting.stacked', null,

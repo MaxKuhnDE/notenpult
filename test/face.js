@@ -125,7 +125,7 @@
     check('paused: nothing happens', sub().includes('Seite 1 von 3') && $('.face-pill').classList.contains('paused'));
     window.__np.closeViewer();
     await sleep(100);
-    check('camera off after the viewer', !$('.face-pill'));
+    check('camera off after the viewer', !$('.face-pill') && !face.cameraInUse());
     db.settings.faceTurns = false;
     store.commit('settings');
   } catch (err) {

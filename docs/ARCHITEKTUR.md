@@ -26,7 +26,7 @@ renderer/
   js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
   js/remote.js     Fußpedal & Fernbedienung: Tastenbelegung, Tasten lernen, MIDI
-  js/tuner.js      Stimmgerät: Tonerkennung (YIN), Notennamen, Dialog
+  js/tuner.js      Stimmgerät: Tonerkennung (YIN), Notennamen, Dialog, Cent-Anzeige auf dem Blatt
   js/face.js       Blättern per Gesicht: Kamera, MediaPipe Face Landmarker, Gesten
   js/lan.js        Dialoge „Im WLAN teilen“ / „Aus dem WLAN holen“
   js/lan-plan.js   was beim Holen entsteht: spiegelgleich oder hinzufügen, welche Dateien fehlen
@@ -128,6 +128,12 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
 - `tuner.js`: Mikrofon (`getUserMedia`, ohne Echo-/Rauschunterdrückung) → `AnalyserNode` (4096 Werte) →
   `detectPitch` (YIN: grob bei halber Abtastrate, fein bei voller, Parabel ins Minimum) etwa 15-mal pro Sekunde,
   Median der letzten fünf. `noteFor` rechnet mit dem Kammerton und der Stimmung des Instruments.
+- Stimmgerät auf dem Blatt: `startSheetTuner()` nutzt dieselbe Mikrofon-Schleife (`listenPitch`) und zeigt nur
+  die Cent (`centsLabel`). Es hängt am Notenmodus (`V.sheetTuner`), nicht an der Seite; Zeiger-Ereignisse
+  enden dort, damit nichts blättert. Größe in `settings.sheetTunerSize` (Geräte-Einstellung, gespeichert mit
+  `persist()` ohne Neuzeichnen).
+- Messing-Glanz: `--accent-metal` (Verlauf) und `--metal-edge` (Glanzkante) in styles.css; für eine eigene Farbe
+  rechnet `theme.metalSheen()` den Verlauf aus.
 - `face.js`: MediaPipe Face Landmarker (`@mediapipe/tasks-vision`, Bündel + wasm + Modell aus `assets/mediapipe`,
   kopiert von `scripts/mediapipe.js`), GPU mit Rückfall auf CPU. Aus Blendshapes (`jawOpen`, `eyeBlink…`) und der
   Kopfdrehung (Transformationsmatrix) macht `createGestureDetector` mit Haltezeit, Rückkehr zur Ausgangshaltung

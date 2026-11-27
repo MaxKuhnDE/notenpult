@@ -1,8 +1,9 @@
 // Tuner: the microphone signal, the pitch (YIN), the nearest note and how far off it is in cents.
 // Kammerton (settings.tunerA4) and the instrument's key (settings.tunerTranspose) are remembered.
 // detectPitch/noteFor are plain functions (test/tuner.js feeds them generated tones).
+// Two faces: the dialog (openTuner) and just the cents on the sheet (startSheetTuner, viewer toolbar).
 
-import { db, commit } from './store.js';
+import { db, commit, persist } from './store.js';
 import {
   h, fill, btn, modal,
 } from './ui.js';
@@ -110,17 +111,95 @@ export function noteFor(freq, a4 = 440, transpose = 'C') {
 
 const clampA4 = (v) => Math.max(A4_MIN, Math.min(A4_MAX, Math.round(Number(v) || 440)));
 
+/** Why the microphone could not start, in words. */
+export function micMessage(err) {
+  return err && err.name === 'NotAllowedError'
+    ? 'Kein Zugriff aufs Mikrofon – bitte in den Einstellungen des Geräts für Notenpult erlauben.'
+    : 'Kein Mikrofon gefunden.';
+}
+
+/**
+ * Listens to the microphone (or `stream`): onPitch(Hz) about 15 times a second with the median of the
+ * last five measurements, onSilence() once after `holdMs` without a tone. Returns { stop }.
+ */
+export function listenPitch({
+  stream = null, onPitch, onSilence = () => {}, onReady = () => {}, onError = () => {}, holdMs = 1500,
+}) {
+  let ctx = null;
+  let raf = 0;
+  let media = null;
+  let stopped = false;
+  let recent = [];
+  let lastSeen = 0;
+  let silent = true;
+  const release = () => {
+    cancelAnimationFrame(raf);
+    if (ctx) ctx.close().catch(() => {});
+    ctx = null;
+    if (media && !stream) media.getTracks().forEach((t) => t.stop());
+  };
+  (async () => {
+    try {
+      media = stream || await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      if (stopped) {
+        release();
+        return;
+      }
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      ctx = new AudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+      if (stopped) {
+        release();
+        return;
+      }
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 4096;
+      ctx.createMediaStreamSource(media).connect(analyser);
+      const buf = new Float32Array(analyser.fftSize);
+      const rate = ctx.sampleRate;
+      onReady();
+      let last = 0;
+      const tick = (now) => {
+        if (stopped) return;
+        raf = requestAnimationFrame(tick);
+        if (now - last < 66) return; // ~15 measurements a second are plenty
+        last = now;
+        analyser.getFloatTimeDomainData(buf);
+        const f = detectPitch(buf, rate);
+        if (f) {
+          recent.push(f);
+          if (recent.length > 5) recent.shift();
+          lastSeen = now;
+          silent = false;
+          onPitch([...recent].sort((p, q) => p - q)[Math.floor(recent.length / 2)]);
+        } else if (!silent && now - lastSeen > holdMs) {
+          silent = true;
+          recent = [];
+          onSilence();
+        }
+      };
+      raf = requestAnimationFrame(tick);
+    } catch (err) {
+      console.warn('Stimmgerät', err);
+      if (!stopped) onError(err);
+    }
+  })();
+  return {
+    stop() {
+      stopped = true;
+      release();
+    },
+  };
+}
+
 /**
  * The tuner dialog. `stream` replaces the microphone (tests feed a generated tone).
  * Returns { close } so the viewer can close it again.
  */
 export function openTuner({ stream = null } = {}) {
-  let ctx = null;
-  let raf = 0;
-  let media = stream;
-  let recent = [];
   let shownCents = 0;
-  let lastSeen = 0;
 
   const noteName = h('span.tuner-name', null, '–');
   const octave = h('span.tuner-octave');
@@ -169,49 +248,16 @@ export function openTuner({ stream = null } = {}) {
     status.textContent = inTune ? 'Stimmt.' : note.cents < 0 ? 'Zu tief.' : 'Zu hoch.';
   };
 
-  async function start() {
-    try {
-      if (!media) {
-        media = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        });
-      }
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      ctx = new AudioCtx();
-      if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-      const source = ctx.createMediaStreamSource(media);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 4096;
-      source.connect(analyser);
-      const buf = new Float32Array(analyser.fftSize);
-      status.textContent = 'Spiel einen Ton.';
-      let last = 0;
-      const tick = (now) => {
-        raf = requestAnimationFrame(tick);
-        if (now - last < 66) return; // ~15 measurements a second are plenty
-        last = now;
-        analyser.getFloatTimeDomainData(buf);
-        const f = detectPitch(buf, ctx.sampleRate);
-        if (f) {
-          recent.push(f);
-          if (recent.length > 5) recent.shift();
-          const median = [...recent].sort((p, q) => p - q)[Math.floor(recent.length / 2)];
-          lastSeen = now;
-          show(median);
-        } else if (now - lastSeen > 1500) {
-          recent = [];
-          status.textContent = 'Spiel einen Ton.';
-        }
-      };
-      raf = requestAnimationFrame(tick);
-    } catch (err) {
-      console.warn('Stimmgerät', err);
-      status.textContent = err && err.name === 'NotAllowedError'
-        ? 'Kein Zugriff aufs Mikrofon – bitte in den Einstellungen des Geräts für Notenpult erlauben.'
-        : 'Kein Mikrofon gefunden.';
+  const listener = listenPitch({
+    stream,
+    onReady: () => { status.textContent = 'Spiel einen Ton.'; },
+    onPitch: show,
+    onSilence: () => { status.textContent = 'Spiel einen Ton.'; },
+    onError: (err) => {
+      status.textContent = micMessage(err);
       status.classList.add('error');
-    }
-  }
+    },
+  });
 
   const step = (d) => () => setA4(db.settings.tunerA4 + d);
   const m = modal({
@@ -231,12 +277,158 @@ export function openTuner({ stream = null } = {}) {
         h('div.tuner-quick', null, [440, 441, 442, 443].map((v) => btn(String(v), () => setA4(v), { kind: 'ghost' })))),
       h('div.tuner-row', null, h('span.tuner-label', null, 'Anzeige für'), transposeSeg)),
     actions: [{ label: 'Fertig', kind: 'primary', value: true }],
-    onClose: () => {
-      cancelAnimationFrame(raf);
-      if (ctx) ctx.close().catch(() => {});
-      if (media && !stream) media.getTracks().forEach((t) => t.stop());
-    },
+    onClose: () => listener.stop(),
   });
-  start();
   return m;
+}
+
+// ---------- the tuner on the sheet (viewer toolbar) ----------
+
+export const SHEET_SIZE_MIN = 14;
+export const SHEET_SIZE_MAX = 200;
+const clampSize = (v) => Math.max(SHEET_SIZE_MIN, Math.min(SHEET_SIZE_MAX, Math.round(Number(v) || 40)));
+
+/** "+12¢", "−8¢" (a real minus), "±0¢". */
+export function centsLabel(cents) {
+  const c = Math.round(cents);
+  return c === 0 ? '±0¢' : `${c > 0 ? '+' : '−'}${Math.abs(c)}¢`;
+}
+
+/**
+ * Just the cents in red on the sheet – no frame, no dialog. Drag to move; the corner, two fingers or
+ * the mouse wheel change the size (remembered per device). Kammerton from the tuner (settings.tunerA4).
+ * Appears at (left, top) in `parent`. Returns { el, stop, keepBelow(top), clamp() }.
+ */
+export function startSheetTuner({
+  parent, left = 12, top = 12, stream = null, onError = () => {},
+}) {
+  const value = h('span.sheet-tuner-value', null, '—¢');
+  const grip = h('span.sheet-tuner-grip', { 'aria-hidden': 'true' });
+  const el = h('div.sheet-tuner.idle', {
+    role: 'status',
+    'aria-label': 'Stimmgerät auf dem Blatt',
+    title: 'Stimmgerät – ziehen zum Verschieben; Ecke, zwei Finger oder Mausrad für die Größe',
+  }, value, grip);
+  let size = clampSize(db.settings.sheetTunerSize);
+  let shown = null; // { midi, cents }: a calm number, starts fresh when the note changes
+
+  const place = (x, y) => {
+    const maxX = Math.max(0, parent.clientWidth - el.offsetWidth);
+    const maxY = Math.max(0, parent.clientHeight - el.offsetHeight);
+    el.style.left = `${Math.round(Math.max(0, Math.min(maxX, x)))}px`;
+    el.style.top = `${Math.round(Math.max(0, Math.min(maxY, y)))}px`;
+  };
+  const resize = (s) => {
+    size = clampSize(s);
+    el.style.fontSize = `${size}px`;
+    place(el.offsetLeft, el.offsetTop);
+  };
+  const save = () => {
+    if (db.settings.sheetTunerSize === size) return;
+    db.settings.sheetTunerSize = size;
+    persist(); // no re-render of the pages
+  };
+  el.style.fontSize = `${size}px`;
+  parent.append(el);
+  place(left, top);
+
+  // one pointer: move (or resize on the corner); two pointers: pinch
+  const pts = new Map();
+  let mode = null;
+  let from = null;
+  const spread = () => {
+    const [a, b] = [...pts.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  };
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch { /* synthetic pointers in tests */ }
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      mode = 'pinch';
+      from = { size, d: spread() };
+    } else if (pts.size === 1) {
+      mode = e.target === grip ? 'size' : 'move';
+      from = {
+        x: e.clientX, y: e.clientY, left: el.offsetLeft, top: el.offsetTop, size, h: el.offsetHeight || size,
+      };
+    }
+    el.classList.add('dragging');
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    e.stopPropagation();
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (mode === 'pinch') {
+      if (pts.size >= 2) resize(from.size * (spread() / from.d));
+    } else if (mode === 'move') {
+      place(from.left + e.clientX - from.x, from.top + e.clientY - from.y);
+    } else if (mode === 'size') {
+      resize(from.size * (1 + (e.clientX - from.x + e.clientY - from.y) / 2 / from.h));
+    }
+  });
+  const up = (e) => {
+    if (!pts.delete(e.pointerId)) return;
+    e.stopPropagation();
+    if (pts.size) return; // two fingers → one: wait for the last one
+    if (mode === 'size' || mode === 'pinch') save();
+    mode = null;
+    el.classList.remove('dragging');
+  };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resize(size * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+    save();
+  }, { passive: false });
+  // a tap on it never turns the page
+  for (const type of ['click', 'dblclick', 'contextmenu']) {
+    el.addEventListener(type, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
+  const listener = listenPitch({
+    stream,
+    holdMs: 1000,
+    onPitch: (freq) => {
+      const midi = 69 + 12 * Math.log2(freq / (db.settings.tunerA4 || 440));
+      const nearest = Math.round(midi);
+      const cents = (midi - nearest) * 100;
+      shown = shown && shown.midi === nearest
+        ? { midi: nearest, cents: shown.cents + (cents - shown.cents) * 0.5 }
+        : { midi: nearest, cents };
+      value.textContent = centsLabel(shown.cents);
+      el.dataset.cents = String(Math.round(shown.cents));
+      el.classList.remove('idle');
+    },
+    onSilence: () => {
+      shown = null;
+      value.textContent = '—¢';
+      delete el.dataset.cents;
+      el.classList.add('idle');
+    },
+    onError,
+  });
+
+  return {
+    el,
+    stop() {
+      listener.stop();
+      el.remove();
+    },
+    /** The toolbar came back: stay below it. */
+    keepBelow(minTop) {
+      if (el.offsetTop < minTop) place(el.offsetLeft, minTop);
+    },
+    clamp() {
+      place(el.offsetLeft, el.offsetTop);
+    },
+  };
 }

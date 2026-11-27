@@ -22,14 +22,18 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 - **Stimmgerät (Test):** Ton, Oktave, Cent-Nadel und Frequenz, Kammerton (415–466 Hz, wird gespeichert),
   Anzeige für B-, Es- und F-Instrumente. Erkennt Töne von der Kontrabass-Tuba bis zum hohen Flügelhorn auf
   besser als 1 Cent.
-- **Schnellfarben** für die Akzentfarbe: Messing, Silber, Kupfer, Blau, Grün, Bordeaux.
+- **Stimmgerät auf dem Blatt:** Stimmgabel in der Stift-Leiste schaltet mit einem Klick eine Cent-Anzeige über den
+  Noten an und aus – nur „+12¢“ / „−8¢“ in Rot, ohne Rahmen, erscheint oben links. Verschieben durch Ziehen, Größe
+  über die Ecke, zwei Finger oder das Mausrad (je Gerät gemerkt). Kammerton aus dem Stimmgerät.
+- **Schnellfarben** für die Akzentfarbe: Messing, Silber, Kupfer, Blau, Grün, Bordeaux – als Metall dargestellt.
 - Android: Kamera- und Mikrofonrechte (ab Android 6 wird einmal gefragt).
 - Tests: `viewer21.js`, `tuner.js`, `face.js`; Gesichtserkennung und Stimmgerät auch in der Android-Prüfung.
 
 ### Geändert
-- **Notenpult 2 bekommt Farbe:** Standard-Akzent ist jetzt **Messing** wie die Instrumente. Stücke und
-  Setlist-Einträge sind wieder klar umrandete Kacheln, Buchstaben, Symbole und Genres neben den Stücken tragen den
-  Akzent (Genres mit Rahmen und Tönung).
+- **Notenpult 2 bekommt Farbe:** Standard-Akzent ist jetzt **poliertes Messing** wie lackiertes Instrumentenblech:
+  Knöpfe, Logo, Schalter, aktive Genres und Sprung-Links mit Glanzverlauf und Glanzkante statt einer flachen Farbe.
+  Eine eigene Akzentfarbe bekommt denselben Metallglanz. Stücke und Setlist-Einträge sind wieder klar umrandete
+  Kacheln, Buchstaben, Symbole und Genres neben den Stücken tragen den Akzent (Genres mit Rahmen und Tönung).
 
 ## [2.0.0] – 2026-11-27
 

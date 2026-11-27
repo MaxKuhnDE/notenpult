@@ -669,6 +669,7 @@ body.viewer-open #app { visibility: hidden; }
 .setting-hint.block { padding: 8px 0 2px; }
 .toggle-row { cursor: pointer; flex-wrap: nowrap; }
 .setting.stacked { flex-direction: column; align-items: stretch; gap: 8px; }
+.setting.stacked .setting-text { flex: 0 0 auto; } /* the 240px basis is a width in a row, not a height */
 .segmented.wrap { display: flex; flex-wrap: wrap; }
 .segmented.wrap .seg { flex: 1 1 auto; justify-content: center; }
 .switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
@@ -1423,6 +1424,8 @@ button.genre-chip:hover { background: var(--hover); }
   --accent-fg: #1c1606;
   --accent-soft: rgba(201, 160, 70, 0.16);
   --accent-text: #7d5d12;
+  --accent-metal: linear-gradient(165deg, #f8e8ab 0%, #e6c672 18%, #cc9d40 45%, #a9792b 68%, #dcb65e 86%, #b98832 100%);
+  --metal-edge: inset 0 1px 0 rgba(255, 250, 228, 0.65), inset 0 -1px 0 rgba(84, 54, 8, 0.38), 0 1px 2px rgba(60, 40, 5, 0.22);
   --viewer-bg: #e3e2de;
   --shadow: 0 8px 28px rgba(25, 20, 10, 0.13), 0 1px 3px rgba(25, 20, 10, 0.07);
   --radius: 10px;
@@ -1441,11 +1444,31 @@ button.genre-chip:hover { background: var(--hover); }
   --accent-fg: #1a1405;
   --accent-soft: rgba(217, 180, 92, 0.15);
   --accent-text: #e2c06e;
+  --accent-metal: linear-gradient(165deg, #f8e8ab 0%, #e6c672 18%, #cc9d40 45%, #a9792b 68%, #dcb65e 86%, #b98832 100%);
+  --metal-edge: inset 0 1px 0 rgba(255, 250, 228, 0.6), inset 0 -1px 0 rgba(60, 38, 4, 0.5), 0 1px 3px rgba(0, 0, 0, 0.45);
   --viewer-bg: #0d0d0e;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-[data-style="v2"] .brand-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); }
+[data-style="v2"] .brand-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-metal); color: var(--accent-fg); box-shadow: var(--metal-edge); }
+
+/* Everything filled with the accent looks like polished instrument metal (--accent-metal, theme.js
+ * metalSheen for an own colour): a light edge, the colour, a darker bend, a second reflection. */
+[data-style="v2"] .btn.primary,
+[data-style="v2"] .lib .piece-row.selected .piece-select,
+[data-style="v2"] .genre-chip.active,
+[data-style="v2"] .v-nr,
+[data-style="v2"] .link-mark,
+[data-style="v2"] .face-action,
+[data-style="v2"] .tuner-needle.in-tune {
+  background: var(--accent-metal);
+  box-shadow: var(--metal-edge);
+}
+[data-style="v2"] .btn.primary { border-color: transparent; text-shadow: 0 1px 0 rgba(255, 244, 210, 0.35); }
+[data-style="v2"] .btn.primary:hover { background: var(--accent-metal); border-color: transparent; filter: brightness(1.07) saturate(1.05); }
+[data-style="v2"] .genre-chip.active { border-color: transparent; }
+[data-style="v2"] .link-mark { box-shadow: var(--metal-edge), 0 2px 8px rgba(0, 0, 0, 0.35); }
+[data-style="v2"] .switch input:checked + .switch-track { background: var(--accent-metal); box-shadow: inset 0 1px 0 rgba(255, 250, 228, 0.5), inset 0 -1px 0 rgba(60, 38, 4, 0.35); }
 [data-style="v2"] .brand-mark .ic { width: 19px; height: 19px; }
 [data-style="v2"] .btn { height: 40px; border-radius: 8px; }
 [data-style="v2"] .btn:active { transform: none; }
@@ -1697,3 +1720,42 @@ button.genre-chip:hover { background: var(--hover); }
 .face-status.error { color: var(--danger); }
 .face-values { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .range { width: min(260px, 100%); accent-color: var(--accent); }
+
+/* ===== Stimmgerät auf dem Blatt (tuner.js startSheetTuner, Knopf in der Stift-Leiste) =====
+ * Nur die Cent in Rot, ohne Rahmen. Ziehen verschiebt, die Ecke / zwei Finger / Mausrad ändern die Größe. */
+.sheet-tuner {
+  position: absolute;
+  z-index: 56;
+  display: inline-flex;
+  align-items: flex-end;
+  padding: 0.04em 0.2em 0.08em 0.06em;
+  color: #e0201a;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.sheet-tuner.dragging { cursor: grabbing; }
+.sheet-tuner-value { min-width: 2.3em; text-align: center; }
+.sheet-tuner.idle .sheet-tuner-value { opacity: 0.45; }
+.sheet-tuner-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border-right: 3px solid currentColor;
+  border-bottom: 3px solid currentColor;
+  border-bottom-right-radius: 3px;
+  opacity: 0.35;
+  cursor: nwse-resize;
+}
+.sheet-tuner-grip::before { content: ""; position: absolute; inset: -12px; } /* easier to hit with a finger */
+.sheet-tuner:hover .sheet-tuner-grip,
+.sheet-tuner.dragging .sheet-tuner-grip { opacity: 0.8; }
+.tuner-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }

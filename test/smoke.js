@@ -100,7 +100,7 @@
     for (let i = 0; i <= 10; i++) fire(stage, 'pointermove', { pointerId: 7, pointerType: 'pen', clientX: pts[10][0], clientY: pts[10][1] - 30 + i * 6, buttons: 32 });
     fire(stage, 'pointerup', { pointerId: 7, pointerType: 'pen', clientX: pts[10][0], clientY: pts[10][1] + 30, button: 5, buttons: 0 });
     await shot('06-erased');
-    document.querySelector('.ink-tools .icon-btn:last-child').click(); // undo
+    document.querySelector('.ink-tools .icon-btn[title^="Rückgängig"]').click(); // undo
     await shot('06b-undo');
 
     // Palm: touch right after pen must not turn the page

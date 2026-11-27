@@ -28,7 +28,7 @@ import { isDark, toggleDark, onThemeChange } from './theme.js';
 import { openSettings } from './settings.js';
 import { openSearch } from './search.js';
 import * as remote from './remote.js';
-import { openTuner } from './tuner.js';
+import { openTuner, startSheetTuner, micMessage } from './tuner.js';
 import { startFaceControl } from './face.js';
 
 const PAD = 10;
@@ -154,6 +154,13 @@ function build() {
     }, icon('stamp')),
     eraser: iconBtn('eraser', 'Radierer', toggleEraser, { class: 'tool' }),
     undo: iconBtn('undo', 'Rückgängig (Strg+Z)', undo, { class: 'tool' }),
+    tuner: h('button.icon-btn.tool.tuner-tool', {
+      type: 'button',
+      title: 'Stimmgerät auf dem Blatt an/aus (nur die Cent, Kammerton aus dem Stimmgerät)',
+      'aria-label': 'Stimmgerät auf dem Blatt',
+      'aria-pressed': 'false',
+      onclick: () => toggleSheetTuner(),
+    }, icon('tuner')),
   };
   const fsBtn = iconBtn('fullscreen', 'Vollbild (F11)', toggleFullscreen, { class: 'v-fs' });
   const isSetlist = V.context.kind === 'setlist';
@@ -168,7 +175,7 @@ function build() {
         iconBtn('next', 'Weiterblättern (→)', next)),
       iconBtn('search', 'Suchen – auch im Noten-Pool (Strg+F)', openViewerSearch),
       isSetlist ? iconBtn('hash', 'Nummer eingeben', () => openJump('')) : null,
-      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.more, tools.eraser, tools.undo),
+      h('div.v-group.ink-tools', null, tools.draw, tools.red, tools.black, tools.more, tools.eraser, tools.undo, tools.tuner),
       h('div.v-group.rotate-tools', null,
         iconBtn('rotateLeft', 'Seite 90° nach links drehen', () => rotateVisible(-90)),
         iconBtn('rotateRight', 'Seite 90° nach rechts drehen', () => rotateVisible(90))),
@@ -204,6 +211,7 @@ function build() {
   window.addEventListener('keydown', onKey);
   const ro = new ResizeObserver(() => {
     if (!V) return;
+    V.sheetTuner?.clamp();
     clearTimeout(V.resizeTimer);
     V.resizeTimer = setTimeout(() => {
       if (!V) return;
@@ -222,6 +230,7 @@ function build() {
     }
   });
   syncFace();
+  syncSheetTuner();
   // Pedals and remotes: volume/media keys from the system, MIDI if a MIDI key is assigned.
   const v = V;
   const offSystemKeys = remote.onSystemKey((id) => runRemote(id));
@@ -241,9 +250,10 @@ function build() {
     unTheme,
     offSystemKeys,
     () => remote.capture('viewer', false),
-    () => V?.face?.stop(),
+    () => v.face?.stop(),
+    () => v.sheetTuner?.stop(),
     () => stopMidi(),
-    () => clearTimeout(V?.resizeTimer),
+    () => clearTimeout(v.resizeTimer),
   );
   applyViewerTheme();
   updateTools();
@@ -1117,6 +1127,39 @@ async function clearVisible() {
   }
 }
 
+// ---------- the tuner on the sheet ----------
+
+/** Stays on for the next pieces until switched off; not saved (no microphone when the app starts). */
+let sheetTunerOn = false;
+
+function toggleSheetTuner() {
+  sheetTunerOn = !sheetTunerOn;
+  syncSheetTuner();
+}
+
+function syncSheetTuner() {
+  if (!V) return;
+  if (sheetTunerOn && !V.sheetTuner) {
+    const v = V;
+    // always pops up top left – below the toolbar while it is shown
+    const top = (V.el.classList.contains('bar-hidden') ? 0 : V.bar.offsetHeight) + 10;
+    V.sheetTuner = startSheetTuner({
+      parent: V.el,
+      left: 12,
+      top,
+      onError: (err) => {
+        toast(micMessage(err), { ms: 4500 });
+        if (V === v && sheetTunerOn) toggleSheetTuner();
+      },
+    });
+  } else if (!sheetTunerOn && V.sheetTuner) {
+    V.sheetTuner.stop();
+    V.sheetTuner = null;
+  }
+  V.tools.tuner.classList.toggle('active', sheetTunerOn);
+  V.tools.tuner.setAttribute('aria-pressed', String(sheetTunerOn));
+}
+
 // ---------- turning pages by face ----------
 
 const faceKey = () => (db.settings.faceTurns ? `${db.settings.faceGesture}|${db.settings.faceSensitivity}|${db.settings.faceSwap}` : '');
@@ -1360,6 +1403,7 @@ function updateFsButton() {
 
 function setBarHidden(hidden) {
   V.el.classList.toggle('bar-hidden', hidden);
+  if (!hidden) V.sheetTuner?.keepBelow(V.bar.offsetHeight + 10);
   if (hidden) toast('Leiste ausgeblendet – oben rechts wieder einblenden.', { ms: 2400 });
 }
 

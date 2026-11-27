@@ -124,6 +124,8 @@ export function loadLandmarker() {
 }
 
 const controllers = new Set();
+/** True while a camera loop runs (test: off after the viewer closes). */
+export const cameraInUse = () => controllers.size > 0;
 
 /** Test hook: a picture's numbers as if the camera had seen them (the camera pauses for a moment). */
 export function feedFrame(f, now = performance.now()) {

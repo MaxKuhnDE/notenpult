@@ -26,7 +26,8 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Blättern per Gesicht**: Kopf drehen, Mund öffnen oder zwinkern – die Kamera vorne erkennt es, alles bleibt auf
   dem Gerät ([mehr](#blättern-per-gesicht)).
 - **Stimmgerät** mit einstellbarem Kammerton (z. B. 442 Hz, wird gespeichert) und Anzeige für B-, Es- und
-  F-Instrumente ([mehr](#stimmgerät)).
+  F-Instrumente – auch klein **auf dem Blatt**: nur „+12¢“ in Rot, verschieb- und vergrößerbar
+  ([mehr](#stimmgerät)).
 - **Fußpedal & Fernbedienung**: Bluetooth-Pedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
   Scroll-Ringe („TikTok-Ringe“), Mausrad und MIDI-Pedale blättern – unter Windows und Android. Jede Taste lässt
   sich zuweisen, auch „Nächstes Stück“ oder „Nächste Stimme“ ([mehr](#fußpedal--fernbedienung)).
@@ -51,8 +52,8 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Suche**: über Titel, Stimmen, Setlist-Nummern und den Noten-Pool. Während des Spielens wird ein
   gefundenes Stück eingeschoben (z. B. für Zugaben).
 - **Darstellung**: Hell/Dunkel, Noten optional invertiert, Hoch- und Querformat, Vollbild, Bildschirm bleibt an.
-  Oberfläche „Notenpult 2“ in Graphit mit **Messing** wie die Instrumente (Standard) oder „Klassisch“ wie bis
-  Version 1.6. Die **Akzentfarbe** ist frei wählbar (*Einstellungen → Darstellung*: Schnellfarben Messing, Silber,
+  Oberfläche „Notenpult 2“ in Graphit mit **poliertem Messing** wie lackiertes Instrumentenblech (Knöpfe, Schalter
+  und Markierungen mit Glanzkante; Standard) oder „Klassisch“ wie bis Version 1.6. Die **Akzentfarbe** ist frei wählbar (*Einstellungen → Darstellung*: Schnellfarben Messing, Silber,
   Kupfer, Blau, Grün, Bordeaux, Farbfeld oder Hex-Wert wie `#2f6fd0`) – Notenpult passt Schrift auf Knöpfen und
   Textfarbe so an, dass alles lesbar bleibt; „Standard“ geht zurück zu Messing.
 - **Im WLAN teilen**: Ein Gerät zeigt einen 4-stelligen Code, ein anderes im selben WLAN (oder Handy-Hotspot)
@@ -208,6 +209,7 @@ Gut zu wissen:
 | ⋯ → Sprung-Link setzen | Wiederholung, D.S., Coda: antippen springt, „Zurück zu Seite …“ zurück |
 | Stempel-Knopf in der Leiste | Blau, Grün, Textmarker, Text, Stempel |
 | Stimmgabel oben / ⋯ → Stimmgerät | Stimmgerät |
+| Stimmgabel in der Stift-Leiste | Stimmgerät auf dem Blatt an/aus (nur die Cent) |
 
 ### Halbe Seite umblättern
 
@@ -324,6 +326,22 @@ bist.
 Beim ersten Mal fragen Windows bzw. Android nach dem Mikrofon. Das Stimmgerät ist neu – Rückmeldungen willkommen.
 
 ![Stimmgerät](docs/screenshots/stimmgeraet.png)
+
+### Stimmgerät auf dem Blatt
+
+Im Notenmodus sitzt in der Stift-Leiste (neben Farben, Radierer, Rückgängig) eine **Stimmgabel**. Ein Klick schaltet
+das kleine Stimmgerät an, ein zweiter wieder aus. Es erscheint immer **oben links** und zeigt nur die Abweichung –
+**„+12¢“** zu hoch, **„−8¢“** zu tief, „±0¢“ genau – in Rot, ohne Rahmen, direkt über den Noten. Ohne Ton steht
+blass „—¢“.
+
+- **Verschieben**: anfassen und ziehen. Antippen blättert nicht um.
+- **Größe**: an der kleinen Ecke unten rechts ziehen, mit zwei Fingern auseinander/zusammen oder mit dem Mausrad.
+  Die Größe merkt sich jedes Gerät.
+- **Kammerton** kommt aus dem Stimmgerät (z. B. 442 Hz).
+
+Es bleibt für die nächsten Stücke an, bis du es ausschaltest; das Mikrofon läuft nur, solange die Noten offen sind.
+
+![Stimmgerät auf dem Blatt](docs/screenshots/stimmgeraet-blatt.png)
 
 ## Google Drive (Noten-Pool)
 

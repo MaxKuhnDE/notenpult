@@ -36,6 +36,11 @@
     await setTheme('dark');
     check('… polished brass on dark', token('--accent') === '#d9b45c' && db.settings.accentColor === null, token('--accent'));
     check('"Standard" means the style\'s own colour', theme.defaultAccent() === '#d9b45c');
+    check('brass is polished metal (a gradient with highlight and bend), the same in CSS and theme.js',
+      token('--accent-metal') === theme.BRASS_METAL && /^linear-gradient/.test(theme.BRASS_METAL), token('--accent-metal'));
+    const brand = getComputedStyle($('.brand-mark'));
+    check('… on the brand mark and the primary buttons', brand.backgroundImage.includes('rgb(204, 157, 64)') && brand.boxShadow.includes('inset'),
+      brand.backgroundImage.slice(0, 60));
 
     // ---------- building blocks ----------
     check('hex values: with or without #, short form, case; nonsense rejected',
@@ -50,6 +55,9 @@
         && theme.contrast(toRgbArr(c), toRgbArr(light['--accent-fg'])) >= 3;
     });
     check('any colour stays readable: text shade ≥ 4.5:1, label on buttons ≥ 3:1', ok);
+    const sheen = theme.metalSheen('#b8bec7');
+    check('any colour becomes metal: Silber gets light edge, itself and a darker bend',
+      sheen.includes('#b8bec7 45%') && /^linear-gradient\(165deg, #[0-9a-f]{6} 0%/.test(sheen) && theme.accentTokens('#b8bec7', true)['--accent-metal'] === sheen, sheen);
     check('label colour: white on dark blue, dark on yellow',
       theme.accentTokens('#2f6fd0', false)['--accent-fg'] === '#ffffff' && theme.accentTokens('#f5d90a', false)['--accent-fg'] === '#131416');
 
@@ -71,10 +79,12 @@
     check('typed hex value is used and saved', db.settings.accentColor === '#2f6fd0' && token('--accent') === '#2f6fd0' && picker.value === '#2f6fd0' && !reset.disabled);
     await sleep(250); // buttons fade to a new colour
     const primary = $('.btn.primary');
-    check('primary buttons take the colour', getComputedStyle(primary).backgroundColor === rgb('#2f6fd0'), getComputedStyle(primary).backgroundColor);
+    check('primary buttons take the colour (as metal)', getComputedStyle(primary).backgroundImage.includes(`${rgb('#2f6fd0')} 45%`),
+      getComputedStyle(primary).backgroundImage);
     byText('.settings-modal .settings-section', 'Darstellung').scrollIntoView();
     await sleep(200);
     await T.capture('93-akzentfarbe-einstellungen');
+    check('the colour row has no empty gap', row.offsetHeight < 170, `${row.offsetHeight}px`);
     hex.value = 'blau';
     hex.dispatchEvent(new Event('input', { bubbles: true }));
     hex.dispatchEvent(new Event('change', { bubbles: true }));
@@ -117,6 +127,7 @@
     const silver = [...document.querySelectorAll('.accent-preset')].find((x) => x.title === 'Silber');
     silver.click();
     await sleep(50);
+    check('quick colours look like metal', [...document.querySelectorAll('.accent-preset')].every((x) => getComputedStyle(x).backgroundImage.startsWith('linear-gradient')));
     check('quick colours: Silber, and "Messing" is the default again', db.settings.accentColor === '#b8bec7'
       && ([...document.querySelectorAll('.accent-preset')].find((x) => x.title.startsWith('Messing')).click(), db.settings.accentColor === null));
     window.__npBack();
