@@ -28,6 +28,8 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Stimmgerät** mit einstellbarem Kammerton (z. B. 442 Hz, wird gespeichert) und Anzeige für B-, Es- und
   F-Instrumente – auch klein **auf dem Blatt**: nur „+12¢“, grün bis ±10 Cent, sonst rot, verschieb- und vergrößerbar
   ([mehr](#stimmgerät)).
+- **Metronom auf dem Blatt**: ein Klick in der Stift-Leiste – − / +, Tempo antippen und eintippen, ein Knopf für
+  Start und Stopp ([mehr](#metronom-auf-dem-blatt)).
 - **Fußpedal & Fernbedienung**: Bluetooth-Pedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
   Scroll-Ringe („TikTok-Ringe“), Mausrad und MIDI-Pedale blättern – unter Windows und Android. Jede Taste lässt
   sich zuweisen, auch „Nächstes Stück“ oder „Nächste Stimme“ ([mehr](#fußpedal--fernbedienung)).
@@ -210,6 +212,7 @@ Gut zu wissen:
 | Stempel-Knopf in der Leiste | Blau, Grün, Textmarker, Text, Stempel |
 | Stimmgabel oben / ⋯ → Stimmgerät | Stimmgerät |
 | Stimmgabel in der Stift-Leiste | Stimmgerät auf dem Blatt an/aus (nur die Cent) |
+| Metronom in der Stift-Leiste | Metronom auf dem Blatt an/aus (− / Tempo / + / Start-Stopp) |
 
 ### Halbe Seite umblättern
 
@@ -346,6 +349,24 @@ Stimmgerät oben bleibt wie es ist.)
 Es bleibt für die nächsten Stücke an, bis du es ausschaltest; das Mikrofon läuft nur, solange die Noten offen sind.
 
 ![Stimmgerät auf dem Blatt](docs/screenshots/stimmgeraet-blatt.png)
+
+### Metronom auf dem Blatt
+
+Gleich neben der Stimmgabel in der Stift-Leiste sitzt das **Metronom**. Ein Klick zeigt es oben links (unter dem
+Stimmgerät, falls das auch an ist), ein zweiter blendet es wieder aus.
+
+- **− / +**: ein Schlag pro Minute langsamer/schneller; gedrückt halten zählt schnell weiter.
+- **Die Zahl antippen**: dann kommt die Tastatur (auf dem Tablet die Zifferntasten) – Tempo eintippen, **Enter**
+  übernimmt, **Esc** lässt das alte. Pfeil hoch/runter ändern um 1. Erlaubt sind 20 bis 300 BPM.
+- **Start/Stopp** ist ein Knopf: ▶ startet, ■ hält an. Die Zahl leuchtet bei jedem Schlag kurz auf.
+- **Verschieben und Größe** wie beim Stimmgerät: ziehen (auch an den Knöpfen), Ecke unten rechts, zwei Finger oder
+  Mausrad. Antippen blättert nie um.
+
+Der Klick läuft über die Audio-Uhr des Geräts und bleibt auch dann genau, wenn gerade Seiten gezeichnet werden.
+Tempo und Größe merkt sich jedes Gerät. Für die nächsten Stücke bleibt es eingeblendet, startet aber immer gestoppt;
+beim Schließen der Noten verstummt es.
+
+![Metronom auf dem Blatt](docs/screenshots/metronom-blatt.png)
 
 ## Google Drive (Noten-Pool)
 

@@ -37,6 +37,8 @@ export const DEFAULT_SETTINGS = {
   tunerA4: 440, // Stimmgerät: Kammerton a¹ in Hz
   tunerTranspose: 'C', // Stimmgerät: 'C' (klingend) | 'B' | 'Es' | 'F'
   sheetTunerSize: 40, // Stimmgerät auf dem Blatt: Schriftgröße in px (je Gerät)
+  metronomeBpm: 120, // Metronom auf dem Blatt: Schläge pro Minute (je Gerät)
+  sheetMetronomeSize: 32, // Metronom auf dem Blatt: Schriftgröße in px (je Gerät)
 };
 
 /**
@@ -50,7 +52,8 @@ export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
 export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
-  'halfTurn', 'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize'];
+  'halfTurn', 'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize',
+  'metronomeBpm', 'sheetMetronomeSize'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
 export const DEFAULT_SYNC = {

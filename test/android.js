@@ -240,6 +240,14 @@
         && !$('.face-pill').classList.contains('loading'), ($('.face-pill') || {}).title);
       db.settings.faceTurns = false;
       store.commit('settings');
+      // 2.2: the metronome on the sheet ticks in the old WebView too
+      $('.v-bar .metronome-tool').click();
+      const mt = await waitFor(() => $('.sheet-metronome'), 3000, 'metronome').catch(() => null);
+      if (mt) mt.querySelector('.metro-play').click();
+      await waitFor(() => mt && Number(mt.dataset.beats) >= 2, 8000, 'metronome beats').catch(() => {});
+      check('metronome on the sheet: shown and ticking', !!mt && mt.classList.contains('running') && Number(mt.dataset.beats) >= 2,
+        mt ? `${mt.className} · ${mt.dataset.beats}` : 'missing');
+      $('.v-bar .metronome-tool').click();
       window.__npBack();
       $('.topbar .tuner-btn').click();
       await waitFor(() => $('.tuner-status') && $('.tuner-status').textContent !== 'Mikrofon wird gestartet …', 8000, 'tuner').catch(() => {});

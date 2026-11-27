@@ -27,6 +27,8 @@ renderer/
   js/settings.js   Einstellungen, Pool-Einrichtung
   js/remote.js     Fußpedal & Fernbedienung: Tastenbelegung, Tasten lernen, MIDI
   js/tuner.js      Stimmgerät: Tonerkennung (YIN), Notennamen, Dialog, Cent-Anzeige auf dem Blatt
+  js/metronome.js  Metronom auf dem Blatt: Tempo-Feld, − / +, Start/Stopp, Klick über die Web-Audio-Uhr
+  js/floating.js   Verschieben/Vergrößern für Stimmgerät und Metronom auf dem Blatt
   js/face.js       Blättern per Gesicht: Kamera, MediaPipe Face Landmarker, Gesten
   js/lan.js        Dialoge „Im WLAN teilen“ / „Aus dem WLAN holen“
   js/lan-plan.js   was beim Holen entsteht: spiegelgleich oder hinzufügen, welche Dateien fehlen
@@ -132,6 +134,14 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
   die Cent (`centsLabel`). Es hängt am Notenmodus (`V.sheetTuner`), nicht an der Seite; Zeiger-Ereignisse
   enden dort, damit nichts blättert. Größe in `settings.sheetTunerSize` (Geräte-Einstellung, gespeichert mit
   `persist()` ohne Neuzeichnen).
+- Metronom auf dem Blatt: `startSheetMetronome()` legt die Klicks alle 25 ms bis 0,12 s im Voraus auf die
+  Uhr des `AudioContext` (kurzer Dreieckston) – unabhängig davon, ob der Haupt-Thread gerade zeichnet. Ein neues
+  Tempo gilt ab dem nächsten Schlag; Stopp trennt den Ausgang (bereits geplante Klicks bleiben stumm) und
+  pausiert den Kontext. Tempo `settings.metronomeBpm`, Größe `settings.sheetMetronomeSize` (beide Geräte-
+  Einstellungen, `persist()`). Hängt wie das Stimmgerät am Notenmodus (`V.sheetMetronome`).
+- `floating.js` (`makeFloating`): Ziehen, Ecke, zwei Finger, Mausrad für beide Anzeigen auf dem Blatt. Auf
+  Knöpfen und dem Tempo-Feld wird ein Druck erst nach 6 px Bewegung zum Verschieben; der Klick danach wird
+  verschluckt. Zeiger-Ereignisse enden dort, damit nichts blättert.
 - Messing-Glanz: `--accent-metal` (Verlauf) und `--metal-edge` (Glanzkante) in styles.css; für eine eigene Farbe
   rechnet `theme.metalSheen()` den Verlauf aus.
 - `face.js`: MediaPipe Face Landmarker (`@mediapipe/tasks-vision`, Bündel + wasm + Modell aus `assets/mediapipe`,
