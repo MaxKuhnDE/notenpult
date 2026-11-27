@@ -24,5 +24,8 @@
     "electron": "^44.5.1",
     "esbuild": "^0.28.2",
     "pdfjs-dist": "^6.3.289"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3"
   }
 }

@@ -18,6 +18,8 @@ const OUT = path.join(path.dirname(TEST_SCRIPT), 'out');
 const MIME = {
   '.html': 'text/html',
   '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
+  '.wasm': 'application/wasm',
   '.css': 'text/css',
   '.json': 'application/json',
   '.pdf': 'application/pdf',

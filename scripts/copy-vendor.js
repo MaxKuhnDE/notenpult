@@ -1,4 +1,5 @@
-// Copies the parts of pdfjs-dist the app needs into renderer/vendor/pdfjs.
+// Copies the parts of pdfjs-dist the app needs into renderer/vendor/pdfjs, and MediaPipe's face
+// landmarker (page turns by face, renderer/js/face.js) into renderer/vendor/mediapipe.
 'use strict';
 
 const fs = require('node:fs');
@@ -22,3 +23,5 @@ for (const dir of ['cmaps', 'standard_fonts', 'wasm', 'iccs']) {
 fs.copyFileSync(path.join(src, 'LICENSE'), path.join(dest, 'LICENSE'));
 
 console.log('pdf.js copied to', path.relative(root, dest));
+
+require('./mediapipe').copyMediapipe(path.join(root, 'renderer', 'vendor', 'mediapipe'));
