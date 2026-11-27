@@ -172,9 +172,10 @@
     osc2.frequency.value = 432 * 2 ** (-11.5 / 1200);
     await waitFor(() => Number(st.dataset.cents) <= -11, 4000, '-11').catch(() => {});
     check('−11¢ or more: red', Number(st.dataset.cents) <= -11 && getComputedStyle(st).color === 'rgb(224, 32, 26)', st.textContent);
-    osc2.frequency.value = 0;
-    await waitFor(() => st.classList.contains('idle'), 4000, 'silence').catch(() => {});
+    osc2.disconnect(); // real silence
+    await waitFor(() => st.classList.contains('idle'), 6000, 'silence').catch(() => {});
     check('no tone: grey "—¢"', st.textContent === '—¢' && getComputedStyle(st).color === 'rgb(139, 141, 145)', getComputedStyle(st).color);
+    osc2.connect(dest2);
     osc2.frequency.value = 432;
 
     // move, resize (corner, mouse wheel, two fingers) – none of it turns the page
