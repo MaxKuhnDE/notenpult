@@ -8,6 +8,7 @@ main.js            Hauptprozess: Fenster, Datenordner, Datei-Import, Noten-Pool-
 preload.js         sichere Brücke (contextBridge) → window.notenpult
 updater/           In-App-Updates aus GitHub-Releases (siehe unten)
 preset.js          „Alles exportieren/importieren“: komplette Bibliothek als ZIP (tar.exe)
+hwkeys.js          Lautstärke-/Medientasten für Fernbedienungen (globale Tastenkürzel, solange die Notenansicht sie will)
 lan/               „Im WLAN teilen“: protocol.js (SPAKE2, AES-GCM, Rahmen), host.js, client.js, apply.js, ipc.js
 renderer/
   index.html, styles.css
@@ -24,6 +25,7 @@ renderer/
   js/search.js     Suche über Bibliothek, Nummern, Genres (#tag), Setlists, Pool
   js/genres.js     Genres: Chips, Auswahl, Verwaltung, Filterleiste
   js/settings.js   Einstellungen, Pool-Einrichtung
+  js/remote.js     Fußpedal & Fernbedienung: Tastenbelegung, Tasten lernen, MIDI
   js/lan.js        Dialoge „Im WLAN teilen“ / „Aus dem WLAN holen“
   js/lan-plan.js   was beim Holen entsteht: spiegelgleich oder hinzufügen, welche Dateien fehlen
   js/ui.js         DOM-Helfer, Icons, Dialoge, Menüs, Toasts
@@ -61,6 +63,30 @@ android/           Android-App (Gradle): MainActivity.java (WebView + Brücke), 
 - Anmerkungen liegen in Koordinaten der **ungedrehten, ungeschnittenen** Seite; `viewTransform()` bildet
   sie auf die angezeigte (gedrehte/geschnittene) Box ab.
 - Version-1-Daten (Seiten direkt am Stück) werden in `store.init()` migriert.
+
+## Oberfläche (Stil)
+
+Zwei Stile in `styles.css`, gewählt über `<html data-style>` (`theme.js`, Einstellung `uiStyle`):
+„classic“ sind die Tokens am Anfang (Bernstein), „v2“ (Standard ab 2.0) setzt am Ende eigene Tokens (Graphit,
+Silber im Dunkelmodus) und ein paar Regeln für ruhigere Listen und kleinere Radien. Komponenten verwenden nur
+Tokens (`--accent`, `--surface` …); ein neuer Stil braucht also keine Änderung im JavaScript.
+
+## Fußpedal & Fernbedienung
+
+- Tasten kommen auf drei Wegen an: als `keydown` (Pedale melden sich als Tastatur), als Systemtaste
+  (`backend.onHardwareKey`) und als MIDI (`navigator.requestMIDIAccess`, nur wenn eine MIDI-Taste belegt ist).
+  `remote.keyId()` gibt allen einen Namen („PageDown“, „AudioVolumeUp“, „midi:cc64“ …), `actionFor()` die Aktion
+  aus `settings.remoteKeys` (null = `DEFAULT_KEYS`).
+- **Systemtasten**: Lautstärke-, Medien- und Kameratasten erreichen die Seite nicht von selbst. Solange die
+  Notenansicht offen ist (und `volumeKeys` an) oder der Dialog „Tasten testen & zuweisen“, ruft `remote.capture()`
+  `backend.setHardwareCapture(true)`: Windows registriert sie in `hwkeys.js` als globale Kürzel (nur solange das
+  Fenster den Fokus hat), Android nimmt sie in `MainActivity.dispatchKeyEvent` (`HardwareKeys.java`). Beide
+  schicken den Namen wie in einem keydown an die Seite.
+- Im Notenmodus (`viewer.js` `runRemote`): gehaltene Tasten (`repeat`) blättern nicht weiter; kommen eine
+  Systemtaste und eine andere Taste innerhalb von 150 ms (Selfie-Auslöser: Enter + Lauter), zählt nur die erste.
+  Mausrad: eine Seite pro Drehung (Summe ≥ 50 px, Ende nach 250 ms Pause). Nach oben/unten wischen (> 60 px)
+  blättert wie nach links/rechts.
+- Die Belegung und die Schalter stehen in `DEVICE_SETTINGS`: Sie bleiben beim Übertragen auf dem Gerät.
 
 ## Notenmodus
 
@@ -134,6 +160,7 @@ Ein Gerät teilt (Host, nur lesend), eines holt (Empfänger). Gleiches Protokoll
 android/app/src/main/java/…/MainActivity.java   WebView, https://notenpult.local, Brücke window.NotenpultAndroid
 android/app/src/main/java/…/Preset.java         ZIP-Export/-Import (reines Java, JUnit-getestet)
 android/app/src/main/java/…/Lan*.java           „Im WLAN teilen“ (wie lan/*.js, JUnit-getestet)
+android/app/src/main/java/…/HardwareKeys.java   Lautstärke-/Medien-/Kameratasten → Namen wie in remote.js
 scripts/build-android-web.js                     renderer/ → assets/www (esbuild, Ziel chrome92) + pdf.js 3.11 legacy
 scripts/android/boot.js                          ES5: WebView-Version prüfen, Startfehler anzeigen, pdf.js + App laden
 ```

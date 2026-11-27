@@ -67,4 +67,8 @@ Test unter `test/` (Muster: `check('beschreibung', bedingung)` → `PASS …`/`F
   Firewall-Abfrage, nichts verlässt den Rechner.
 - Jede Suite bekommt einen leeren Datenordner (`NOTENPULT_DATA_DIR`) und ein eigenes Browser-Profil
   (`NOTENPULT_TEST_PROFILE`) – eine geöffnete Notenpult-App und ihre Daten bleiben unberührt.
+- `remote.js` drückt Pedal- und Systemtasten selbst: Das Testfenster hat nie den Fokus, deshalb registriert
+  `hwkeys.js` dort keine globalen Kürzel; `test:hwKey` schickt die Taste wie der Hauptprozess.
+- `look.js` gehört nicht zu `npm test`: `node scripts/run-tests.js look.js` legt Screenshots aller Ansichten in
+  beiden Stilen nach `test/out/look-*.png` (für Reviews und die README).
 - Mit `VERBOSE=1` zeigt der Runner die komplette Ausgabe der App.

@@ -6,6 +6,7 @@ import * as sync from './sync.js';
 import { updateSection } from './updates.js';
 import { presetsAvailable, exportAll, importAll } from './presets.js';
 import { lanAvailable, openShare, openReceive } from './lan.js';
+import { openRemoteDialog } from './remote.js';
 
 /** Segmented control bound to get/set. options: [[value, label, icon?]] */
 function choice(options, get, set) {
@@ -128,6 +129,8 @@ export function openSettings() {
 
     h('h3.settings-section', null, 'Darstellung'),
     row('Design', segmented('theme', [['system', 'System'], ['light', 'Hell', 'sun'], ['dark', 'Dunkel', 'moon']])),
+    row('Oberfläche', segmented('uiStyle', [['v2', 'Notenpult 2'], ['classic', 'Klassisch']]),
+      'Notenpult 2: ruhiges Graphit mit Silber. Klassisch: die Farben bis Version 1.6.'),
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
 
     h('h3.settings-section', null, 'Notenansicht'),
@@ -148,7 +151,18 @@ export function openSettings() {
 
     h('h3.settings-section', null, 'Blättern'),
     toggle('leftZoneBack', 'Linker Rand blättert zurück', 'Tippen ins linke Viertel geht eine Seite zurück. Sonst blättert jedes Tippen vorwärts.'),
-    h('div.setting-hint.block', null, 'Zurück geht immer: nach rechts wischen, Rechtsklick (Trackpad: zwei Finger), Pfeil links oder ◀ in der Leiste. Fußpedale (Bild ↑/↓, Pfeiltasten) funktionieren auch.'),
+    toggle('swipeTurns', 'Nach oben/unten wischen blättert',
+      'Nach oben = weiter, nach unten = zurück. So blättern auch Scroll-Ringe („TikTok-Ringe“), die wie ein Finger wischen.'),
+    toggle('wheelTurns', 'Mausrad blättert', 'Eine Drehung am Mausrad oder Scroll-Ring blättert eine Seite.'),
+    h('div.setting-hint.block', null, 'Zurück geht immer: nach rechts wischen, Rechtsklick (Trackpad: zwei Finger), Pfeil links oder ◀ in der Leiste.'),
+
+    h('h3.settings-section', null, 'Pedal & Fernbedienung'),
+    row('Tasten testen & zuweisen', btn('Öffnen …', () => openRemoteDialog(), { icon: 'remote' }),
+      'Bluetooth-Fußpedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser, Scroll-Ringe und MIDI-Pedale. '
+      + 'Bild ↓/↑, Pfeiltasten, Leertaste, Enter, Rücktaste und Lauter/Leiser blättern schon ohne Einstellung.'),
+    toggle('volumeKeys', 'Lautstärke- und Medientasten blättern',
+      'Selfie-Auslöser und manche Ringe senden „Lauter“/„Leiser“. Im Notenmodus blättern sie dann, statt die Lautstärke zu ändern. '
+      + 'Belegung und Schalter dieses Abschnitts gelten nur für dieses Gerät.'),
 
     h('h3.settings-section', null, 'Stift'),
     toggle('penAlwaysDraws', 'Stift schreibt immer', 'Mit dem Stift sofort schreiben; Finger und Trackpad blättern weiter. Radieren mit dem Radierer-Ende oder der Stifttaste.'),

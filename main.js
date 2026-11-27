@@ -10,6 +10,7 @@ const crypto = require('node:crypto');
 const { registerUpdater } = require('./updater');
 const { exportPreset, importPreset } = require('./preset');
 const { registerLan } = require('./lan/ipc');
+const { registerHardwareKeys } = require('./hwkeys');
 
 const HOST = 'notenpult';
 // Tests can serve another web root (e.g. the Android bundle in android/app/src/main/assets/www).
@@ -295,6 +296,7 @@ function registerIpc() {
   ipcMain.handle('preset:export', () => exportPreset(win, paths, presetFile));
   ipcMain.handle('preset:import', () => importPreset(win, paths, presetFile));
   registerLan(() => win, paths);
+  registerHardwareKeys(() => win, { test: !!TEST_SCRIPT });
 
   ipcMain.handle('app:openDataDir', async () => {
     await fsp.mkdir(paths.dataDir, { recursive: true });

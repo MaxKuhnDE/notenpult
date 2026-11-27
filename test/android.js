@@ -110,6 +110,19 @@
       await waitFor(() => $('.v-title').textContent.includes('Böhmischer Traum'), 8000, 'next piece').catch(() => {});
       await pagesReady();
       check('tap turns to the next piece', $('.v-title').textContent.includes('Böhmischer Traum'), $('.v-title').textContent);
+
+      // ---------- remotes: volume keys from MainActivity (selfie shutter, scroll ring) ----------
+      check('viewer takes the volume keys from Android', window.__npHwCapture === true);
+      await sleep(200);
+      window.__npHardwareKey('AudioVolumeDown');
+      await waitFor(() => $('.v-title').textContent.includes('Florentiner'), 5000, 'volume down').catch(() => {});
+      check('"Leiser" turns back', $('.v-title').textContent.includes('Florentiner Marsch'), $('.v-title').textContent);
+      await pagesReady();
+      await sleep(200);
+      window.__npHardwareKey('AudioVolumeUp');
+      await waitFor(() => $('.v-title').textContent.includes('Böhmischer Traum'), 5000, 'volume up').catch(() => {});
+      check('"Lauter" turns the page', $('.v-title').textContent.includes('Böhmischer Traum'), $('.v-title').textContent);
+      await pagesReady();
       $('.v-fs').click();
       await sleep(100);
       check('fullscreen button switches to immersive mode', window.__npFullscreen === true);
@@ -130,6 +143,7 @@
 
       // ---------- back button ----------
       check('back button closes the viewer', window.__npBack() === true && !$('.viewer'));
+      check('volume keys belong to Android again', window.__npHwCapture === false);
       await sleep(1500); // debounced annotation save happens on close as well
       const saved = JSON.parse(window.NotenpultAndroid.loadAnnotations(bt.id) || '{"pages":{}}');
       check('annotation saved through the bridge', Object.values(saved.pages).some((list) => list.length === 1));

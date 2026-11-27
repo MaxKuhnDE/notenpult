@@ -23,6 +23,11 @@ export const DEFAULT_SETTINGS = {
   showNextHint: true,
   tensBlocks: true,
   autoUpdateCheck: true, // beim Start nach einer neuen Version suchen
+  uiStyle: 'v2', // 'v2' (Notenpult 2: Graphit/Silber) | 'classic' (bis 1.6: Bernstein)
+  remoteKeys: null, // { next: [key, …], prev, nextPiece, prevPiece, nextPart } – null: Standard (remote.js)
+  volumeKeys: true, // Lautstärke- und Medientasten blättern im Notenmodus (Selfie-Auslöser, Ringe)
+  wheelTurns: true, // Mausrad / Scroll-Ring blättert
+  swipeTurns: true, // nach oben/unten wischen blättert
 };
 
 /**
@@ -35,7 +40,7 @@ export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'
  * Settings that belong to the screen, not to the library: they stay on this device when the
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
-export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets'];
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
 export const DEFAULT_SYNC = {
@@ -109,6 +114,8 @@ const electronBackend = {
   onFullscreenChange: (cb) => native.onFullscreenChange(cb),
   keepAwake: (on) => native.keepAwake(on),
   setTheme: (mode) => native.setTheme(mode),
+  setHardwareCapture: (on) => native.setHardwareCapture(!!on),
+  onHardwareKey: (cb) => native.onHardwareKey(cb),
   exportPreset: () => native.exportPreset(),
   importPreset: () => native.importPreset(),
   lanHostStart: () => native.lanHostStart(),
@@ -128,6 +135,7 @@ const ANDROID_ORIGIN = 'https://notenpult.local';
 const androidPending = new Map();
 const androidUpdateListeners = new Set();
 const androidLanListeners = new Set();
+const androidKeyListeners = new Set();
 let androidSeq = 0;
 let androidApk = null; // { url, digest } from the last update check
 let androidFullscreen = false;
@@ -142,6 +150,8 @@ if (android) {
   };
   window.__npUpdateProgress = (p) => androidUpdateListeners.forEach((fn) => fn(p));
   window.__npLanEvent = (e) => androidLanListeners.forEach((fn) => fn(e));
+  // Volume and media keys taken by MainActivity while setHardwareCapture(true) (remote.js).
+  window.__npHardwareKey = (key) => androidKeyListeners.forEach((fn) => fn(key));
 }
 
 function androidCall(method, ...args) {
@@ -249,6 +259,11 @@ const androidBackend = {
   onFullscreenChange: () => {},
   keepAwake: async (on) => { android.keepAwake(!!on); },
   setTheme: async () => {},
+  setHardwareCapture: async (on) => { android.setHardwareCapture(!!on); },
+  onHardwareKey(cb) {
+    androidKeyListeners.add(cb);
+    return () => androidKeyListeners.delete(cb);
+  },
   exportPreset: () => androidCall('exportPreset'),
   importPreset: () => androidCall('importPreset'),
   // "Im WLAN teilen" – the network part runs in Java (LanHost/LanClient.java).
@@ -358,6 +373,8 @@ const webBackend = {
     } catch { /* not supported */ }
   },
   setTheme: async () => {},
+  setHardwareCapture: async () => {},
+  onHardwareKey: () => () => {},
   exportPreset: async () => ({ ok: false, error: 'Export gibt es nur in der Windows- und Android-App.' }),
   importPreset: async () => ({ ok: false, error: 'Import gibt es nur in der Windows- und Android-App.' }),
 };

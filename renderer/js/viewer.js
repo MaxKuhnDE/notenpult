@@ -1,8 +1,10 @@
 // Full-screen sheet viewer.
 //
 // Input model:
-//   - Finger tap, mouse/trackpad click, →, PageDown, Space: next page
-//   - Swipe right, right click, ←, PageUp:                   previous page
+//   - Finger tap, mouse/trackpad click, swipe left or up:  next page
+//   - Swipe right or down, right click:                    previous page
+//   - Keys, pedals, remotes, MIDI: as assigned (remote.js; default → PageDown Space … next)
+//   - Mouse wheel / scroll ring: one page per turn of the wheel (setting)
 //   - Pen: always writes (setting); pen eraser end or barrel button erases
 //   - Touches shortly after pen activity are ignored (palm rejection)
 //
@@ -25,6 +27,7 @@ import {
 import { isDark, toggleDark, onThemeChange } from './theme.js';
 import { openSettings } from './settings.js';
 import { openSearch } from './search.js';
+import * as remote from './remote.js';
 
 const PAD = 10;
 const GAP = 14;
@@ -32,8 +35,10 @@ const PAIR_THRESHOLD = 0.85; // two pages per screen if each keeps ≥ 85 % of i
 const TAP_SLOP = { touch: 24, mouse: 8, pen: 12 };
 const PALM_GUARD_MS = 900;
 const ERASER_RADIUS = 14;
-const NEXT_KEYS = new Set(['ArrowRight', 'PageDown', ' ', 'ArrowDown', 'Enter']);
-const PREV_KEYS = new Set(['ArrowLeft', 'PageUp', 'ArrowUp', 'Backspace']);
+const SWIPE = 60; // px a finger (or scroll ring) has to travel for a page turn
+const WHEEL_STEP = 50; // px of wheel movement for a page turn
+const WHEEL_PAUSE = 250; // ms without wheel events that end a turn of the wheel
+const DOUBLE_KEY_MS = 150; // selfie shutters send two keys per press: Enter and Volume up
 const FALLBACK_VIEW = { rot: 0, crop: FULL, w0: 595, h0: 842, dw: 595, dh: 842 };
 const LAYOUT_LABELS = {
   auto: 'Automatisch (Bildschirm füllen)',
@@ -94,6 +99,8 @@ export function openViewer({ queue, start = 0, context = {} }) {
     touches: new Set(),
     lastPen: 0,
     lastSize: null,
+    lastRemote: { id: null, t: 0 },
+    wheel: { sum: 0, last: 0, done: false },
     cleanup: [],
   };
   build();
@@ -163,6 +170,7 @@ function build() {
   stage.addEventListener('pointermove', onPointerMove);
   stage.addEventListener('pointerup', onPointerUp);
   stage.addEventListener('pointercancel', onPointerCancel);
+  stage.addEventListener('wheel', onWheel, { passive: false });
   el.addEventListener('contextmenu', (e) => e.preventDefault());
   // Pen hovering anywhere over the viewer counts as pen activity (palm rejection).
   el.addEventListener('pointermove', (e) => {
@@ -184,15 +192,30 @@ function build() {
   const unsub = subscribe((what) => {
     if (what === 'settings' && V) {
       applyViewerTheme();
+      remote.syncCapture();
       relayout();
     }
   });
+  // Pedals and remotes: volume/media keys from the system, MIDI if a MIDI key is assigned.
+  const v = V;
+  const offSystemKeys = remote.onSystemKey((id) => runRemote(id));
+  remote.capture('viewer', true);
+  let stopMidi = () => {};
+  if (remote.usesMidi()) {
+    remote.listenMidi((id) => runRemote(id)).then((stop) => {
+      if (V === v) stopMidi = stop;
+      else stop();
+    });
+  }
   const unTheme = onThemeChange(applyViewerTheme);
   V.cleanup.push(
     () => window.removeEventListener('keydown', onKey),
     () => ro.disconnect(),
     unsub,
     unTheme,
+    offSystemKeys,
+    () => remote.capture('viewer', false),
+    () => stopMidi(),
     () => clearTimeout(V?.resizeTimer),
   );
   applyViewerTheme();
@@ -556,14 +579,12 @@ function onKey(e) {
   } else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'f') {
     e.preventDefault();
     openViewerSearch();
+  } else if (e.repeat && remote.actionFor(remote.keyId(e))) {
+    e.preventDefault(); // a pedal held down must not turn page after page
+  } else if (runRemote(remote.keyId(e))) {
+    e.preventDefault();
   } else if (e.ctrlKey || e.altKey || e.metaKey) {
     // leave other shortcuts alone
-  } else if (NEXT_KEYS.has(k)) {
-    e.preventDefault();
-    next();
-  } else if (PREV_KEYS.has(k)) {
-    e.preventDefault();
-    prev();
   } else if (k === 'Home') {
     e.preventDefault();
     goTo(V.qi, 0);
@@ -580,6 +601,52 @@ function onKey(e) {
   } else if (/^[0-9]$/.test(k) && V.context.kind === 'setlist') {
     e.preventDefault();
     openJump(k);
+  }
+}
+
+/** A key from the keyboard, a pedal, a remote or MIDI: runs its action; false if it has none. */
+function runRemote(id) {
+  if (!V || hasOpenModal()) return false;
+  const action = remote.actionFor(id);
+  if (!action) return false;
+  const now = performance.now();
+  const last = V.lastRemote;
+  if (id !== last.id && (remote.SYSTEM_KEYS.has(id) || remote.SYSTEM_KEYS.has(last.id)) && now - last.t < DOUBLE_KEY_MS) return true;
+  V.lastRemote = { id, t: now };
+  if (action === 'next') next();
+  else if (action === 'prev') prev();
+  else if (action === 'nextPiece') stepPiece(1);
+  else if (action === 'prevPiece') stepPiece(-1);
+  else if (action === 'nextPart') cyclePart(1);
+  return true;
+}
+
+function stepPiece(dir) {
+  enqueue(async () => {
+    const qi = V.qi + dir;
+    if (qi < 0) flashMessage('Anfang');
+    else if (qi >= V.queue.length) flashMessage(V.context.kind === 'setlist' ? 'Ende der Setlist' : 'Letztes Stück');
+    else goTo(qi, 0);
+  });
+}
+
+/** Mouse wheel, trackpad or scroll ring: one page per turn of the wheel (also with inertia). */
+function onWheel(e) {
+  if (!V || !db.settings.wheelTurns || e.ctrlKey || layoutMode() === 'width') return;
+  e.preventDefault();
+  const w = V.wheel;
+  const now = performance.now();
+  if (now - w.last > WHEEL_PAUSE) {
+    w.sum = 0;
+    w.done = false;
+  }
+  w.last = now;
+  if (w.done) return;
+  w.sum += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY;
+  if (Math.abs(w.sum) >= WHEEL_STEP) {
+    w.done = true;
+    if (w.sum > 0) next();
+    else prev();
   }
 }
 
@@ -724,8 +791,14 @@ function onPointerUp(e) {
   const dx = e.clientX - g.x0;
   const dy = e.clientY - g.y0;
   const dt = now - g.t0;
-  if (g.type === 'touch' && Math.abs(dx) > 60 && Math.abs(dx) > 1.4 * Math.abs(dy) && dt < 900) {
+  if (g.type === 'touch' && Math.abs(dx) > SWIPE && Math.abs(dx) > 1.4 * Math.abs(dy) && dt < 900) {
     if (dx < 0) next();
+    else prev();
+    return;
+  }
+  // Up = next, like scrolling a feed – also what scroll rings send.
+  if (db.settings.swipeTurns && layoutMode() !== 'width' && Math.abs(dy) > SWIPE && Math.abs(dy) > 1.4 * Math.abs(dx) && dt < 900) {
+    if (dy < 0) next();
     else prev();
     return;
   }

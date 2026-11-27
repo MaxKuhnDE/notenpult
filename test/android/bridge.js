@@ -86,6 +86,10 @@ window.NotenpultAndroid = {
   setFullscreen(on) {
     window.__npFullscreen = on;
   },
+  // MainActivity.dispatchKeyEvent takes volume/media keys while on; the test calls __npHardwareKey itself.
+  setHardwareCapture(on) {
+    window.__npHwCapture = on;
+  },
   openUrl(url) {
     window.__npOpened = url;
   },

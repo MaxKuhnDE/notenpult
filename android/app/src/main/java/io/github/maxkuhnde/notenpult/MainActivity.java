@@ -20,10 +20,12 @@ import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -55,6 +57,7 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -129,6 +132,7 @@ public class MainActivity extends Activity {
     private String exportCallback;
     private String importCallback;
     private boolean fullscreen;
+    private volatile boolean hardwareCapture; // remote.js: volume/media keys go to the page
     private SSLSocketFactory tls;
     private LanHost lanHost; // only on the lan thread
     private WifiManager.MulticastLock multicast; // only on the lan thread
@@ -184,6 +188,17 @@ public class MainActivity extends Activity {
                 Log.i(TAG, m.message() + " (" + m.sourceId() + ":" + m.lineNumber() + ")");
                 return true;
             }
+
+            @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                // MIDI pedals (remote.js) on our own page; nothing else.
+                boolean ours = HOST.equals(request.getOrigin().getHost());
+                if (ours && Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_MIDI_SYSEX)) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_MIDI_SYSEX});
+                } else {
+                    request.deny();
+                }
+            }
         });
         setContentView(web);
         web.loadUrl(START_URL);
@@ -202,6 +217,17 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && fullscreen) applyFullscreen();
+    }
+
+    /** Remotes: volume, media and camera keys turn pages while the viewer wants them (HardwareKeys). */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        String key = hardwareCapture ? HardwareKeys.webKey(event.getKeyCode()) : null;
+        if (key == null) return super.dispatchKeyEvent(event);
+        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+            web.evaluateJavascript("window.__npHardwareKey && window.__npHardwareKey(" + JSONObject.quote(key) + ")", null);
+        }
+        return true; // the volume stays as it is
     }
 
     @Override
@@ -349,6 +375,12 @@ public class MainActivity extends Activity {
                 // cannot happen with these values
             }
             return o.toString();
+        }
+
+        /** Volume and media keys go to the page (window.__npHardwareKey) instead of the system while on. */
+        @JavascriptInterface
+        public void setHardwareCapture(boolean on) {
+            hardwareCapture = on;
         }
 
         @JavascriptInterface

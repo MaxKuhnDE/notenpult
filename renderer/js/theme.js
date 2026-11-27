@@ -9,6 +9,7 @@ export function isDark() {
 }
 
 export function applyTheme() {
+  document.documentElement.dataset.style = db.settings.uiStyle === 'classic' ? 'classic' : 'v2';
   const theme = isDark() ? 'dark' : 'light';
   if (document.documentElement.dataset.theme !== theme) {
     document.documentElement.dataset.theme = theme;

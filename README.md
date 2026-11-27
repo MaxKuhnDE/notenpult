@@ -19,7 +19,10 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Genres**: eigene Hashtags wie `#Marsch`, `#Polka`, `#Kirche` – mehrere pro Stück, als Filter-Chips in der
   Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
-  Stück. Zurück per Wischen nach rechts, Rechtsklick, ◀ oder Pfeiltaste. Fußpedale (Bild ↑/↓) funktionieren.
+  Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste.
+- **Fußpedal & Fernbedienung**: Bluetooth-Pedale (AirTurn, PageFlip, M-Vave/Cuvave, Donner …), Selfie-Auslöser,
+  Scroll-Ringe („TikTok-Ringe“), Mausrad und MIDI-Pedale blättern – unter Windows und Android. Jede Taste lässt
+  sich zuweisen, auch „Nächstes Stück“ oder „Nächste Stimme“ ([mehr](#fußpedal--fernbedienung)).
 - **Nummer eingeben**: Im Notenmodus einfach die Nummer tippen, schon springt die App zum Stück.
 - **Stimmen**: beliebig viele PDFs pro Stück (1., 2., 3. Stimme …), oben per Knopf umschaltbar.
   `Stück - 2. Stimme.pdf` wird beim Import automatisch verknüpft.
@@ -39,6 +42,7 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Suche**: über Titel, Stimmen, Setlist-Nummern und den Noten-Pool. Während des Spielens wird ein
   gefundenes Stück eingeschoben (z. B. für Zugaben).
 - **Darstellung**: Hell/Dunkel, Noten optional invertiert, Hoch- und Querformat, Vollbild, Bildschirm bleibt an.
+  Oberfläche „Notenpult 2“ in ruhigem Graphit und Silber (Standard) oder „Klassisch“ wie bis Version 1.6.
 - **Im WLAN teilen**: Ein Gerät zeigt einen 4-stelligen Code, ein anderes im selben WLAN (oder Handy-Hotspot)
   holt sich damit die Noten – verschlüsselt, ohne ZIP-Datei, nur fehlende Dateien. Windows und Android in jeder
   Richtung.
@@ -177,8 +181,9 @@ Gut zu wissen:
 | Aktion | Wirkung |
 | --- | --- |
 | Tippen / Klicken irgendwo (Finger, Trackpad, Maus) | nächste Seite, am Stückende nächstes Stück |
-| Nach rechts wischen, Rechtsklick, ←, Bild ↑ | zurück |
-| →, Bild ↓, Leertaste, Fußpedal | weiter |
+| Nach rechts oder unten wischen, Rechtsklick, ←, Bild ↑ | zurück |
+| Nach oben wischen, Mausrad, →, Bild ↓, Leertaste | weiter |
+| Fußpedal, Selfie-Auslöser, Scroll-Ring, MIDI-Pedal | wie zugewiesen (Standard: weiter/zurück, siehe unten) |
 | Stift | schreibt sofort (Farbe oben wählen) |
 | Radierer-Ende oder Stifttaste | löscht ganze Striche |
 | Ziffern tippen oder `#` | zu Nr. springen (Setlists) |
@@ -205,6 +210,40 @@ Der Schalter **„Ansicht je Stück und Stimme merken“** (*Einstellungen → N
 bleibt beim Übertragen von einem anderen Gerät erhalten. Ist er aus, zeigen alle Stücke die Ansicht aus den
 Einstellungen – praktisch auf einem kleinen Tablet, das immer nur eine Seite zeigen soll, während der Laptop
 Doppelseiten nutzt. Die gemerkten Ansichten gehen dabei nicht verloren und kommen beim Übertragen trotzdem mit.
+
+## Fußpedal & Fernbedienung
+
+Das Gerät zuerst in den **Bluetooth-Einstellungen** von Windows bzw. Android koppeln – es meldet sich dort meist als
+Tastatur. Danach blättert es im Notenmodus ohne weitere Einstellung, wenn es eine dieser Tasten sendet:
+
+| Weiter | Zurück |
+| --- | --- |
+| Bild ↓, →, ↓, Leertaste, Enter | Bild ↑, ←, ↑, Rücktaste |
+| Lauter, Nächster Titel, Play/Pause, Kamera | Leiser, Voriger Titel |
+
+- **Fußpedale** (AirTurn, PageFlip Firefly/Cicada, M-Vave/Cuvave Cube Turner, Donner, iRig BlueTurn …): Die
+  meisten haben mehrere Modi, die per Knopf oder Tastenkombination wechseln. Jeder Modus mit Bild ↑/↓,
+  Pfeiltasten oder Enter/Rücktaste passt. Modi mit Mausklick gehen auch (Klick = weiter, Rechtsklick = zurück).
+- **Selfie-Auslöser** (z. B. „AB Shutter3“ von AliExpress/Amazon) senden „Lauter“, manche zusätzlich Enter. Ein
+  Druck blättert trotzdem nur eine Seite.
+- **Scroll-Ringe** („TikTok-Ring“, „Page-Turner-Ring“) wischen wie ein Finger nach oben (= weiter) oder unten
+  (= zurück), drehen ein Mausrad oder senden Lauter/Leiser – alles drei blättert.
+- **MIDI-Pedale** (z. B. AirTurn BT500 im MIDI-Modus) unter Windows: im Dialog „Tasten testen & zuweisen“ einmal
+  treten und zuweisen. Pedale im Taster-Modus verwenden (Note an oder Controller ≥ 64 beim Treten).
+- **Lautstärketasten**: Solange die Notenansicht offen ist und „Lautstärke- und Medientasten blättern“ an ist,
+  blättern Lauter/Leiser statt die Lautstärke zu ändern – auch die Tasten am Tablet selbst. Außerhalb der
+  Notenansicht ändern sie wie gewohnt die Lautstärke.
+
+**Eigene Belegung:** *Einstellungen → Pedal & Fernbedienung → „Tasten testen & zuweisen“*. Eine Taste am Gerät
+drücken: Notenpult zeigt, was ankommt (z. B. „Erkannt: „Bild ↓“ – Weiter“). Mit „Taste zuweisen“ bekommt eine Taste
+eine Aktion: **Weiter, Zurück, Nächstes Stück, Voriges Stück, Nächste Stimme**. ✕ entfernt eine Taste,
+„Standard wiederherstellen“ setzt alles zurück.
+
+Belegung und Schalter (Lautstärketasten, Mausrad, nach oben/unten wischen) gelten **nur für das jeweilige Gerät**
+und bleiben beim Übertragen von einem anderen Gerät erhalten – das Pedal am Tablet und der Ring am Laptop
+stören sich nicht.
+
+![Pedal & Fernbedienung](docs/screenshots/pedal.png)
 
 ## Google Drive (Noten-Pool)
 
