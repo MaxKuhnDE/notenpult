@@ -184,7 +184,8 @@
       const ownFiles = Object.keys(JSON.parse(window.NotenpultAndroid.lanLocalFiles())).length;
       check('the laptop gets all pieces and sheet files unchanged', pulled.pieces === 3 && pulled.files === ownFiles && pulled.same
         && pulled.hostName === 'Test-Tablet', JSON.stringify(pulled));
-      await waitFor(() => /Fertig: „Laptop eines Freundes“ hat die Noten geholt/.test($('.lan-status').textContent), 5000, 'done').catch(() => {});
+      await waitFor(() => /Fertig: „Laptop eines Freundes“ hat die Noten geholt/.test($('.lan-status').textContent) && $('.lan-code').textContent !== code,
+        5000, 'done').catch(() => {});
       check('tablet shows the finished transfer and a new code', /Fertig: „Laptop eines Freundes“/.test($('.lan-status').textContent)
         && $('.lan-code').textContent !== code, $('.lan-status').textContent);
       await shot('android-05-wlan-teilen');

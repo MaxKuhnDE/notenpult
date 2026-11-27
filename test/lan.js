@@ -100,7 +100,9 @@
       check('sharing shows a code and the address', /Adresse: 127\.0\.0\.1/.test(where), where);
       await T.capture('81-wlan-teilen');
       console.log(`LANCODE ${code} ${port}`);
-      await waitFor(() => /Fertig: „.+“ hat die Noten geholt/.test(($('.lan-status') || {}).textContent), 30000, 'receiver done');
+      // "done" and the new code are two events: wait for both.
+      await waitFor(() => /Fertig: „.+“ hat die Noten geholt/.test(($('.lan-status') || {}).textContent) && $('.lan-code').textContent !== code,
+        30000, 'receiver done').catch(() => {});
       check('host shows the finished transfer and a new code', $('.lan-code').textContent !== code, $('.lan-status').textContent);
       byText('.lan-modal .btn', 'Beenden').click();
     }
