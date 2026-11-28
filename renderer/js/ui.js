@@ -290,7 +290,23 @@ export function popMenu(anchor, items, { align = 'end' } = {}) {
   closeMenu();
   const menu = h('div.menu', { role: 'menu' }, items.filter(Boolean).map((it) => {
     if (it === 'sep') return h('div.menu-sep');
+    if (it.heading && it.action) {
+      // a heading with a small button on the right (e.g. "Wie in den Einstellungen")
+      const a = it.action;
+      return h('div.menu-heading.with-action', null, h('span', null, it.heading),
+        h('button.menu-action', {
+          type: 'button',
+          disabled: a.disabled,
+          title: a.label,
+          onclick: (e) => {
+            e.stopPropagation();
+            closeMenu();
+            a.onClick?.();
+          },
+        }, a.icon ? icon(a.icon) : null, h('span', null, a.label)));
+    }
     if (it.heading) return h('div.menu-heading', null, it.heading);
+    if (it.group) return h('div.menu-group', null, it.group);
     return h(`button.menu-item${it.danger ? '.danger' : ''}${it.checked ? '.checked' : ''}`, {
       type: 'button',
       role: 'menuitem',
@@ -302,7 +318,7 @@ export function popMenu(anchor, items, { align = 'end' } = {}) {
       },
     },
     it.icon ? icon(it.icon) : h('span.ic'),
-    h('span.menu-label', null, it.label),
+    it.hint ? h('span.menu-label', null, it.label, h('span.menu-hint', null, it.hint)) : h('span.menu-label', null, it.label),
     it.checked !== undefined ? h('span.menu-check', null, it.checked ? icon('check') : null) : null);
   }));
   return placeMenu(menu, anchor, align);

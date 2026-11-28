@@ -13,10 +13,11 @@ export function clone(obj) {
 export const DEFAULT_SETTINGS = {
   theme: 'system', // 'system' | 'light' | 'dark'
   invertSheets: false, // Noten im Dunkelmodus hell-auf-dunkel darstellen
-  portraitLayout: 'auto', // see LAYOUTS
+  portraitLayout: 'auto', // Seiten auf dem Bildschirm, see LAYOUTS
   landscapeLayout: 'auto',
+  portraitFlow: 'turn', // Weiter: see FLOWS
+  landscapeFlow: 'turn',
   piecePresets: true, // im Notenmodus gewählte Ansicht je Stück und Stimme merken und benutzen
-  scrollPages: false, // mehrseitige Stücke untereinander in voller Breite zum Scrollen (je Gerät)
   autoCrop: true, // weiße Ränder automatisch abschneiden
   leftZoneBack: false, // Tippen auf linkes Viertel blättert zurück
   penAlwaysDraws: true, // Stift schreibt immer, Finger/Maus blättern
@@ -30,7 +31,6 @@ export const DEFAULT_SETTINGS = {
   volumeKeys: true, // Lautstärke- und Medientasten blättern im Notenmodus (Selfie-Auslöser, Ringe)
   wheelTurns: true, // Mausrad / Scroll-Ring blättert
   swipeTurns: true, // nach oben/unten wischen blättert
-  halfTurn: false, // halbe Seiten umblättern: oben schon die nächste Seite, unten noch die aktuelle
   faceTurns: false, // per Gesicht blättern (Kamera, face.js)
   faceGesture: 'head', // 'head' (Kopf drehen) | 'mouth' (Mund öffnen) | 'wink' (zwinkern)
   faceSensitivity: 0.5, // 0 … 1
@@ -43,17 +43,24 @@ export const DEFAULT_SETTINGS = {
 };
 
 /**
- * Page layouts: 'auto' (fill the screen) | 'two' (always two pages) | 'pair2' (two pages only for
- * 2-page pieces) | 'firstSingle' (first page alone, then two at a time) | 'single' | 'width'.
+ * Seiten auf dem Bildschirm: 'auto' (fill the screen) | 'two' (always two pages) | 'pair2' (two pages only for
+ * 2-page pieces) | 'firstSingle' (first page alone, then two at a time) | 'single'.
  */
-export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single', 'width'];
+export const LAYOUTS = ['auto', 'two', 'pair2', 'firstSingle', 'single'];
+
+/**
+ * Weiter: 'turn' (whole pages) | 'half' (the top half of the next page first) | 'scroll' (all pages of a piece
+ * one below the other in full width). Up to 2.3 these were the layout 'width' and the switches halfTurn/scrollPages.
+ */
+export const FLOWS = ['turn', 'half', 'scroll'];
+const ORIENTATIONS = ['landscape', 'portrait'];
 
 /**
  * Settings that belong to the screen, not to the library: they stay on this device when the
  * library of another device comes in ("Alles importieren", "Aus dem WLAN holen" → spiegelgleich).
  */
-export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'piecePresets', 'scrollPages', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
-  'halfTurn', 'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize',
+export const DEVICE_SETTINGS = ['landscapeLayout', 'portraitLayout', 'landscapeFlow', 'portraitFlow', 'piecePresets', 'remoteKeys', 'volumeKeys', 'wheelTurns', 'swipeTurns',
+  'faceTurns', 'faceGesture', 'faceSensitivity', 'faceSwap', 'sheetTunerSize',
   'metronomeBpm', 'sheetMetronomeSize'];
 const KEEP_DEVICE_SETTINGS = 'np-keep-device-settings';
 
@@ -501,7 +508,9 @@ function migratePiece(p) {
   for (const part of p.parts) {
     // 1.6.0 kept one layout per orientation; a device is used one way round, so one is enough.
     if (part.layout && typeof part.layout === 'object') part.layout = part.layout.landscape || part.layout.portrait;
+    if (part.layout === 'width') part.flow = 'scroll'; // up to 2.3: "Seitenbreite (scrollen)"
     if (!LAYOUTS.includes(part.layout)) delete part.layout;
+    if (!FLOWS.includes(part.flow)) delete part.flow;
   }
   return p;
 }
@@ -513,6 +522,7 @@ export async function init() {
     db.setlists = Array.isArray(saved.setlists) ? saved.setlists : [];
     db.settings = { ...DEFAULT_SETTINGS, ...(saved.settings || {}) };
     if (restoreDeviceSettings()) queueSave();
+    migrateViewSettings(db.settings);
     // In 1.0, 'two' was the default landscape view; from 1.1 on 'auto' does that job better.
     // ('two' is again a valid choice since 1.2: always two pages.)
     if ((saved.version || 1) < 2) {
@@ -549,26 +559,65 @@ function restoreDeviceSettings() {
   return true;
 }
 
-/** The layout this part chose (null: none, or presets are off). */
+/**
+ * Up to 2.3 the view was a layout per orientation (with 'width' = scroll one page) plus the switches halfTurn and
+ * scrollPages. From 2.4: "Weiter" (FLOWS) and "Seiten" (LAYOUTS) per orientation.
+ */
+export function migrateViewSettings(s) {
+  const oldScroll = s.scrollPages === true;
+  const oldHalf = s.halfTurn === true;
+  const fresh = !('scrollPages' in s) && !('halfTurn' in s);
+  for (const o of ORIENTATIONS) {
+    const lk = `${o}Layout`;
+    const fk = `${o}Flow`;
+    if (s[lk] === 'width') {
+      s[fk] = 'scroll';
+      s[lk] = 'auto';
+    } else if (!fresh && (oldScroll || oldHalf)) {
+      s[fk] = oldScroll ? 'scroll' : 'half';
+    }
+    if (!LAYOUTS.includes(s[lk])) s[lk] = 'auto';
+    if (!FLOWS.includes(s[fk])) s[fk] = 'turn';
+  }
+  delete s.scrollPages;
+  delete s.halfTurn;
+}
+
+/** The pages layout this part chose (null: none, or presets are off). */
 export const ownLayout = (part) => (db.settings.piecePresets && LAYOUTS.includes(part.layout) ? part.layout : null);
 
-/** True when the setting "Mehrseitige Stücke scrollen" makes this part scroll (it has more than one page). */
-export const scrollsByDefault = (part) => !!db.settings.scrollPages && (part.pages || []).length > 1;
+/** The way on ("Weiter") this part chose (null: none, or presets are off). */
+export const ownFlow = (part) => (db.settings.piecePresets && FLOWS.includes(part.flow) ? part.flow : null);
+
+/** "Weiter" for a part: its own or the setting for this orientation. */
+export const flowOf = (part, orientation) => ownFlow(part) || db.settings[`${orientation}Flow`] || 'turn';
+
+/** "Seiten auf dem Bildschirm" for a part: its own or the setting for this orientation. */
+export const pagesLayoutOf = (part, orientation) => ownLayout(part) || db.settings[`${orientation}Layout`] || 'auto';
 
 /**
- * Layout from the settings: 'scroll' (all pages one below the other, full width) for pieces with several pages
- * if switched on, else the one for this orientation.
+ * What the viewer does with a part: 'scroll' (all pages one below the other) when it scrolls and has more than one
+ * page – a single page just fills the screen –, otherwise its pages layout.
  */
-export const defaultLayout = (part, orientation) => (scrollsByDefault(part) ? 'scroll' : db.settings[`${orientation}Layout`]);
+export const layoutOf = (part, orientation) => (flowOf(part, orientation) === 'scroll' && (part.pages || []).length > 1
+  ? 'scroll' : pagesLayoutOf(part, orientation));
 
-/** Page layout for a part: its own (chosen in the viewer) or the one from the settings. */
-export const layoutOf = (part, orientation) => ownLayout(part) || defaultLayout(part, orientation);
-
-/** Remembers a layout for this part (Stimme) only; null: back to the setting. */
-export function setPartLayout(part, layout) {
-  if (layout) part.layout = layout;
-  else delete part.layout;
+/** Remembers "Weiter" and/or "Seiten" for this part (Stimme) only; null: back to the setting, undefined: unchanged. */
+export function setPartView(part, { layout, flow } = {}) {
+  if (layout !== undefined) {
+    if (layout) part.layout = layout;
+    else delete part.layout;
+  }
+  if (flow !== undefined) {
+    if (flow) part.flow = flow;
+    else delete part.flow;
+  }
   commit('part');
+}
+
+/** Pages layout for this part only; null: back to the settings for both "Weiter" and "Seiten". */
+export function setPartLayout(part, layout) {
+  setPartView(part, layout ? { layout } : { layout: null, flow: null });
 }
 
 // ---------- genres (#hashtags) ----------

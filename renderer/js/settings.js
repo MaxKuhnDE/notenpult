@@ -49,20 +49,26 @@ function toggle(key, label, hint) {
     h('span.switch', null, input, h('span.switch-track')));
 }
 
+const FLOWS = [
+  ['turn', 'Blättern', 'single'],
+  ['half', 'Halbe Seite', 'halfPage'],
+  ['scroll', 'Scrollen', 'width'],
+];
 const LAYOUTS = [
   ['auto', 'Automatisch', 'auto'],
+  ['single', 'Eine Seite', 'single'],
   ['two', 'Zwei Seiten', 'two'],
   ['firstSingle', 'Erste einzeln', 'firstSingle'],
   ['pair2', 'Nur 2-seitige', 'two'],
-  ['single', 'Eine Seite', 'single'],
-  ['width', 'Breite', 'width'],
 ];
 
-/** Page layout per orientation; full width so all six choices fit. */
-function layoutRow(label, key) {
-  const control = segmented(key, LAYOUTS);
-  control.classList.add('wrap');
-  return h('div.setting.stacked', null, h('div.setting-label', null, label), control);
+/** The view per orientation, in two questions like the ⋯ menu: "Weiter" and "Seiten auf dem Bildschirm". */
+function viewRow(label, orientation) {
+  const pages = segmented(`${orientation}Layout`, LAYOUTS);
+  pages.classList.add('wrap');
+  return h('div.setting.stacked.view-row', null, h('div.setting-label', null, label),
+    h('div.view-question', null, h('div.view-question-label', null, 'Weiter'), segmented(`${orientation}Flow`, FLOWS)),
+    h('div.view-question', null, h('div.view-question-label', null, 'Seiten auf dem Bildschirm'), pages));
 }
 
 /** Own accent colour: quick colours, colour field and hex input; "Standard" goes back to brass. */
@@ -211,18 +217,16 @@ export function openSettings() {
     toggle('invertSheets', 'Noten im Dunkelmodus invertieren', 'Weiße Noten auf dunklem Grund – angenehm auf dunklen Bühnen.'),
 
     h('h3.settings-section', null, 'Notenansicht'),
-    layoutRow('Querformat', 'landscapeLayout'),
-    layoutRow('Hochformat', 'portraitLayout'),
+    viewRow('Querformat', 'landscape'),
+    viewRow('Hochformat', 'portrait'),
     h('div.setting-hint.block', null,
-      '„Automatisch“ füllt den Bildschirm (A4 im Querformat nebeneinander, A5 im Hochformat untereinander). ',
-      '„Zwei Seiten“ zeigt immer zwei Seiten zusammen. ',
+      'Weiter: „Blättern“ zeigt ganze Seiten. „Halbe Seite“ zeigt beim Weiterblättern oben schon die nächste Seite, '
+      + 'während unten die aktuelle noch zu lesen ist (bei einer Seite auf dem Bildschirm). „Scrollen“ stellt alle Seiten '
+      + 'eines Stücks untereinander in voller Breite – stufenlos mit Finger, Mausrad oder Scroll-Ring; Tippen scrollt weiter. ',
+      'Seiten: „Automatisch“ füllt den Bildschirm (A4 im Querformat nebeneinander, A5 im Hochformat untereinander). ',
       '„Erste einzeln“ zeigt die erste Seite allein, danach je zwei – z. B. wenn am Ende der ersten Seite Pausentakte zum Umblättern sind. ',
-      '„Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm – ohne Umblättern –, alle anderen einseitig. ',
-      '„Breite“: Tippen scrollt erst nach unten.'),
-    toggle('scrollPages', 'Mehrseitige Stücke scrollen',
-      'Stücke mit mehreren Seiten stehen untereinander in voller Breite – mit Finger, Mausrad oder Scroll-Ring stufenlos scrollen. '
-      + 'Tippen scrollt ein Stück weiter, am Ende ins nächste Stück. Einseitige Stücke bleiben wie oben eingestellt. '
-      + 'Eine im Notenmodus für ein Stück gemerkte Ansicht geht vor. Gilt nur für dieses Gerät.'),
+      '„Nur 2-seitige“ zeigt Stücke mit genau zwei Seiten komplett auf einem Bildschirm, alle anderen einseitig. '
+      + 'Beim Scrollen gilt „Seiten“ nur für einseitige Stücke.'),
     toggle('piecePresets', 'Ansicht je Stück und Stimme merken',
       'Was du im Notenmodus über ⋯ wählst, gilt nur für dieses Stück und diese Stimme und kommt beim nächsten Öffnen wieder. '
       + 'Aus: Alle Stücke zeigen die Ansicht von oben – z. B. auf einem kleinen Tablet immer eine Seite. '
@@ -232,9 +236,6 @@ export function openSettings() {
 
     h('h3.settings-section', null, 'Blättern'),
     toggle('leftZoneBack', 'Linker Rand blättert zurück', 'Tippen ins linke Viertel geht eine Seite zurück. Sonst blättert jedes Tippen vorwärts.'),
-    toggle('halfTurn', 'Halbe Seite umblättern',
-      'Beim Weiterblättern erscheint erst die obere Hälfte der nächsten Seite, während unten die aktuelle noch zu lesen ist – '
-      + 'dann die ganze Seite. Gilt für Ansichten mit einer Seite.'),
     toggle('swipeTurns', 'Nach oben/unten wischen blättert',
       'Nach oben = weiter, nach unten = zurück. So blättern auch Scroll-Ringe („TikTok-Ringe“), die wie ein Finger wischen.'),
     toggle('wheelTurns', 'Mausrad blättert', 'Eine Drehung am Mausrad oder Scroll-Ring blättert eine Seite.'),

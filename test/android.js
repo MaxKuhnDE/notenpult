@@ -92,7 +92,7 @@
       const menuBox = $('.menu').getBoundingClientRect();
       check('long menu fits the tablet screen (scrolls)', menuBox.top >= 0 && menuBox.bottom <= window.innerHeight,
         `${Math.round(menuBox.top)}–${Math.round(menuBox.bottom)} of ${window.innerHeight}, content ${$('.menu').scrollHeight}`);
-      byText('.menu-item', 'Erste Seite einzeln, dann je zwei').click();
+      byText('.menu-item', 'Erste einzeln, dann je zwei').click();
       await sleep(150);
       await pagesReady();
       await store.flushSaves();
@@ -101,7 +101,7 @@
         && floSaved.parts[0].layout === 'firstSingle', JSON.stringify(floSaved.parts[0].layout));
       $('.viewer [title="Ansicht & mehr"]').click();
       await waitFor(() => $('.menu-item'), 3000, 'menu');
-      byText('.menu-item', 'Wie in den Einstellungen').click();
+      $('.menu-action').click(); // "Wie in den Einstellungen"
       await sleep(150);
       await pagesReady();
       const stage = $('.stage');

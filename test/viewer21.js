@@ -66,7 +66,7 @@
     };
 
     // ---------- half-page turns ----------
-    db.settings.halfTurn = true;
+    db.settings.landscapeFlow = 'half';
     store.commit('settings');
     await open();
     check('half turn: starts with page 1', sub().includes('Seite 1 von 3'), sub());
@@ -94,7 +94,7 @@
     check('last page → next piece', await turn(window.__np.next, 'Seite 1 von 2'));
     check('back: page 3, then the half turn', await turn(window.__np.prev, 'Seite 3 von 3') && await turn(window.__np.prev, 'Seite 2 unten, 3 oben'));
     window.__np.closeViewer();
-    db.settings.halfTurn = false;
+    db.settings.landscapeFlow = 'turn';
     store.commit('settings');
 
     // ---------- jump links ----------
