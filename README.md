@@ -335,6 +335,11 @@ Kamerazugriff. Gilt nur für dieses Gerät.
 Der Testdialog zeigt unten, womit erkannt wird (GPU oder CPU) und wie lange ein Bild dauert – auf älteren Tablets
 rechnet meist die CPU. Für eine gute Erkennung sollte das ganze Gesicht im Bild sein, nicht nur der obere Rand.
 
+Auf der CPU arbeitet die Erkennung mit einem kleineren Bild und höchstens 8 Bildern pro Sekunde, damit das Tablet
+nicht überlastet. Wird die App trotzdem beim Erkennen beendet, merkt sie das beim nächsten Start: War es die GPU,
+rechnet sie ab dann mit der CPU; war es die CPU, schaltet sie „Blättern per Gesicht“ aus (wieder einschaltbar,
+dann mit 5 Bildern pro Sekunde) und sagt Bescheid.
+
 ## Stimmgerät
 
 Die **Stimmgabel** oben (oder ⋯ → „Stimmgerät“ im Notenmodus) öffnet das Stimmgerät: Ton spielen – es zeigt den

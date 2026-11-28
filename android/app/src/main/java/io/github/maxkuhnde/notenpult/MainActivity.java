@@ -2,6 +2,7 @@ package io.github.maxkuhnde.notenpult;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
@@ -27,6 +28,7 @@ import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -123,6 +125,7 @@ public class MainActivity extends Activity {
     private final ExecutorService lan = Executors.newSingleThreadExecutor();
     private final SecureRandom random = new SecureRandom();
     private WebView web;
+    private boolean webGone; // the page's process ended (Android 8+): the activity starts over
     private File root;
     private File dataDir;
     private File sheetDir;
@@ -203,7 +206,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         // Android may end the app while it is in the background: write pending changes now.
-        web.evaluateJavascript("window.__npFlush && window.__npFlush()", null);
+        if (!webGone) web.evaluateJavascript("window.__npFlush && window.__npFlush()", null);
         super.onPause();
     }
 
@@ -294,7 +297,7 @@ public class MainActivity extends Activity {
         abortSession();
         lan.execute(this::stopHost);
         lan.shutdown();
-        web.destroy();
+        if (!webGone) web.destroy();
         super.onDestroy();
     }
 
@@ -314,6 +317,22 @@ public class MainActivity extends Activity {
     // ---------- requests to https://notenpult.local ----------
 
     private final class Client extends WebViewClient {
+        /**
+         * Android 8+: the page's process ran out of memory or crashed (e.g. face detection on an older tablet).
+         * Instead of closing the whole app, start the page again; it sees the crash guard and slows down.
+         */
+        @Override
+        @TargetApi(26)
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            Log.w(TAG, "WebView renderer gone (crash: " + detail.didCrash() + ")");
+            if (view != web || webGone) return true;
+            webGone = true;
+            setContentView(new View(MainActivity.this));
+            web.destroy();
+            recreate();
+            return true;
+        }
+
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             Uri url = request.getUrl();

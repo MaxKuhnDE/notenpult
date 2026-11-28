@@ -2,13 +2,17 @@
 // picture is stored or sent anywhere), and a small state machine that turns a head turn, an open
 // mouth or a wink into "next"/"prev". The state machine is a plain function (test/face.js).
 
-import { db } from './store.js';
+import { db, commit } from './store.js';
 import { h, fill, modal } from './ui.js';
 
 export const GESTURES = [['head', 'Kopf drehen'], ['mouth', 'Mund öffnen'], ['wink', 'Zwinkern']];
 const HOLD_FRAMES = 2; // a gesture has to last two pictures (a quick glance does nothing)
 const COOLDOWN_MS = 700;
 const FRAME_MS = 70; // aim for ~14 pictures a second; slower devices take what they can
+// On the CPU (older tablets) the detection gets a small picture and a calmer pace, so the device keeps up.
+const CPU_FRAME_MS = 125; // at most 8 pictures a second …
+const CPU_SLOW_FRAME_MS = 200; // … 5 after the app was ended while detecting
+const CPU_FRAME_WIDTH = 224; // px – the face model itself works on 192 × 192
 
 /**
  * Per picture { yaw (degrees, + = one side), jaw (0–1), blinkL, blinkR (0–1) } or null (no face)
@@ -83,7 +87,25 @@ export function featuresOf(result) {
 
 const BASE = new URL('../vendor/mediapipe/', document.baseURI).href;
 let landmarker = null;
-let forceCpu = false; // set when the GPU path failed while detecting
+
+// ----- crash guard: while detecting, localStorage says on which delegate. If the app is ended in the middle
+// (old tablets: the WebView runs out of memory or the graphics driver fails), the next start knows it.
+const GUARD = 'np-face-guard';
+const CPU_ONLY = 'np-face-cpu-only';
+const SLOW = 'np-face-slow';
+const ls = {
+  get(k) {
+    try { return localStorage.getItem(k); } catch { return null; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, v); } catch { /* private mode */ }
+  },
+  del(k) {
+    try { localStorage.removeItem(k); } catch { /* private mode */ }
+  },
+};
+
+let forceCpu = ls.get(CPU_ONLY) === '1'; // set when the GPU path failed (now or on an earlier start)
 let delegateInUse = null; // 'GPU' | 'CPU' – shown in the test dialog
 
 /** MediaPipe writes its start-up notes as console errors; they are no errors. */
@@ -116,15 +138,19 @@ export function loadLandmarker() {
       });
       if (!forceCpu) {
         try {
+          if (controllers.size) ls.set(GUARD, 'GPU');
           const lm = await vision.FaceLandmarker.createFromOptions(fileset, options('GPU'));
           delegateInUse = 'GPU';
+          updateGuard();
           return lm;
         } catch (err) {
           console.warn('Gesichtserkennung: GPU nicht nutzbar, nehme CPU', err);
         }
       }
+      if (controllers.size) ls.set(GUARD, 'CPU');
       const lm = await vision.FaceLandmarker.createFromOptions(fileset, options('CPU'));
       delegateInUse = 'CPU';
+      updateGuard();
       return lm;
     })();
     landmarker.catch(() => { landmarker = null; });
@@ -132,10 +158,43 @@ export function loadLandmarker() {
   return landmarker;
 }
 
+/**
+ * Called once at start: was the app ended while detecting faces? On the GPU → from now on the CPU. On the CPU →
+ * slower from now on and "Blättern per Gesicht" off (it can be switched on again). Returns a message or null.
+ */
+export function recoverFromCrash() {
+  const was = ls.get(GUARD);
+  if (!was) return null;
+  ls.del(GUARD);
+  if (was === 'GPU') {
+    ls.set(CPU_ONLY, '1');
+    forceCpu = true;
+    return 'Die Gesichtserkennung hat die App beendet. Sie rechnet auf diesem Gerät jetzt mit der CPU.';
+  }
+  ls.set(SLOW, '1');
+  if (db.settings.faceTurns) {
+    db.settings.faceTurns = false;
+    commit('settings');
+  }
+  return 'Die Gesichtserkennung hat die App beendet. „Blättern per Gesicht“ ist aus – du kannst es in den Einstellungen wieder einschalten, '
+    + 'es läuft dann langsamer und sparsamer.';
+}
+
+const guarded = () => controllers.size > 0 && document.visibilityState !== 'hidden';
+function updateGuard() {
+  if (guarded() && delegateInUse) ls.set(GUARD, delegateInUse);
+  else if (guarded() && !landmarker) ls.set(GUARD, forceCpu ? 'CPU' : 'GPU'); // still loading
+  else ls.del(GUARD);
+}
+// in the background (or the app being closed normally) there is nothing to guard
+document.addEventListener('visibilitychange', () => updateGuard());
+window.addEventListener('pagehide', () => ls.del(GUARD));
+
 /** The GPU detector keeps failing (old graphics drivers): start over on the CPU. */
 function switchToCpu() {
   if (forceCpu) return false;
   forceCpu = true;
+  ls.set(CPU_ONLY, '1');
   const old = landmarker;
   landmarker = null;
   if (old) old.then((lm) => lm.close && lm.close()).catch(() => {});
@@ -188,6 +247,22 @@ export function startFaceControl({
   };
   controllers.add(control);
 
+  // on the CPU: a small copy of the picture instead of the full video frame
+  const small = document.createElement('canvas');
+  const smallCtx = small.getContext('2d', { alpha: false });
+  const cpuPicture = () => {
+    const vw = video.videoWidth || 320;
+    const vh = video.videoHeight || 240;
+    const w = Math.min(CPU_FRAME_WIDTH, vw);
+    const hh = Math.max(1, Math.round((w * vh) / vw));
+    if (small.width !== w || small.height !== hh) {
+      small.width = w;
+      small.height = hh;
+    }
+    smallCtx.drawImage(video, 0, 0, w, hh);
+    return small;
+  };
+  let lastCost = 0;
   let failures = 0;
   let spent = 0;
   let frames = 0;
@@ -199,8 +274,9 @@ export function startFaceControl({
       const lm = await loadLandmarker();
       if (!stopped && video.readyState >= 2 && !(control.manualUntil > t0)) {
         const t1 = performance.now();
-        const result = lm.detectForVideo(video, t1);
-        spent += performance.now() - t1;
+        const result = lm.detectForVideo(delegateInUse === 'CPU' ? cpuPicture() : video, t1);
+        lastCost = performance.now() - t1;
+        spent += lastCost;
         frames += 1;
         failures = 0;
         feed(featuresOf(result), t1);
@@ -223,13 +299,21 @@ export function startFaceControl({
         return;
       }
     }
-    if (!stopped) timer = setTimeout(loop, Math.max(10, FRAME_MS - (performance.now() - t0)));
+    if (stopped) return;
+    // the CPU gets a break of at least the time the last picture took – the tablet stays responsive
+    const pace = delegateInUse === 'CPU' ? Math.max(ls.get(SLOW) ? CPU_SLOW_FRAME_MS : CPU_FRAME_MS, 2 * lastCost) : FRAME_MS;
+    timer = setTimeout(loop, Math.max(10, pace - (performance.now() - t0)));
   }
 
   (async () => {
     onStatus('Kamera wird gestartet …', true);
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user', width: { ideal: 320, max: 640 }, height: { ideal: 240, max: 480 }, frameRate: { ideal: 15, max: 30 },
+        },
+        audio: false,
+      });
       if (stopped) {
         stream.getTracks().forEach((t) => t.stop());
         return;
@@ -246,6 +330,7 @@ export function startFaceControl({
     }
     // the camera runs; now the face detection (a problem here is not the camera's)
     onStatus('Gesichtserkennung wird geladen …', true);
+    updateGuard();
     try {
       await loadLandmarker();
     } catch (err) {
@@ -264,6 +349,7 @@ export function startFaceControl({
     stopped = true;
     clearTimeout(timer);
     controllers.delete(control);
+    updateGuard();
     if (stream) stream.getTracks().forEach((t) => t.stop());
   }
   return control;

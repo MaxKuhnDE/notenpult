@@ -3,7 +3,7 @@ import {
   db, init, subscribe, commit, backend, persist, setlistQueue,
 } from './store.js';
 import {
-  h, icon, iconBtn, hasOpenModal, popMenu, closeMenu, closeTopModal,
+  h, icon, iconBtn, hasOpenModal, popMenu, closeMenu, closeTopModal, toast,
 } from './ui.js';
 import { applyTheme, isDark, toggleDark, onThemeChange } from './theme.js';
 import { renderLibrary, showGenre, endSelection } from './library.js';
@@ -241,6 +241,11 @@ async function start() {
     }
     return false;
   };
+  // Was the app ended last time while detecting faces (old tablets)? Then gentler from now on – and say so.
+  import('./face.js').then(({ recoverFromCrash }) => {
+    const msg = recoverFromCrash();
+    if (msg) toast(msg, { ms: 9000 });
+  }).catch(() => {});
   // Handle for automated smoke tests.
   window.__np = {
     store, sync, processRecords, openViewer, closeViewer, next, prev,
