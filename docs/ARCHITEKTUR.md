@@ -153,7 +153,11 @@ Verlangsamung ab. Was dafür sorgt, dass es schnell bleibt:
   kopiert von `scripts/mediapipe.js`), GPU mit Rückfall auf CPU. Aus Blendshapes (`jawOpen`, `eyeBlink…`) und der
   Kopfdrehung (Transformationsmatrix) macht `createGestureDetector` mit Haltezeit, Rückkehr zur Ausgangshaltung
   und Pause „weiter“/„zurück“. MediaPipes Startmeldungen werden aus der Konsole gefiltert. Scheitert die GPU beim
-  Erkennen dreimal hintereinander, lädt `face.js` neu auf der CPU.
+  Erkennen dreimal hintereinander, lädt `face.js` neu auf der CPU. Auf der CPU bekommt `detectForVideo` eine
+  224 px breite Kopie (Canvas) und der Takt richtet sich nach der Rechenzeit (mindestens 125 ms, 200 ms nach einem
+  Absturz). Absturz-Wächter: Solange erkannt wird, steht in `localStorage` `np-face-guard` = GPU/CPU (im
+  Hintergrund und beim normalen Schließen nicht); `recoverFromCrash()` beim Start wertet ihn aus
+  (`np-face-cpu-only`, `np-face-slow`). Android 8+: `onRenderProcessGone` startet die Activity neu.
 - CSP und WebAssembly: Windows erlaubt es mit `'wasm-unsafe-eval'`. Das Android-WebView (Chrome ≤ 95) kennt das
   nicht und braucht `'unsafe-eval'` (scripts/build-android-web.js). Electron 14 im Android-Test setzt die CSP für
   WebAssembly nicht durch – `test/android.js` prüft deshalb die Regel selbst.

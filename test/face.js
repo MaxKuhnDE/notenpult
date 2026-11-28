@@ -129,6 +129,17 @@
     window.__np.closeViewer();
     await sleep(100);
     check('camera off after the viewer', !$('.face-pill') && !face.cameraInUse());
+    // ---------- crash guard (2.3.1: the app ended while detecting on an older tablet) ----------
+    check('stopped normally: nothing marked as a crash', localStorage.getItem('np-face-guard') === null && face.recoverFromCrash() === null);
+    localStorage.setItem('np-face-guard', 'GPU');
+    const m1 = face.recoverFromCrash() || '';
+    check('ended on the GPU: next time the CPU, and a message', localStorage.getItem('np-face-cpu-only') === '1'
+      && localStorage.getItem('np-face-guard') === null && m1.includes('CPU') && db.settings.faceTurns === true, m1);
+    localStorage.setItem('np-face-guard', 'CPU');
+    const m2 = face.recoverFromCrash() || '';
+    check('ended on the CPU: "Blättern per Gesicht" off, slower from now on, a message', db.settings.faceTurns === false
+      && localStorage.getItem('np-face-slow') === '1' && m2.includes('ist aus'), m2);
+    ['np-face-cpu-only', 'np-face-slow'].forEach((k) => localStorage.removeItem(k));
     db.settings.faceTurns = false;
     store.commit('settings');
   } catch (err) {

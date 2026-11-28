@@ -5,6 +5,17 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.3.1] – 2026-11-28
+
+### Behoben
+- **Android: App stürzte beim Gesichts-Test ab** (ältere Tablets, Erkennung auf der CPU). Die CPU bekommt jetzt ein
+  kleines Bild (224 px breit) und höchstens 8 Bilder pro Sekunde, mit Pause mindestens so lang wie die Rechenzeit;
+  die Kamera liefert höchstens 640 × 480 bei 15 Bildern pro Sekunde.
+- Wird die App beim Erkennen trotzdem beendet, merkt sie es beim nächsten Start: nach einem Absturz auf der GPU
+  rechnet sie mit der CPU, nach einem auf der CPU ist „Blättern per Gesicht“ aus (wieder einschaltbar, dann
+  sparsamer mit 5 Bildern pro Sekunde) – mit Hinweis.
+- Android 8+: Stürzt die Seite ab, startet die App sie neu, statt sich zu schließen.
+
 ## [2.3.0] – 2026-11-27
 
 ### Hinzugefügt
