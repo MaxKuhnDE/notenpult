@@ -624,6 +624,16 @@ body.viewer-open #app { visibility: hidden; }
 .menu-check .ic { color: var(--accent-text); }
 .menu-sep { height: 1px; margin: 6px 4px; background: var(--border); }
 .menu-heading { padding: 8px 10px 4px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.menu-heading.with-action { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.menu-action {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--accent-text); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer;
+}
+.menu-action:hover { background: var(--hover); }
+.menu-action:disabled { color: var(--muted); opacity: 0.55; cursor: default; background: transparent; }
+.menu-action .ic { width: 14px; height: 14px; }
+.menu-group { padding: 8px 10px 2px 12px; font-size: 12.5px; font-weight: 700; color: var(--accent-text); }
+.menu-hint { display: block; font-size: 12px; color: var(--muted); }
 
 /* ===== Toast ===== */
 #toast-root {
@@ -1830,3 +1840,6 @@ button.genre-chip:hover { background: var(--hover); }
 .sheet-metronome .metro-grip { color: var(--muted); }
 .metronome-tool.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent); }
 .sheet-metronome:hover .metro-grip, .sheet-metronome.dragging .metro-grip { opacity: 0.8; }
+.view-row { gap: 10px; }
+.view-question { display: flex; flex-direction: column; gap: 6px; }
+.view-question-label { font-size: 12.5px; font-weight: 700; color: var(--muted); }

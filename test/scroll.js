@@ -1,6 +1,6 @@
-// Setting "Mehrseitige Stücke scrollen" (Einstellungen → Notenansicht): pieces with several pages stand one
-// below the other in full width and scroll; a tap scrolls on, at the end into the next piece; one-page pieces
-// keep their layout; a view remembered for a piece wins; the switch is also in the ⋯ menu.
+// "Weiter: Scrollen" (Einstellungen → Notenansicht, per orientation; ⋯ menu per piece): pieces with several pages
+// stand one below the other in full width and scroll; a tap scrolls on, at the end into the next piece; one-page
+// pieces use "Seiten"; "Seiten" is greyed out in the menu while scrolling.
 (async () => {
   const T = window.notenpult.test;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -46,24 +46,25 @@
     };
 
     // ---------- the setting ----------
-    check('off by default, belongs to the device', db.settings.scrollPages === false && store.DEVICE_SETTINGS.includes('scrollPages'));
+    check('"Blättern" by default, belongs to the device', db.settings.landscapeFlow === 'turn' && db.settings.portraitFlow === 'turn'
+      && store.DEVICE_SETTINGS.includes('landscapeFlow') && store.DEVICE_SETTINGS.includes('portraitFlow'));
     await open([alte]);
     check('off: 3 pages shown as usual (two side by side), no scrolling', boxes().length === 2 && !scrolls(), `${boxes().length}`);
     window.__np.closeViewer();
 
     $('.topbar .icon-btn:last-child').click();
-    const row = await waitFor(() => byText('.settings-modal .toggle-row', 'Mehrseitige Stücke scrollen'), 5000, 'settings');
+    const row = await waitFor(() => [...document.querySelectorAll('.settings-modal .view-row')]
+      .find((r) => r.querySelector('.setting-label').textContent === 'Querformat'), 5000, 'settings');
     const sections = [...document.querySelectorAll('.settings-modal .settings-section')];
-    const section = sections.filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
-    check('switch in the settings under "Notenansicht", after the layouts', !!section && section.textContent === 'Notenansicht'
-      && !!(byText('.settings-modal .setting-label', 'Hochformat').compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING)
-      && !row.querySelector('input').checked, section && section.textContent);
-    const body = row.closest('.modal-body');
-    if (body) body.scrollTop += row.getBoundingClientRect().top - body.getBoundingClientRect().top - 260;
-    await sleep(300);
-    row.querySelector('input').click();
+    const section = sections.filter((x) => x.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+    const qs = [...row.querySelectorAll('.view-question-label')].map((x) => x.textContent);
+    check('settings → Notenansicht → Querformat: "Weiter" and "Seiten auf dem Bildschirm"', !!section && section.textContent === 'Notenansicht'
+      && qs.join('|') === 'Weiter|Seiten auf dem Bildschirm' && document.querySelectorAll('.settings-modal .view-row').length === 2
+      && !byText('.settings-modal .toggle-row', 'Halbe Seite') && !byText('.settings-modal .toggle-row', 'scrollen'), qs.join('|'));
+    const scrollSeg = [...row.querySelectorAll('.seg')].find((b) => b.textContent === 'Scrollen');
+    scrollSeg.click();
     await sleep(200);
-    check('switched on, saved', db.settings.scrollPages === true);
+    check('Querformat → Weiter → Scrollen, saved', db.settings.landscapeFlow === 'scroll' && db.settings.portraitFlow === 'turn');
     window.__npBack();
     await sleep(200);
 
@@ -129,37 +130,57 @@
     check('a one-page piece keeps its layout (no scrolling)', boxes().length === 1 && !scrolls(), `${boxes().length} ${scrolls()}`);
     window.__np.closeViewer();
 
-    // ---------- a view remembered for a piece wins; the ⋯ menu ----------
-    store.setPartLayout(alte.parts[0], 'two');
-    await open([alte]);
-    check('a view remembered for the piece wins ("Zwei Seiten")', boxes().length === 2 && !scrolls(), `${boxes().length}`);
-    store.setPartLayout(alte.parts[0], null);
-    window.__np.closeViewer();
+    // ---------- the ⋯ menu: "Weiter" per piece, "Seiten" greyed out while scrolling ----------
     await open([alte]);
     await openMenu();
-    check('⋯ menu: "Wie in den Einstellungen (Scrollen)" is chosen', !!byText('.menu-item.checked', 'Wie in den Einstellungen (Scrollen)'));
-    const item = byText('.menu-item', 'Mehrseitige Stücke scrollen');
-    check('⋯ menu: the switch is there too, on', !!item && item.classList.contains('checked'));
-    item.click();
+    const pageItems = () => {
+      const all = [...document.querySelectorAll('.menu > *')];
+      const at = all.findIndex((x) => x.textContent === 'Seiten auf dem Bildschirm');
+      return all.slice(at + 1).filter((x) => x.classList.contains('menu-item')).slice(0, 4);
+    };
+    check('⋯ menu: "Scrollen" chosen, "Seiten" greyed out', !!byText('.menu-item.checked', 'Scrollen')
+      && pageItems().length === 4 && pageItems().every((x) => x.disabled && !x.classList.contains('checked')));
+    await sleep(400);
+    await T.capture('96-ansicht-menu');
+    byText('.menu-item', 'Blättern').click();
     await sleep(200);
     await pagesReady();
-    check('switched off in the menu: two pages again, setting saved', db.settings.scrollPages === false && boxes().length === 2 && !scrolls(),
-      `${db.settings.scrollPages} ${boxes().length}`);
+    check('"Blättern" for this piece: two pages again, remembered for the piece only', boxes().length === 2 && !scrolls()
+      && alte.parts[0].flow === 'turn' && db.settings.landscapeFlow === 'scroll', `${boxes().length} ${alte.parts[0].flow}`);
+    await openMenu();
+    check('… "Seiten" can be chosen again', pageItems().every((x) => !x.disabled) && !!byText('.menu-item.checked', 'Automatisch'));
+    $('.menu-action').click();
+    await sleep(200);
+    await pagesReady();
+    check('"Wie in den Einstellungen": scrolls again', scrolls() && !('flow' in alte.parts[0]));
+    window.__np.closeViewer();
 
-    // with "Ansicht je Stück merken" off, a view picked in the menu wins over scrolling
+    // with "Ansicht je Stück merken" off, the menu changes the setting for all pieces
     db.settings.piecePresets = false;
-    db.settings.scrollPages = true;
     store.commit('settings');
-    await sleep(200);
-    await pagesReady();
+    await open([alte]);
     check('presets off: scrolls', scrolls());
     await openMenu();
-    byText('.menu-item', 'Immer zwei Seiten').click();
+    byText('.menu-item', 'Halbe Seite blättern').click();
     await sleep(200);
     await pagesReady();
-    check('presets off: picking "Zwei Seiten" in the menu shows two pages (scrolling off)', !scrolls() && boxes().length === 2
-      && db.settings.landscapeLayout === 'two' && db.settings.scrollPages === false, `${boxes().length} ${db.settings.scrollPages}`);
+    check('presets off: "Halbe Seite blättern" changes the setting', !scrolls() && db.settings.landscapeFlow === 'half', db.settings.landscapeFlow);
     window.__np.closeViewer();
+
+    // ---------- up to 2.3: layout 'width' and the switches halfTurn / scrollPages ----------
+    const old = {
+      landscapeLayout: 'width', portraitLayout: 'two', halfTurn: true, scrollPages: false,
+    };
+    store.migrateViewSettings(old);
+    check('2.3 → 2.4: "Breite" becomes "Scrollen", "Halbe Seite umblättern" becomes "Halbe Seite"',
+      old.landscapeFlow === 'scroll' && old.landscapeLayout === 'auto' && old.portraitFlow === 'half' && old.portraitLayout === 'two'
+      && !('halfTurn' in old) && !('scrollPages' in old), JSON.stringify(old));
+    const old2 = {
+      landscapeLayout: 'single', portraitLayout: 'auto', halfTurn: true, scrollPages: true,
+    };
+    store.migrateViewSettings(old2);
+    check('… "Mehrseitige Stücke scrollen" on: both orientations scroll', old2.landscapeFlow === 'scroll' && old2.portraitFlow === 'scroll'
+      && old2.landscapeLayout === 'single', JSON.stringify(old2));
   } catch (err) {
     console.error('SMOKE FAIL', err && err.stack ? err.stack : err);
   }

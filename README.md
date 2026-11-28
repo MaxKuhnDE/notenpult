@@ -19,9 +19,9 @@ Notenpult ist ein privates Projekt für meine Band. Ich habe die App mit einem K
 - **Genres**: eigene Hashtags wie `#Marsch`, `#Polka`, `#Kirche` – mehrere pro Stück, als Filter-Chips in der
   Bibliothek und beim Zusammenstellen von Setlists; `#polka` in jeder Suche.
 - **Blättern**: Tippen oder Klicken irgendwo auf der Seite blättert weiter, am Stückende direkt ins nächste
-  Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste. Auf Wunsch **halbe Seiten**:
-  oben schon die nächste Seite, unten noch die aktuelle ([mehr](#halbe-seite-umblättern)). Oder **mehrseitige Stücke
-  scrollen**: alle Seiten untereinander, stufenlos mit Finger, Mausrad oder Scroll-Ring ([mehr](#mehrseitige-stücke-scrollen)).
+  Stück. Zurück per Wischen nach rechts oder unten, Rechtsklick, ◀ oder Pfeiltaste. Die Ansicht fragt zwei Dinge
+  ([mehr](#ansicht-weiter-und-seiten)): **Weiter** – Blättern, **halbe Seite** (oben schon die nächste Seite) oder
+  **Scrollen** (alle Seiten untereinander) – und **Seiten auf dem Bildschirm** (automatisch, eine, zwei, …).
 - **Sprung-Links** für Wiederholungen, D.S. und Coda: antippen (oder Pedal) springt zur Zielstelle, ein Knopf
   bringt dich zurück ([mehr](#sprung-links-wiederholungen-ds-coda)).
 - **Blättern per Gesicht**: Kopf drehen, Mund öffnen oder zwinkern – die Kamera vorne erkennt es, alles bleibt auf
@@ -207,36 +207,54 @@ Gut zu wissen:
 | ⟲ ⟳ | Seite um 90° drehen |
 | Lupe / Strg+F | Suche, auch im Noten-Pool |
 | F11 / Esc | Vollbild / zurück zur Übersicht |
-| ⋯ → Ansicht | Ansicht für dieses Stück und diese Stimme (siehe unten) |
-| ⋯ → Halbe Seite umblättern | erst die obere Hälfte der nächsten Seite, dann die ganze |
-| ⋯ → Mehrseitige Stücke scrollen | alle Seiten eines Stücks untereinander zum Scrollen (an/aus) |
+| ⋯ → Weiter | Blättern, Halbe Seite blättern oder Scrollen – für dieses Stück (siehe unten) |
+| ⋯ → Seiten auf dem Bildschirm | Automatisch, eine, zwei oder erst eine, dann je zwei – für dieses Stück |
 | ⋯ → Sprung-Link setzen | Wiederholung, D.S., Coda: antippen springt, „Zurück zu Seite …“ zurück |
 | Stempel-Knopf in der Leiste | Blau, Grün, Textmarker, Text, Stempel |
 | Stimmgabel oben / ⋯ → Stimmgerät | Stimmgerät |
 | Stimmgabel in der Stift-Leiste | Stimmgerät auf dem Blatt an/aus (nur die Cent) |
 | Metronom in der Stift-Leiste | Metronom auf dem Blatt an/aus (− / Tempo / + / Start-Stopp) |
 
+### Ansicht: Weiter und Seiten
+
+Die Ansicht besteht aus zwei Fragen – in *Einstellungen → Notenansicht* je für Querformat und Hochformat, im
+Notenmodus unter **⋯** für das einzelne Stück:
+
+**Weiter** – wie es weitergeht:
+- **Blättern**: ganze Seiten.
+- **Halbe Seite blättern**: siehe unten.
+- **Scrollen**: alle Seiten eines Stücks untereinander, siehe unten.
+
+**Seiten auf dem Bildschirm** – wie viele Seiten du siehst:
+- **Automatisch** füllt den Bildschirm (A4 im Querformat nebeneinander, A5 im Hochformat untereinander).
+- **Eine Seite**, **Zwei Seiten**.
+- **Erste einzeln, dann je zwei**.
+- In den Einstellungen zusätzlich **Nur 2-seitige**: zwei Seiten nur bei Stücken mit genau zwei Seiten.
+
+Beim Scrollen stehen die Seiten immer in voller Breite untereinander; „Seiten“ ist im ⋯-Menü dann ausgegraut und
+gilt nur für einseitige Stücke.
+
+![Ansicht im ⋯-Menü](docs/screenshots/ansicht-menu.png)
+
 ### Halbe Seite umblättern
 
-*Einstellungen → Blättern → „Halbe Seite umblättern“* (oder ⋯ im Notenmodus). Beim Weiterblättern zeigt die obere
+*Weiter → „Halbe Seite“*. Beim Weiterblättern zeigt die obere
 Hälfte schon den Anfang der nächsten Seite, während du unten die aktuelle zu Ende spielst – eine gestrichelte
-Linie trennt beide. Beim nächsten Blättern kommt die ganze Seite. Gilt für Ansichten mit einer Seite (z. B. das
-Tablet im Hochformat) und nur für dieses Gerät. Anmerkungen schreibst du auch dabei auf die richtige Seite.
+Linie trennt beide. Beim nächsten Blättern kommt die ganze Seite. Gilt bei einer Seite auf dem Bildschirm (z. B. das
+Tablet im Hochformat). Anmerkungen schreibst du auch dabei auf die richtige Seite.
 
 ![Halbe Seite](docs/screenshots/halbe-seite.png)
 
 ### Mehrseitige Stücke scrollen
 
-*Einstellungen → Notenansicht → „Mehrseitige Stücke scrollen“* (oder ⋯ im Notenmodus). Dann stehen alle Seiten
+*Weiter → „Scrollen“* (in den Einstellungen oder unter ⋯ für ein Stück). Dann stehen alle Seiten
 eines Stücks mit mehreren Seiten **untereinander in voller Breite**, und du scrollst stufenlos hindurch – mit dem
 Finger, dem Mausrad, dem Trackpad oder einem Scroll-Ring. Tippen (oder das Pedal) scrollt ein gutes Stück weiter,
 am Ende geht es ins nächste Stück; zurück scrollt entsprechend nach oben. Oben in der Leiste läuft die Seitenzahl
 mit, „Letzte Seite · Als Nächstes“ erscheint erst, wenn die letzte Seite zu sehen ist. Der Stift schreibt auf die
 Seite, auf der er gerade ist.
 
-Einseitige Stücke bleiben, wie unter Querformat/Hochformat eingestellt. Hast du für ein Stück im Notenmodus über ⋯
-eine eigene Ansicht gemerkt, geht die vor („Wie in den Einstellungen“ bringt das Scrollen zurück). Gilt nur für
-dieses Gerät.
+Einseitige Stücke füllen einfach den Bildschirm („Seiten auf dem Bildschirm“).
 
 ![Mehrseitige Stücke scrollen](docs/screenshots/mehrseitig-scrollen.png)
 
@@ -266,10 +284,11 @@ so setzt du schnell mehrere. Radierer und Rückgängig gelten für alles.
 
 Im Notenmodus oben rechts **⋯** antippen und unter „Ansicht für dieses Stück“ wählen:
 
-- **Automatisch**, **Immer zwei Seiten**, **Immer eine Seite**, **Seitenbreite** – wie in den Einstellungen.
-- **Erste Seite einzeln, dann je zwei** – z. B. bei drei Seiten: Seite 1 allein (am Ende stehen Pausentakte zum
-  Umblättern), Seiten 2 und 3 zusammen, weil dort keine Zeit zum Blättern ist.
-- **Wie in den Einstellungen** – vergisst die eigene Ansicht wieder.
+- **Weiter**: Blättern, Halbe Seite blättern oder Scrollen.
+- **Seiten auf dem Bildschirm**: Automatisch, Eine Seite, Zwei Seiten oder **Erste einzeln, dann je zwei** – z. B.
+  bei drei Seiten: Seite 1 allein (am Ende stehen Pausentakte zum Umblättern), Seiten 2 und 3 zusammen, weil dort
+  keine Zeit zum Blättern ist.
+- Der kleine Knopf **„Wie in den Einstellungen“** oben rechts im Menü vergisst die eigene Ansicht wieder.
 
 Die Wahl gilt nur für **dieses Stück und die gerade gezeigte Stimme** (Stimmen haben oft unterschiedlich viele
 Seiten), egal ob das Gerät quer oder hochkant steht. Sie wird sofort gespeichert und kommt beim nächsten Öffnen

@@ -5,6 +5,17 @@ Versionen nach [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [2.4.0] – 2026-11-28
+
+### Geändert
+- **Ansicht neu geordnet** – im ⋯-Menü und in *Einstellungen → Notenansicht* je zwei Fragen statt acht Punkte:
+  **Weiter** (Blättern · Halbe Seite blättern · Scrollen) und **Seiten auf dem Bildschirm** (Automatisch · Eine
+  Seite · Zwei Seiten · Erste einzeln, dann je zwei; in den Einstellungen auch „Nur 2-seitige“). Beim Scrollen ist
+  „Seiten“ ausgegraut. „Wie in den Einstellungen“ ist ein kleiner Knopf oben im Menü.
+- „Weiter“ gilt in den Einstellungen je für Querformat und Hochformat.
+- Bisherige Einstellungen werden übernommen: „Seitenbreite (scrollen)“ → Scrollen, „Halbe Seite umblättern“ →
+  Halbe Seite, „Mehrseitige Stücke scrollen“ → Scrollen; je Stück gemerkte Ansichten bleiben.
+
 ## [2.3.1] – 2026-11-28
 
 ### Behoben

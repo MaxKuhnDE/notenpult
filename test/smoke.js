@@ -133,9 +133,9 @@
     await pagesReady();
     check('keypad jumps to Nr. 48', $('.v-title').textContent === '48Alte Kameraden', $('.v-title').textContent);
 
-    // Fit-width in portrait
+    // Scrolling in portrait (Weiter: Scrollen)
     store.db.settings.invertSheets = false;
-    store.db.settings.portraitLayout = 'width';
+    store.db.settings.portraitFlow = 'scroll';
     store.commit('settings');
     await sleep(300);
     await pagesReady();
@@ -143,7 +143,9 @@
     const st = $('.stage');
     const top0 = st.scrollTop;
     window.__np.next();
-    check('fit-width mode stays in piece', $('.v-title').textContent === '48Alte Kameraden', `scroll ${top0} -> ${st.scrollTop}`);
+    check('scrolling stays in the piece', $('.v-title').textContent === '48Alte Kameraden', `scroll ${top0} -> ${st.scrollTop}`);
+    store.db.settings.portraitFlow = 'turn';
+    store.commit('settings');
 
     window.__np.closeViewer();
     await T.resize(1280, 800);

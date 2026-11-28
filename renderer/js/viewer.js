@@ -15,7 +15,7 @@
 // settings hold the layout for all other pieces.
 
 import {
-  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, scrollsByDefault, setPartLayout, uid,
+  db, commit, subscribe, pieceById, backend, pagesOf, activePart, layoutOf, ownLayout, ownFlow, flowOf, pagesLayoutOf, setPartView, uid,
 } from './store.js';
 import {
   pageView, renderView, viewTransform, toPagePixels, harmonizeViews, FULL,
@@ -43,20 +43,19 @@ const WHEEL_STEP = 50; // px of wheel movement for a page turn
 const WHEEL_PAUSE = 250; // ms without wheel events that end a turn of the wheel
 const DOUBLE_KEY_MS = 150; // selfie shutters send two keys per press: Enter and Volume up
 const FALLBACK_VIEW = { rot: 0, crop: FULL, w0: 595, h0: 842, dw: 595, dh: 842 };
-const LAYOUT_LABELS = {
-  auto: 'Automatisch (Bildschirm füllen)',
-  two: 'Immer zwei Seiten',
-  firstSingle: 'Erste Seite einzeln, dann je zwei',
-  pair2: 'Zwei Seiten nur bei 2-seitigen Stücken',
-  single: 'Immer eine Seite',
-  width: 'Seitenbreite (scrollen)',
-};
-const LAYOUT_SHORT = {
-  auto: 'Automatisch', two: 'Zwei Seiten', firstSingle: 'Erste einzeln', pair2: 'Nur 2-seitige', single: 'Eine Seite', width: 'Breite',
-};
-const LAYOUT_ICONS = {
-  auto: 'auto', two: 'two', firstSingle: 'firstSingle', pair2: 'two', single: 'single', width: 'width',
-};
+/** The ⋯ menu and the settings ask two things: how to get on ("Weiter") and how many pages to show ("Seiten"). */
+const FLOW_ITEMS = [
+  ['turn', 'Blättern', 'ganze Seiten', 'single'],
+  ['half', 'Halbe Seite blättern', 'oben schon die nächste Seite', 'halfPage'],
+  ['scroll', 'Scrollen', 'alle Seiten untereinander', 'width'],
+];
+const PAGE_ITEMS = [
+  ['auto', 'Automatisch', 'füllt den Bildschirm', 'auto'],
+  ['single', 'Eine Seite', '', 'single'],
+  ['two', 'Zwei Seiten', '', 'two'],
+  ['firstSingle', 'Erste einzeln, dann je zwei', '', 'firstSingle'],
+  ['pair2', 'Zwei nur bei 2-seitigen Stücken', '', 'two'], // only for all pieces (settings)
+];
 
 let V = null;
 let fullscreen = false;
@@ -289,13 +288,17 @@ function applyViewerTheme() {
 // ---------- layout ----------
 
 const isLandscape = () => window.innerWidth >= window.innerHeight;
-/** 'width' (one page in full width) and 'scroll' (all pages one below the other) scroll instead of turning. */
-const scrolls = (mode) => mode === 'width' || mode === 'scroll';
+/** 'scroll': all pages of the piece one below the other – scrolls instead of turning. */
+const scrolls = (mode) => mode === 'scroll';
 const orientation = () => (isLandscape() ? 'landscape' : 'portrait');
 const pieceAt = (qi) => pieceById(V.queue[qi].pieceId);
-/** Layout (store.LAYOUTS) of a piece's current part: its own or the setting. */
+/** What the viewer does with a piece's current part: 'scroll' or its pages layout (store.LAYOUTS). */
 function layoutMode(piece = pieceAt(V.qi)) {
   return layoutOf(activePart(piece), orientation());
+}
+/** "Weiter" (store.FLOWS) of a piece's current part. */
+function flowMode(piece = pieceAt(V.qi)) {
+  return flowOf(activePart(piece), orientation());
 }
 
 function stageBox() {
@@ -340,7 +343,7 @@ function screensOf(qi) {
       const pages = pagesOf(piece);
       const mode = layoutMode(piece);
       const singles = () => pages.map((_, i) => ({ idx: [i], dir: 'single' }));
-      const halves = (list) => (db.settings.halfTurn && !scrolls(mode) ? withHalfTurns(list) : list);
+      const halves = (list) => (flowMode(piece) === 'half' && !scrolls(mode) ? withHalfTurns(list) : list);
       // "Mehrseitige Stücke scrollen": the whole piece is one screen
       if (mode === 'scroll' && pages.length > 1) return [{ idx: pages.map((_, i) => i), dir: 'scroll' }];
       if (pages.length < 2 || mode === 'single' || scrolls(mode)) return halves(singles());
@@ -1486,46 +1489,52 @@ function setBarHidden(hidden) {
 }
 
 function openMore(anchor) {
-  const land = isLandscape();
-  const key = land ? 'landscapeLayout' : 'portraitLayout';
+  const o = orientation();
   const piece = pieceAt(V.qi);
   const part = activePart(piece);
   const presets = db.settings.piecePresets;
-  const own = ownLayout(part);
-  const cur = layoutMode(piece);
-  const where = land ? 'Querformat' : 'Hochformat';
+  const flow = flowOf(part, o);
+  const pages = pagesLayoutOf(part, o);
+  const own = !!(ownLayout(part) || ownFlow(part));
+  const where = o === 'landscape' ? 'Querformat' : 'Hochformat';
   const forWhat = piece.parts.length > 1 ? `„${piece.title}“ · ${part.name}` : `„${piece.title}“`;
   // With presets on, a choice here is remembered for this piece's part only; otherwise it is the setting.
-  const setLayout = (value) => {
+  const choose = (what, value) => {
     if (!presets) {
-      db.settings[key] = value;
-      // "Mehrseitige Stücke scrollen" would cover the choice for this piece: a view picked here wins
-      if (scrollsByDefault(part)) db.settings.scrollPages = false;
+      db.settings[`${o}${what === 'flow' ? 'Flow' : 'Layout'}`] = value;
       commit('settings');
       return;
     }
-    setPartLayout(part, value);
+    setPartView(part, { [what]: value });
     relayout();
-    toast(value ? `Ansicht gespeichert für ${forWhat}` : `${forWhat} folgt wieder den Einstellungen`, { ms: 2600 });
+    toast(`Ansicht gespeichert für ${forWhat}`, { ms: 2600 });
   };
-  const layoutItem = (value) => ({
-    label: LAYOUT_LABELS[value], icon: LAYOUT_ICONS[value], checked: (presets ? own : cur) === value, onClick: () => setLayout(value),
-  });
-  const layoutItems = presets
-    ? [
-      { heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'}` },
-      {
-        label: `Wie in den Einstellungen (${scrollsByDefault(part) ? 'Scrollen' : LAYOUT_SHORT[db.settings[key]]})`,
-        icon: 'settings',
-        checked: !own,
-        onClick: () => setLayout(null),
-      },
-      ...['auto', 'two', 'firstSingle', 'single', 'width'].map(layoutItem),
-    ]
-    : [
-      { heading: `Ansicht im ${where} (alle Stücke)` },
-      ...['auto', 'two', 'firstSingle', 'pair2', 'single', 'width'].map(layoutItem),
-    ];
+  const reset = () => {
+    setPartView(part, { layout: null, flow: null });
+    relayout();
+    toast(`${forWhat} folgt wieder den Einstellungen`, { ms: 2600 });
+  };
+  // scrolling shows all pages in full width: "Seiten" has nothing to say then (a one-page piece still uses it)
+  const pagesOff = flow === 'scroll' && part.pages.length > 1;
+  const layoutItems = [
+    presets
+      ? {
+        heading: `Ansicht für ${piece.parts.length > 1 ? part.name : 'dieses Stück'}`,
+        action: {
+          label: 'Wie in den Einstellungen', icon: 'refresh', disabled: !own, onClick: reset,
+        },
+      }
+      : { heading: `Ansicht im ${where} (alle Stücke)` },
+    { group: 'Weiter' },
+    ...FLOW_ITEMS.map(([value, label, hint, ic]) => ({
+      label, hint, icon: ic, checked: flow === value, onClick: () => choose('flow', value),
+    })),
+    { group: 'Seiten auf dem Bildschirm' },
+    ...PAGE_ITEMS.filter(([value]) => value !== 'pair2' || !presets).map(([value, label, hint, ic]) => ({
+      label, hint, icon: ic, checked: !pagesOff && pages === value, disabled: pagesOff, onClick: () => choose('layout', value),
+    })),
+    'sep',
+  ];
   const partItems = piece.parts.length > 1
     ? [{ heading: 'Stimme' }, ...piece.parts.map((p, i) => ({
       label: p.name, icon: 'layers', checked: i === (piece.part || 0), onClick: () => setPart(i),
@@ -1535,25 +1544,6 @@ function openMore(anchor) {
   popMenu(anchor, [
     ...partItems,
     ...layoutItems,
-    {
-      label: 'Halbe Seite umblättern',
-      icon: 'halfPage',
-      checked: !!db.settings.halfTurn,
-      onClick: () => {
-        db.settings.halfTurn = !db.settings.halfTurn;
-        commit('settings');
-      },
-    },
-    {
-      label: 'Mehrseitige Stücke scrollen',
-      icon: 'width',
-      checked: !!db.settings.scrollPages,
-      onClick: () => {
-        db.settings.scrollPages = !db.settings.scrollPages;
-        commit('settings');
-      },
-    },
-    'sep',
     { label: 'Sprung-Link setzen …', icon: 'jump', onClick: startLinkMode },
     links ? { label: `Sprung-Links (${links}) …`, icon: 'jump', onClick: manageLinks } : null,
     { label: 'Stimmgerät …', icon: 'tuner', onClick: () => openTuner() },

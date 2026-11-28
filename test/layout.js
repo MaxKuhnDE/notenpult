@@ -71,12 +71,17 @@
     await open([alte, flo]);
     check('without an own layout: "Automatisch" pairs pages 1–2', boxes() === 2 && sub().includes('Seiten 1–2 von 3'), sub());
     await openMenu();
-    check('menu: layout for this piece, standard from the settings',
-      !!byText('.menu-heading', 'Ansicht für dieses Stück') && !!byText('.menu-item.checked', 'Wie in den Einstellungen (Automatisch)')
-      && !!byText('.menu-item', 'Erste Seite einzeln, dann je zwei'));
+    const groups = [...document.querySelectorAll('.menu-group')].map((g) => g.textContent);
+    check('menu: view for this piece in two parts – "Weiter" and "Seiten auf dem Bildschirm"',
+      !!byText('.menu-heading', 'Ansicht für dieses Stück') && groups.join('|') === 'Weiter|Seiten auf dem Bildschirm'
+      && !!byText('.menu-item.checked', 'Blättern') && !!byText('.menu-item.checked', 'Automatisch')
+      && !!byText('.menu-item', 'Halbe Seite blättern') && !!byText('.menu-item', 'Scrollen')
+      && !!byText('.menu-item', 'Erste einzeln, dann je zwei') && !byText('.menu-item', 'Seitenbreite'), groups.join('|'));
+    check('… "Wie in den Einstellungen" is a small button, off while the piece follows the settings',
+      !!$('.menu-heading .menu-action') && $('.menu-action').disabled);
     await sleep(400); // menu fades in
     await T.capture('90-ansicht-je-stueck');
-    byText('.menu-item', 'Erste Seite einzeln, dann je zwei').click();
+    byText('.menu-item', 'Erste einzeln, dann je zwei').click();
     await sleep(150);
     await pagesReady();
     check('"Erste Seite einzeln": page 1 alone', boxes() === 1 && sub().includes('Seite 1 von 3'), sub());
@@ -93,7 +98,7 @@
     check('the next piece keeps the standard', title().includes('Florentiner Marsch') && boxes() === 2, `${title()} ${boxes()}`);
 
     // ---------- per part (Stimme) ----------
-    await choose('Immer eine Seite');
+    await choose('Eine Seite');
     check('Florentiner, 1. Stimme: one page', boxes() === 1 && flo.parts[0].layout === 'single');
     await openMenu();
     check('menu names the part', !!byText('.menu-heading', 'Ansicht für 1. Stimme'));
@@ -120,9 +125,13 @@
     await T.resize(1280, 800);
     await sleep(700);
     await pagesReady();
-    await choose('Wie in den Einstellungen (Automatisch)');
+    await openMenu();
+    check('own view: "Wie in den Einstellungen" can be pressed', !$('.menu-action').disabled);
+    $('.menu-action').click();
+    await sleep(150);
+    await pagesReady();
     check('"Wie in den Einstellungen" forgets the own layout', !alte.parts[0].layout && boxes() === 2, `${boxes()} ${JSON.stringify(alte.parts[0].layout)}`);
-    await choose('Erste Seite einzeln, dann je zwei');
+    await choose('Erste einzeln, dann je zwei');
     window.__np.closeViewer();
 
     // ---------- "Bearbeiten" keeps it ----------
@@ -150,9 +159,10 @@
     check('off: the piece shows the standard view', boxes() === 2 && sub().includes('Seiten 1–2 von 3'), sub());
     check('off: its own layout is kept for later', alte.parts[0].layout === 'firstSingle');
     await openMenu();
-    check('off: the menu changes the view of all pieces', !!byText('.menu-heading', 'alle Stücke') && !byText('.menu-item', 'Wie in den Einstellungen'));
+    check('off: the menu changes the view of all pieces', !!byText('.menu-heading', 'alle Stücke') && !$('.menu-action')
+      && !!byText('.menu-item', 'Zwei nur bei 2-seitigen Stücken'));
     closeMenu();
-    await choose('Immer eine Seite');
+    await choose('Eine Seite');
     check('off: a choice changes the setting, not the piece', db.settings.landscapeLayout === 'single' && alte.parts[0].layout === 'firstSingle'
       && boxes() === 1);
     window.__np.closeViewer();
